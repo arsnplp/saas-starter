@@ -8,6 +8,34 @@
       "when": 1726443359662,
       "tag": "0000_soft_the_anarchist",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1759593562195,
+      "tag": "0001_silky_medusa",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1759597912359,
+      "tag": "0002_lethal_landau",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1759616914457,
+      "tag": "0003_magical_naoko",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1759697587634,
+      "tag": "0004_cheerful_typhoid_mary",
+      "breakpoints": true
     }
   ]
 }
