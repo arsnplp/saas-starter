@@ -1,0 +1,81 @@
+🔑 [SIGN-IN] User found: { id: 1, email: 'test@test.com' }
+✅ [SIGN-IN] Session created, redirecting to dashboard
+ GET /dashboard 200 in 144ms
+ POST /sign-in 303 in 978ms
+ ○ Compiling /api/user ...
+ ✓ Compiled /api/user in 1792ms (1992 modules)
+ ✓ Compiled (1994 modules)
+ GET /api/user 200 in 3212ms
+ GET /api/team 200 in 3279ms
+Error: Route "/dashboard/leads" used `searchParams.f_status`. `searchParams` should be awaited before using its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis
+    at LeadsPage (app/(dashboard)/dashboard/leads/page.tsx:168:36)
+  166 |
+  167 |     // ---- Lecture des filtres depuis l'URL (noms préfixés pour éviter tout conflit)
+> 168 |     const rawStatus = (searchParams.f_status ?? "").trim();
+      |                                    ^
+  169 |     const statusFilter: Status | undefined =
+  170 |         rawStatus && StatusSchema.safeParse(rawStatus).success ? (rawStatus as Status) : undefined;
+  171 |
+Error: Route "/dashboard/leads" used `searchParams.f_from`. `searchParams` should be awaited before using its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis
+    at LeadsPage (app/(dashboard)/dashboard/leads/page.tsx:172:34)
+  170 |         rawStatus && StatusSchema.safeParse(rawStatus).success ? (rawStatus as Status) : undefined;
+  171 |
+> 172 |     const fromDate = searchParams.f_from ? new Date(`${searchParams.f_from}T00:00:00.000Z`) : undefined;
+      |                                  ^
+  173 |     const toDate = searchParams.f_to ? new Date(`${searchParams.f_to}T23:59:59.999Z`) : undefined;
+  174 |
+  175 |     const orderBy = searchParams.f_order === "oldest" ? asc(leadsTable.createdAt) : desc(leadsTable.createdAt);
+Error: Route "/dashboard/leads" used `searchParams.f_to`. `searchParams` should be awaited before using its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis
+    at LeadsPage (app/(dashboard)/dashboard/leads/page.tsx:173:32)
+  171 |
+  172 |     const fromDate = searchParams.f_from ? new Date(`${searchParams.f_from}T00:00:00.000Z`) : undefined;
+> 173 |     const toDate = searchParams.f_to ? new Date(`${searchParams.f_to}T23:59:59.999Z`) : undefined;
+      |                                ^
+  174 |
+  175 |     const orderBy = searchParams.f_order === "oldest" ? asc(leadsTable.createdAt) : desc(leadsTable.createdAt);
+  176 |
+Error: Route "/dashboard/leads" used `searchParams.f_order`. `searchParams` should be awaited before using its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis
+    at LeadsPage (app/(dashboard)/dashboard/leads/page.tsx:175:33)
+  173 |     const toDate = searchParams.f_to ? new Date(`${searchParams.f_to}T23:59:59.999Z`) : undefined;
+  174 |
+> 175 |     const orderBy = searchParams.f_order === "oldest" ? asc(leadsTable.createdAt) : desc(leadsTable.createdAt);
+      |                                 ^
+  176 |
+  177 |     // ---- Construit les conditions dynamiques
+  178 |     const conditions: any[] = [eq(leadsTable.teamId, team.id)];
+Error: Route "/dashboard/leads" used `searchParams.f_from`. `searchParams` should be awaited before using its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis
+    at LeadsPage (app/(dashboard)/dashboard/leads/page.tsx:225:80)
+  223 |                 <div className="flex flex-col">
+  224 |                     <label className="text-xs text-gray-600 mb-1">Du</label>
+> 225 |                     <input type="date" name="f_from" defaultValue={searchParams.f_from ?? ""} className="border rounded p-2" />
+      |                                                                                ^
+  226 |                 </div>
+  227 |
+  228 |                 <div className="flex flex-col">
+Error: Route "/dashboard/leads" used `searchParams.f_to`. `searchParams` should be awaited before using its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis
+    at LeadsPage (app/(dashboard)/dashboard/leads/page.tsx:230:78)
+  228 |                 <div className="flex flex-col">
+  229 |                     <label className="text-xs text-gray-600 mb-1">Au</label>
+> 230 |                     <input type="date" name="f_to" defaultValue={searchParams.f_to ?? ""} className="border rounded p-2" />
+      |                                                                              ^
+  231 |                 </div>
+  232 |
+  233 |                 <div className="flex flex-col">
+Error: Route "/dashboard/leads" used `searchParams.f_order`. `searchParams` should be awaited before using its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis
+    at LeadsPage (app/(dashboard)/dashboard/leads/page.tsx:235:70)
+  233 |                 <div className="flex flex-col">
+  234 |                     <label className="text-xs text-gray-600 mb-1">Tri</label>
+> 235 |                     <select name="f_order" defaultValue={searchParams.f_order === "oldest" ? "oldest" : "newest"} className="border rounded p-2 min-w-[160px]">
+      |                                                                      ^
+  236 |                         <option value="newest">Plus récent d’abord</option>
+  237 |                         <option value="oldest">Plus ancien d’abord</option>
+  238 |                     </select>
+ GET /dashboard/leads 200 in 939ms
+ GET /api/user 200 in 68ms
+ POST /dashboard/leads 200 in 47ms
+ ○ Compiling /_not-found ...
+ ✓ Compiled /_not-found in 753ms (1995 modules)
+ GET /leads?f_status=&f_from=&f_to=&f_order=newest 404 in 1510ms
+ GET / 200 in 69ms
+ GET / 200 in 30ms
+ GET /api/user 200 in 67ms

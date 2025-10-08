@@ -1,0 +1,40 @@
+Objectif
+Mettre en place une config centralisée et testable pour l’ingestion :
+Variables d’environnement : LINKUP_API_BASE, LINKUP_API_KEY, LINKUP_MOCK, INGEST_API_TOKEN.
+Mode MOCK : si LINKUP_MOCK=1, ne jamais appeler l’API externe et renvoyer { items: [], mock: true }.
+Sécurité : tous les endpoints /api/ingest/* doivent exiger le header Authorization: Bearer <INGEST_API_TOKEN>, sinon 401.
+À faire (exigences techniques)
+Lecture des env
+Charger LINKUP_API_BASE (defaut: https://api.linkupapi.com).
+Charger LINKUP_API_KEY (obligatoire quand LINKUP_MOCK=0).
+Charger LINKUP_MOCK (string "0"/"1").
+Charger INGEST_API_TOKEN (obligatoire).
+Middleware d’auth pour ingestion
+Créer une fonction réutilisable requireIngestAuth(req) qui :
+Lit Authorization (format exact Bearer <token>).
+Compare <token> à process.env.INGEST_API_TOKEN.
+Si absent/mauvais → retourner une réponse 401 : { error: "unauthorized" }.
+Sinon → laisser continuer.
+Client Linkup “mockable”
+Créer un wrapper linkup(path: string, body: any) qui :
+Si LINKUP_MOCK === "1" → retourne immédiatement { items: [], mock: true } (sans fetch).
+Sinon → POST JSON vers ${LINKUP_API_BASE}${path} avec headers :
+Content-Type: application/json
+x-api-key: ${LINKUP_API_KEY}
+Gestion d’erreurs :
+Si LINKUP_API_KEY manquant en mode non-mock → lever une erreur descriptive.
+Si réponse HTTP 429/5xx → retry exponentiel avec jitter, max 5 tentatives.
+En échec final → throw une erreur structurée (status + extrait body).
+Brancher sur tous les endpoints /api/ingest/*
+En tout début de chaque route : appeler requireIngestAuth(req) et renvoyer 401 si invalide.
+Utiliser le client linkup(...) pour les appels externes (ou mock s’il est activé).
+La sortie des endpoints d’ingestion doit contenir toujours le champ mock (booléen).
+Logs (minimaux)
+Lors du retour d’un endpoint d’ingestion : log info avec source, count, mock.
+En 401 : log warn “unauthorized ingestion”.
+En mock : log info “mock mode”.
+Critères d’acceptation (DoD)
+Avec LINKUP_MOCK=1, tous les endpoints /api/ingest/* renvoient des payloads avec mock: true et aucun appel réseau n’est émis.
+Une requête sur /api/ingest/* sans header Authorization: Bearer <INGEST_API_TOKEN> renvoie 401 avec { "error": "unauthorized" }.
+Avec LINKUP_MOCK=0 et LINKUP_API_KEY valide, mock: false et l’appel réseau est bien effectué.
+Si LINKUP_MOCK=0 mais LINKUP_API_KEY est manquante, l’endpoint renvoie une erreur claire (4xx/5xx) avec un message explicite “Missing LINKUP_API_KEY”.
