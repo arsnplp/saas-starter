@@ -50,10 +50,21 @@ export async function setSession(user: NewUser) {
     expires: expiresInOneDay.toISOString(),
   };
   const encryptedSession = await signToken(session);
-  (await cookies()).set('session', encryptedSession, {
+  
+  console.log('🍪 [SET-SESSION] Creating session cookie for user:', user.id);
+  console.log('🍪 [SET-SESSION] Session expires:', expiresInOneDay.toISOString());
+  
+  const cookieOptions = {
     expires: expiresInOneDay,
     httpOnly: true,
-    secure: true,
-    sameSite: 'lax',
-  });
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax' as const,
+    path: '/',
+  };
+  
+  console.log('🍪 [SET-SESSION] Cookie options:', cookieOptions);
+  
+  (await cookies()).set('session', encryptedSession, cookieOptions);
+  
+  console.log('✅ [SET-SESSION] Session cookie set successfully');
 }
