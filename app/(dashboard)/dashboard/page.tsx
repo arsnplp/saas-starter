@@ -291,14 +291,14 @@ function QuickLinks() {
       <CardContent>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {links.map((link) => (
-            <Link
+            <a
               key={link.href}
               href={link.href}
-              className="p-4 rounded-lg border hover:border-orange-500 hover:bg-orange-50 transition-colors"
+              className="p-4 rounded-lg border hover:border-orange-500 hover:bg-orange-50 transition-colors block"
             >
               <h3 className="font-medium mb-1">{link.label}</h3>
               <p className="text-sm text-muted-foreground">{link.description}</p>
-            </Link>
+            </a>
           ))}
         </div>
       </CardContent>

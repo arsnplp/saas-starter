@@ -57,14 +57,18 @@ export async function setSession(user: NewUser) {
   const cookieOptions = {
     expires: expiresInOneDay,
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
+    secure: false,
     sameSite: 'lax' as const,
     path: '/',
+    domain: '.spock.replit.dev',
   };
   
   console.log('🍪 [SET-SESSION] Cookie options:', cookieOptions);
+  console.log('🍪 [SET-SESSION] Encrypted session length:', encryptedSession.length);
   
-  (await cookies()).set('session', encryptedSession, cookieOptions);
+  const cookieStore = await cookies();
+  cookieStore.set('session', encryptedSession, cookieOptions);
   
-  console.log('✅ [SET-SESSION] Session cookie set successfully');
+  const verifySet = cookieStore.get('session');
+  console.log('✅ [SET-SESSION] Session cookie set, verification:', !!verifySet);
 }
