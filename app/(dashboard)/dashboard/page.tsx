@@ -269,10 +269,48 @@ function InviteTeamMember() {
   );
 }
 
+function QuickLinks() {
+  const links = [
+    { href: '/leads', label: 'Leads', description: 'Gérer tous vos leads' },
+    { href: '/leads/chaud', label: 'Lead Chaud', description: 'Leads depuis vos posts' },
+    { href: '/leads/espion', label: 'Lead Espion', description: 'Leads depuis posts concurrents' },
+    { href: '/leads/magnet', label: 'Lead Magnet', description: 'Leads filtrés et ciblés' },
+    { href: '/leads/froid', label: 'Lead Froid', description: 'Recherche de leads basée sur ICP' },
+    { href: '/dashboard/activity', label: 'Activité', description: 'Historique des actions' },
+    { href: '/dashboard/general', label: 'Paramètres généraux', description: 'Configuration du compte' },
+    { href: '/dashboard/security', label: 'Sécurité', description: 'Gérer la sécurité' },
+    { href: '/pricing', label: 'Tarifs', description: 'Plans et facturation' },
+  ];
+
+  return (
+    <Card className="mb-8">
+      <CardHeader>
+        <CardTitle>Accès rapide</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {links.map((link) => (
+            <a
+              key={link.href}
+              href={link.href}
+              className="p-4 rounded-lg border hover:border-orange-500 hover:bg-orange-50 transition-colors"
+            >
+              <h3 className="font-medium mb-1">{link.label}</h3>
+              <p className="text-sm text-muted-foreground">{link.description}</p>
+            </a>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function SettingsPage() {
   return (
     <section className="flex-1 p-4 lg:p-8">
-      <h1 className="text-lg lg:text-2xl font-medium mb-6">Team Settings</h1>
+      <h1 className="text-lg lg:text-2xl font-medium mb-6">Dashboard</h1>
+      <QuickLinks />
+      <h2 className="text-lg font-medium mb-4 mt-8">Team Settings</h2>
       <Suspense fallback={<SubscriptionSkeleton />}>
         <ManageSubscription />
       </Suspense>
