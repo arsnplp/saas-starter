@@ -40,14 +40,9 @@ type Status = z.infer<typeof StatusSchema>;
 export async function createLead(formData: FormData) {
     "use server";
     
-    const user = await getUser();
-    if (!user) {
-        throw new Error('User not authenticated');
-    }
-
-    const team = await getTeamForUser();
-    if (!team) {
-        throw new Error('User has no team');
+    const teamId = parseInt(String(formData.get("teamId") || "0"));
+    if (!teamId) {
+        throw new Error('Team ID manquant');
     }
 
     const raw = {
@@ -69,7 +64,7 @@ export async function createLead(formData: FormData) {
     if (firstName && lastName) {
         const existingLead = await db.query.leads.findFirst({
             where: and(
-                eq(leadsTable.teamId, team.id),
+                eq(leadsTable.teamId, teamId),
                 eq(leadsTable.firstName, firstName),
                 eq(leadsTable.lastName, lastName)
             ),
@@ -83,7 +78,7 @@ export async function createLead(formData: FormData) {
 
     const toInsert = {
         ...parsed.data,
-        teamId: team.id,
+        teamId,
         linkedinUrl: parsed.data.linkedinUrl || undefined,
         sourceMode: 'froid',
         status: 'new',
@@ -159,6 +154,16 @@ export default async function LeadsPage({
                                         }: {
     searchParams: { f_status?: string; f_from?: string; f_to?: string; f_order?: "newest" | "oldest" };
 }) {
+    const user = await getUser();
+    if (!user) {
+        return <div className="p-8">Vous devez être connecté pour voir cette page.</div>;
+    }
+
+    const team = await getTeamForUser();
+    if (!team) {
+        return <div className="p-8">Vous devez faire partie d'une équipe.</div>;
+    }
+
     // ---- Lecture des filtres depuis l'URL (noms préfixés pour éviter tout conflit)
     const rawStatus = (searchParams.f_status ?? "").trim();
     const statusFilter: Status | undefined =
@@ -170,7 +175,7 @@ export default async function LeadsPage({
     const orderBy = searchParams.f_order === "oldest" ? asc(leadsTable.createdAt) : desc(leadsTable.createdAt);
 
     // ---- Construit les conditions dynamiques
-    const conditions: any[] = [];
+    const conditions: any[] = [eq(leadsTable.teamId, team.id)];
     if (statusFilter) conditions.push(eq(leadsTable.status, statusFilter));
     if (fromDate && !Number.isNaN(fromDate.getTime())) conditions.push(gte(leadsTable.createdAt, fromDate));
     if (toDate && !Number.isNaN(toDate.getTime())) conditions.push(lte(leadsTable.createdAt, toDate));
@@ -188,6 +193,7 @@ export default async function LeadsPage({
 
             {/* Formulaire d’ajout */}
             <form action={createLead} className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 rounded-xl border">
+                <input type="hidden" name="teamId" value={team.id} />
                 <input className="border rounded-lg p-2" name="email" placeholder="Email *" required />
                 <input className="border rounded-lg p-2" name="company" placeholder="Entreprise" />
                 <input className="border rounded-lg p-2" name="firstName" placeholder="Prénom" />
