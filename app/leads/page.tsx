@@ -6,7 +6,7 @@ import { and, asc, desc, eq, gte, lte, sql } from "drizzle-orm";
 
 import { db } from "@/lib/db";
 import { leads as leadsTable } from "@/lib/db/schema";
-import { getUser } from "@/lib/auth/session";
+import { getUser, getTeamForUser } from "@/lib/db/queries";
 import CopyButton from "@/components/CopyButton";
 import LeadStatusForm from "@/components/LeadStatusForm";
 import MarkContactedButton from "@/components/MarkContactedButton";
@@ -45,8 +45,8 @@ export async function createLead(formData: FormData) {
         throw new Error('User not authenticated');
     }
 
-    const teamId = user.teamId;
-    if (!teamId) {
+    const team = await getTeamForUser();
+    if (!team) {
         throw new Error('User has no team');
     }
 
@@ -63,9 +63,27 @@ export async function createLead(formData: FormData) {
     const parsed = LeadSchema.safeParse(raw);
     if (!parsed.success) return;
 
+    const firstName = parsed.data.firstName?.trim() || '';
+    const lastName = parsed.data.lastName?.trim() || '';
+    
+    if (firstName && lastName) {
+        const existingLead = await db.query.leads.findFirst({
+            where: and(
+                eq(leadsTable.teamId, team.id),
+                eq(leadsTable.firstName, firstName),
+                eq(leadsTable.lastName, lastName)
+            ),
+        });
+
+        if (existingLead) {
+            console.error('Un lead avec ce nom et prénom existe déjà');
+            return;
+        }
+    }
+
     const toInsert = {
         ...parsed.data,
-        teamId,
+        teamId: team.id,
         linkedinUrl: parsed.data.linkedinUrl || undefined,
         sourceMode: 'froid',
         status: 'new',
