@@ -9,25 +9,14 @@ export async function middleware(request: NextRequest) {
   const sessionCookie = request.cookies.get('session');
   const isProtectedRoute = protectedRoutes.some(route => pathname.startsWith(route));
 
-  console.log('🔒 [MIDDLEWARE]', {
-    pathname,
-    hasSession: !!sessionCookie,
-    cookieValue: sessionCookie?.value?.substring(0, 30) + '...',
-    isProtected: isProtectedRoute,
-    method: request.method
-  });
-
   if (isProtectedRoute) {
     if (!sessionCookie) {
-      console.log('❌ [MIDDLEWARE] No session cookie on protected route, redirecting to sign-in');
       return NextResponse.redirect(new URL('/sign-in', request.url));
     }
 
     try {
-      const parsed = await verifyToken(sessionCookie.value);
-      console.log('✅ [MIDDLEWARE] Session valid for user:', parsed.user.id);
+      await verifyToken(sessionCookie.value);
     } catch (error) {
-      console.error('❌ [MIDDLEWARE] Session verification failed:', error);
       const res = NextResponse.redirect(new URL('/sign-in', request.url));
       res.cookies.set({
         name: 'session',

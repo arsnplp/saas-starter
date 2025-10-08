@@ -1,64 +1,24 @@
 'use client';
 
 import Link from 'next/link';
-import { useSearchParams, useRouter } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { CircleIcon, Loader2 } from 'lucide-react';
-import { signUp } from './actions';
-import { useState, FormEvent } from 'react';
+import { signIn, signUp } from './actions';
+import { useActionState } from 'react';
+import { ActionState } from '@/lib/auth/middleware';
 
 export function Login({ mode = 'signin' }: { mode?: 'signin' | 'signup' }) {
   const searchParams = useSearchParams();
-  const router = useRouter();
   const redirect = searchParams.get('redirect');
   const priceId = searchParams.get('priceId');
   const inviteId = searchParams.get('inviteId');
-  const [error, setError] = useState('');
-  const [pending, setPending] = useState(false);
-
-  async function handleSignIn(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    setPending(true);
-    setError('');
-
-    const formData = new FormData(e.currentTarget);
-    const email = formData.get('email') as string;
-    const password = formData.get('password') as string;
-
-    try {
-      const res = await fetch('/api/auth/signin', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        setError(data.error || 'An error occurred');
-        setPending(false);
-        return;
-      }
-
-      console.log('✅ [CLIENT] Login successful, token received:', !!data.token);
-      
-      if (data.token) {
-        document.cookie = `session=${data.token}; path=/; max-age=86400; SameSite=Lax`;
-        console.log('🍪 [CLIENT] Cookie set via document.cookie');
-        console.log('🍪 [CLIENT] Cookies after set:', document.cookie);
-      }
-
-      setTimeout(() => {
-        console.log('🔄 [CLIENT] Redirecting to dashboard...');
-        window.location.href = '/dashboard';
-      }, 1000);
-    } catch (err) {
-      setError('An error occurred. Please try again.');
-      setPending(false);
-    }
-  }
+  const [state, formAction, pending] = useActionState<ActionState, FormData>(
+    mode === 'signin' ? signIn : signUp,
+    { error: '' }
+  );
 
   return (
     <div className="min-h-[100dvh] flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8 bg-gray-50">
@@ -74,7 +34,7 @@ export function Login({ mode = 'signin' }: { mode?: 'signin' | 'signup' }) {
       </div>
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-        <form className="space-y-6" onSubmit={mode === 'signin' ? handleSignIn : undefined} action={mode === 'signup' ? signUp : undefined}>
+        <form className="space-y-6" action={formAction}>
           <input type="hidden" name="redirect" value={redirect || ''} />
           <input type="hidden" name="priceId" value={priceId || ''} />
           <input type="hidden" name="inviteId" value={inviteId || ''} />
@@ -91,6 +51,7 @@ export function Login({ mode = 'signin' }: { mode?: 'signin' | 'signup' }) {
                 name="email"
                 type="email"
                 autoComplete="email"
+                defaultValue={state.email}
                 required
                 maxLength={50}
                 className="appearance-none rounded-full relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-orange-500 focus:border-orange-500 focus:z-10 sm:text-sm"
@@ -114,6 +75,7 @@ export function Login({ mode = 'signin' }: { mode?: 'signin' | 'signup' }) {
                 autoComplete={
                   mode === 'signin' ? 'current-password' : 'new-password'
                 }
+                defaultValue={state.password}
                 required
                 minLength={8}
                 maxLength={100}
@@ -123,8 +85,8 @@ export function Login({ mode = 'signin' }: { mode?: 'signin' | 'signup' }) {
             </div>
           </div>
 
-          {error && (
-            <div className="text-red-500 text-sm">{error}</div>
+          {state?.error && (
+            <div className="text-red-500 text-sm">{state.error}</div>
           )}
 
           <div>

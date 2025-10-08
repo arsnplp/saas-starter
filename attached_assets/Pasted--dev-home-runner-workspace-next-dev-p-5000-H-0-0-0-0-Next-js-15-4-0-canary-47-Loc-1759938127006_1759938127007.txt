@@ -1,0 +1,202 @@
+> @ dev /home/runner/workspace
+> next dev -p 5000 -H 0.0.0.0
+
+   ▲ Next.js 15.4.0-canary.47
+   - Local:        http://localhost:5000
+   - Network:      http://0.0.0.0:5000
+   - Environments: .env
+   - Experiments (use with caution):
+     ✓ ppr
+     ✓ nodeMiddleware
+     ✓ clientSegmentCache
+
+ ✓ Starting...
+ ✓ Ready in 2.3s
+ ○ Compiling /_not-found ...
+ ✓ Compiled /_not-found in 2.1s (174 modules)
+ ✓ Compiled in 81.2s (358 modules)
+🔒 [MIDDLEWARE] {
+  pathname: '/',
+  hasSession: false,
+  cookieValue: 'undefined...',
+  isProtected: false,
+  method: 'GET'
+}
+🔒 [MIDDLEWARE] {
+  pathname: '/',
+  hasSession: false,
+  cookieValue: 'undefined...',
+  isProtected: false,
+  method: 'GET'
+}
+ ○ Compiling / ...
+ ✓ Compiled / in 10.7s (1932 modules)
+ GET / 200 in 10464ms
+ ✓ Compiled /api/user in 472ms (1936 modules)
+ ⚠ Cross origin request detected from dcbf23d9-46ed-499d-9a94-c2fd5826b035-00-2vo8j2e80ihth.spock.replit.dev to /_next/* resource. In a future major version of Next.js, you will need to explicitly configure "allowedDevOrigins" in next.config to allow this.
+Read more: https://nextjs.org/docs/app/api-reference/config/next-config-js/allowedDevOrigins
+ GET /api/user 200 in 791ms
+ ✓ Compiled in 1404ms (491 modules)
+🔒 [MIDDLEWARE] {
+  pathname: '/',
+  hasSession: false,
+  cookieValue: 'undefined...',
+  isProtected: false,
+  method: 'GET'
+}
+ ✓ Compiled in 1083ms (491 modules)
+ GET / 200 in 357ms
+🔒 [MIDDLEWARE] {
+  pathname: '/',
+  hasSession: false,
+  cookieValue: 'undefined...',
+  isProtected: false,
+  method: 'GET'
+}
+ GET / 200 in 40ms
+🔒 [MIDDLEWARE] {
+  pathname: '/sign-up',
+  hasSession: false,
+  cookieValue: 'undefined...',
+  isProtected: false,
+  method: 'GET'
+}
+ ○ Compiling /sign-up ...
+ ✓ Compiled /sign-up in 734ms (1952 modules)
+ GET /sign-up 200 in 994ms
+🔒 [MIDDLEWARE] {
+  pathname: '/',
+  hasSession: false,
+  cookieValue: 'undefined...',
+  isProtected: false,
+  method: 'GET'
+}
+ GET / 200 in 240ms
+🔒 [MIDDLEWARE] {
+  pathname: '/',
+  hasSession: false,
+  cookieValue: 'undefined...',
+  isProtected: false,
+  method: 'GET'
+}
+ GET / 200 in 77ms
+ GET /api/user 200 in 15ms
+🔒 [MIDDLEWARE] {
+  pathname: '/',
+  hasSession: true,
+  cookieValue: 'eyJhbGciOiJIUzI1NiJ9.eyJ1c2VyI...',
+  isProtected: false,
+  method: 'GET'
+}
+ GET / 200 in 1612ms
+ GET /api/user 200 in 72ms
+🔒 [MIDDLEWARE] {
+  pathname: '/dashboard',
+  hasSession: true,
+  cookieValue: 'eyJhbGciOiJIUzI1NiJ9.eyJ1c2VyI...',
+  isProtected: true,
+  method: 'GET'
+}
+✅ [MIDDLEWARE] Session valid for user: 1
+ ○ Compiling /dashboard ...
+ ✓ Compiled /dashboard in 870ms (1991 modules)
+ GET /dashboard 200 in 1140ms
+🔒 [MIDDLEWARE] {
+  pathname: '/dashboard',
+  hasSession: true,
+  cookieValue: 'eyJhbGciOiJIUzI1NiJ9.eyJ1c2VyI...',
+  isProtected: true,
+  method: 'GET'
+}
+✅ [MIDDLEWARE] Session valid for user: 1
+ GET /dashboard 200 in 17ms
+ ○ Compiling /api/team ...
+ GET /api/user 200 in 744ms
+ ✓ Compiled /api/team in 1002ms (1993 modules)
+🔒 [MIDDLEWARE] {
+  pathname: '/dashboard',
+  hasSession: true,
+  cookieValue: 'eyJhbGciOiJIUzI1NiJ9.eyJ1c2VyI...',
+  isProtected: true,
+  method: 'GET'
+}
+✅ [MIDDLEWARE] Session valid for user: 1
+ GET /dashboard 200 in 51ms
+ GET /api/team 200 in 1553ms
+🔒 [MIDDLEWARE] {
+  pathname: '/dashboard/leads',
+  hasSession: true,
+  cookieValue: 'eyJhbGciOiJIUzI1NiJ9.eyJ1c2VyI...',
+  isProtected: true,
+  method: 'GET'
+}
+✅ [MIDDLEWARE] Session valid for user: 1
+ GET /dashboard/leads 404 in 570ms
+🔒 [MIDDLEWARE] {
+  pathname: '/',
+  hasSession: true,
+  cookieValue: 'eyJhbGciOiJIUzI1NiJ9.eyJ1c2VyI...',
+  isProtected: false,
+  method: 'GET'
+}
+ GET / 200 in 251ms
+ GET /api/user 200 in 9ms
+🔒 [MIDDLEWARE] {
+  pathname: '/sign-up',
+  hasSession: false,
+  cookieValue: 'undefined...',
+  isProtected: false,
+  method: 'GET'
+}
+ GET /sign-up 200 in 31ms
+🔒 [MIDDLEWARE] {
+  pathname: '/sign-in',
+  hasSession: false,
+  cookieValue: 'undefined...',
+  isProtected: false,
+  method: 'GET'
+}
+ ✓ Compiled /sign-in in 482ms (1995 modules)
+ GET /sign-in 200 in 656ms
+ ○ Compiling /api/auth/signin ...
+ ✓ Compiled /api/auth/signin in 1690ms (2009 modules)
+🔑 [API-SIGN-IN] User found: { id: 1, email: 'test@test.com' }
+🍪 [API-SIGN-IN] Creating session cookie
+✅ [API-SIGN-IN] Session token returned
+ POST /api/auth/signin 200 in 2620ms
+🔒 [MIDDLEWARE] {
+  pathname: '/dashboard',
+  hasSession: false,
+  cookieValue: 'undefined...',
+  isProtected: true,
+  method: 'GET'
+}
+❌ [MIDDLEWARE] No session cookie on protected route, redirecting to sign-in
+🔒 [MIDDLEWARE] {
+  pathname: '/sign-in',
+  hasSession: false,
+  cookieValue: 'undefined...',
+  isProtected: false,
+  method: 'GET'
+}
+ GET /sign-in 200 in 164ms
+🔑 [API-SIGN-IN] User found: { id: 1, email: 'test@test.com' }
+🍪 [API-SIGN-IN] Creating session cookie
+✅ [API-SIGN-IN] Session token returned
+ POST /api/auth/signin 200 in 569ms
+🔒 [MIDDLEWARE] {
+  pathname: '/dashboard',
+  hasSession: false,
+  cookieValue: 'undefined...',
+  isProtected: true,
+  method: 'GET'
+}
+❌ [MIDDLEWARE] No session cookie on protected route, redirecting to sign-in
+🔒 [MIDDLEWARE] {
+  pathname: '/sign-in',
+  hasSession: false,
+  cookieValue: 'undefined...',
+  isProtected: false,
+  method: 'GET'
+}
+ GET /sign-in 200 in 37ms

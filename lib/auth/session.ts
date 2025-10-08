@@ -51,23 +51,14 @@ export async function setSession(user: NewUser) {
   };
   const encryptedSession = await signToken(session);
   
-  console.log('🍪 [SET-SESSION] Creating session cookie for user:', user.id);
-  console.log('🍪 [SET-SESSION] Session expires:', expiresInOneDay.toISOString());
-  
   const cookieOptions = {
     expires: expiresInOneDay,
-    httpOnly: false,
+    httpOnly: true,
     secure: false,
     sameSite: 'lax' as const,
     path: '/',
   };
   
-  console.log('🍪 [SET-SESSION] Cookie options:', cookieOptions);
-  console.log('🍪 [SET-SESSION] Encrypted session length:', encryptedSession.length);
-  
   const cookieStore = await cookies();
   cookieStore.set('session', encryptedSession, cookieOptions);
-  
-  const verifySet = cookieStore.get('session');
-  console.log('✅ [SET-SESSION] Session cookie set, verification:', !!verifySet);
 }
