@@ -73,20 +73,22 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    const response = NextResponse.json({ success: true });
+    const response = NextResponse.json({ 
+      success: true,
+      token: encryptedSession 
+    });
 
     response.cookies.set({
       name: 'session',
       value: encryptedSession,
-      httpOnly: true,
+      httpOnly: false,
       secure: false,
       sameSite: 'lax',
       path: '/',
-      domain: '.spock.replit.dev',
       expires: expiresInOneDay,
     });
 
-    console.log('✅ [API-SIGN-IN] Session cookie set in response headers');
+    console.log('✅ [API-SIGN-IN] Session token returned');
 
     return response;
   } catch (error) {

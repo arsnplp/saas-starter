@@ -33,7 +33,6 @@ export async function middleware(request: NextRequest) {
         name: 'session',
         value: '',
         maxAge: 0,
-        domain: '.spock.replit.dev',
       });
       return res;
     }

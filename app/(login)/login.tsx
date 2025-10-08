@@ -42,7 +42,18 @@ export function Login({ mode = 'signin' }: { mode?: 'signin' | 'signup' }) {
         return;
       }
 
-      router.push('/dashboard');
+      console.log('✅ [CLIENT] Login successful, token received:', !!data.token);
+      
+      if (data.token) {
+        document.cookie = `session=${data.token}; path=/; max-age=86400; SameSite=Lax`;
+        console.log('🍪 [CLIENT] Cookie set via document.cookie');
+        console.log('🍪 [CLIENT] Cookies after set:', document.cookie);
+      }
+
+      setTimeout(() => {
+        console.log('🔄 [CLIENT] Redirecting to dashboard...');
+        window.location.href = '/dashboard';
+      }, 1000);
     } catch (err) {
       setError('An error occurred. Please try again.');
       setPending(false);

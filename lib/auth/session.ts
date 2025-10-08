@@ -56,11 +56,10 @@ export async function setSession(user: NewUser) {
   
   const cookieOptions = {
     expires: expiresInOneDay,
-    httpOnly: true,
+    httpOnly: false,
     secure: false,
     sameSite: 'lax' as const,
     path: '/',
-    domain: '.spock.replit.dev',
   };
   
   console.log('🍪 [SET-SESSION] Cookie options:', cookieOptions);
