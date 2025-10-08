@@ -268,3 +268,24 @@ export async function getLeadById(leadId: string, teamId: number) {
     where: and(eq(leads.id, leadId), eq(leads.teamId, teamId)),
   });
 }
+
+const updateLeadStatusSchema = z.object({
+  id: z.string().uuid(),
+  status: z.enum(['new', 'contacted', 'replied', 'qualified', 'lost']),
+});
+
+export async function updateLeadStatus(formData: FormData) {
+  const id = formData.get('id') as string;
+  const status = formData.get('status') as 'new' | 'contacted' | 'replied' | 'qualified' | 'lost';
+
+  const [updatedLead] = await db
+    .update(leads)
+    .set({
+      status,
+      updatedAt: new Date(),
+    })
+    .where(eq(leads.id, id))
+    .returning();
+
+  return updatedLead;
+}

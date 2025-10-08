@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useTransition } from 'react';
-import { updateLeadStatus } from '@/app/leads/actions';
+import { updateLeadStatus } from '@/app/(dashboard)/dashboard/leads/actions';
 
 export default function MarkContactedButton({ id }: { id: string }) {
     const router = useRouter();

@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useEffect, useState, useTransition } from 'react';
-import { updateLeadStatus } from '@/app/leads/actions';
+import { updateLeadStatus } from '@/app/(dashboard)/dashboard/leads/actions';
 
 type Props = {
     id: string;
