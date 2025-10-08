@@ -1,0 +1,132 @@
+ [MIDDLEWARE] No session cookie on protected route, redirecting to sign-in
+🔒 [MIDDLEWARE] {
+  pathname: '/sign-in',
+  hasSession: false,
+  cookieValue: 'undefined...',
+  isProtected: false,
+  method: 'GET'
+}
+ ✓ Compiled in 1096ms (513 modules)
+ GET /sign-in 200 in 172ms
+🔒 [MIDDLEWARE] {
+  pathname: '/dashboard',
+  hasSession: false,
+  cookieValue: 'undefined...',
+  isProtected: true,
+  method: 'GET'
+}
+❌ [MIDDLEWARE] No session cookie on protected route, redirecting to sign-in
+🔒 [MIDDLEWARE] {
+  pathname: '/sign-in',
+  hasSession: false,
+  cookieValue: 'undefined...',
+  isProtected: false,
+  method: 'GET'
+}
+ GET /sign-in 200 in 31ms
+🔒 [MIDDLEWARE] {
+  pathname: '/dashboard',
+  hasSession: false,
+  cookieValue: 'undefined...',
+  isProtected: true,
+  method: 'POST'
+}
+❌ [MIDDLEWARE] No session cookie on protected route, redirecting to sign-in
+🔒 [MIDDLEWARE] {
+  pathname: '/sign-in',
+  hasSession: false,
+  cookieValue: 'undefined...',
+  isProtected: false,
+  method: 'POST'
+}
+🔑 [SIGN-IN] User found: { id: 1, email: 'test@test.com' }
+🍪 [SET-SESSION] Creating session cookie for user: 1
+🍪 [SET-SESSION] Session expires: 2025-10-09T15:23:10.936Z
+🍪 [SET-SESSION] Cookie options: {
+  expires: 2025-10-09T15:23:10.936Z,
+  httpOnly: true,
+  secure: false,
+  sameSite: 'lax',
+  path: '/',
+  domain: '.spock.replit.dev'
+}
+🍪 [SET-SESSION] Encrypted session length: 183
+✅ [SET-SESSION] Session cookie set, verification: true
+✅ [SIGN-IN] Session created, redirecting to dashboard
+🔒 [MIDDLEWARE] {
+  pathname: '/dashboard',
+  hasSession: true,
+  cookieValue: 'eyJhbGciOiJIUzI1NiJ9.eyJ1c2VyI...',
+  isProtected: true,
+  method: 'GET'
+}
+✅ [MIDDLEWARE] Session valid for user: 1
+ GET /dashboard 200 in 881ms
+ POST /sign-in 303 in 1564ms
+ GET /api/team 200 in 16ms
+ GET /api/user 200 in 19ms
+🔒 [MIDDLEWARE] {
+  pathname: '/dashboard/leads',
+  hasSession: false,
+  cookieValue: 'undefined...',
+  isProtected: true,
+  method: 'GET'
+}
+❌ [MIDDLEWARE] No session cookie on protected route, redirecting to sign-in
+🔒 [MIDDLEWARE] {
+  pathname: '/sign-in',
+  hasSession: false,
+  cookieValue: 'undefined...',
+  isProtected: false,
+  method: 'GET'
+}
+ GET /sign-in 200 in 160ms
+🔒 [MIDDLEWARE] {
+  pathname: '/sign-in',
+  hasSession: false,
+  cookieValue: 'undefined...',
+  isProtected: false,
+  method: 'POST'
+}
+🔑 [SIGN-IN] User found: { id: 1, email: 'test@test.com' }
+🍪 [SET-SESSION] Creating session cookie for user: 1
+🍪 [SET-SESSION] Session expires: 2025-10-09T15:23:29.380Z
+🍪 [SET-SESSION] Cookie options: {
+  expires: 2025-10-09T15:23:29.380Z,
+  httpOnly: true,
+  secure: false,
+  sameSite: 'lax',
+  path: '/',
+  domain: '.spock.replit.dev'
+}
+🍪 [SET-SESSION] Encrypted session length: 183
+✅ [SET-SESSION] Session cookie set, verification: true
+✅ [SIGN-IN] Session created, redirecting to dashboard
+🔒 [MIDDLEWARE] {
+  pathname: '/dashboard',
+  hasSession: true,
+  cookieValue: 'eyJhbGciOiJIUzI1NiJ9.eyJ1c2VyI...',
+  isProtected: true,
+  method: 'GET'
+}
+✅ [MIDDLEWARE] Session valid for user: 1
+ GET /dashboard 200 in 512ms
+ POST /sign-in 303 in 1114ms
+ GET /api/user 200 in 13ms
+ GET /api/team 200 in 16ms
+🔒 [MIDDLEWARE] {
+  pathname: '/dashboard/leads',
+  hasSession: false,
+  cookieValue: 'undefined...',
+  isProtected: true,
+  method: 'GET'
+}
+❌ [MIDDLEWARE] No session cookie on protected route, redirecting to sign-in
+🔒 [MIDDLEWARE] {
+  pathname: '/sign-in',
+  hasSession: false,
+  cookieValue: 'undefined...',
+  isProtected: false,
+  method: 'GET'
+}
+ GET /sign-in 200 in 63ms
