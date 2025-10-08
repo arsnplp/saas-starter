@@ -1,0 +1,128 @@
+🔥 Lead Chaud (sur tes propres posts)
+But : récupérer toutes les personnes qui ont réagi/commenté tes posts → les mettre dans une liste exploitable.
+Étapes
+1. Récupérer tes posts (si besoin de l’historique/choix par mot-clé)
+    * POST /v1/data/signals/profile/posts (profil ciblé = toi)
+    * Filtres : post_type, keyword, post_date, total_results
+2. Extraire les réactions de chaque post
+    * POST /v1/posts/reactions (ou la variante data: /v1/data/signals/posts/reactions)
+    * Entrée : post_url, total_results (ou pagination)
+3. Extraire les commentaires de chaque post
+    * POST /v1/posts/extract-comments (ou la variante data: /v1/data/signals/posts/comments)
+    * Entrée : post_url, total_results (ou pagination)
+4. Fusion & déduplication en une liste Prospects
+    * Clés utiles : profile_url + name + actor_urn (réactions) / commenter.linkedin_url (commentaires)
+OK, faisable ✅
+
+🕵️ Lead Espion (post d’un concurrent)
+But : coller l’URL d’un post externe, récupérer toutes les personnes qui ont réagi/commenté → liste.
+Étapes
+* Réactions : POST /v1/posts/reactions (ou) /v1/data/signals/posts/reactions
+* Commentaires : POST /v1/posts/extract-comments (ou) /v1/data/signals/posts/comments
+* Fusion/déduplication → liste
+OK, faisable ✅
+
+🎁 Lead Magnet (n’importe quel post)
+But : même que Espion mais avec filtres précis (type de réaction, mots-clés dans commentaires, etc.).
+Étapes
+* Même extraction que ci-dessus.
+* Filtrage côté app :
+    * Par type de réaction : LIKE / PRAISE / APPRECIATION / EMPATHY / INTEREST / ENTERTAINMENT
+    * Par mots-clés dans comment_text
+    * (Option) Exclure déjà-contactés / déjà-prospectés
+OK, faisable ✅ (les filtres se font chez toi après extraction)
+
+❄️ Lead Froid (sans post)
+But : générer une liste en fonction d’un ICP (métier, localisation, taille d’entreprise, secteur, école, etc.).
+Étapes
+1. Recherche de profils
+    * POST /v1/data/search/profiles
+    * Paramètres dispo : keyword, job_title, industry, school, location, current_company, total_results
+    * (Batch possible via tableaux)
+2. (Option) Enrichir entreprises pour valider l’ICP (taille, secteur)
+    * Par URL : POST /v1/data/company/info
+    * Par domaine : POST /v1/data/company/info-by-domain (plus robuste si tu as un site)
+OK, faisable ✅
+
+🧠 Analyse des profils & Scoring (priorisation)
+But : attribuer un score « probabilité d’intérêt » par rapport à l’offre de la boîte.
+Données dispo pour le scoring
+* Depuis les signaux : type de réaction, mots utilisés en commentaire, récence d’interaction.
+* Depuis la recherche/enrichissement : titre, secteur, localisation, entreprise & taille (via company info), école.
+* Depuis l’historique (option) : si déjà contacté, déjà répondu, etc.
+Exemple de features & pondérations (à ajuster)
+* Fit ICP (poste, seniorité, secteur, taille entreprise, pays) : +0 à +40
+* Intention
+    * A réagi au post de ta page : +20
+    * A commenté (contenu positif / question) : +15
+    * Récence < 7 jours : +10
+* Proximité : 1er degré = +10, 2e = +5 (si dispo via invitation-status ou tes connexions)
+* Bruit : commentaire négatif = −20, profil trop junior/senior hors ICP = −10
+OK, faisable ✅ (le scoring se calcule côté app avec ces champs)
+
+✍️ Message personnalisé pour booker un appel
+But : pour chaque personne, générer 1 message pro et personnalisé (prêt à envoyer mais à valider).
+Inputs recommandés pour la génération IA
+* ICP & offre (pitch, preuves, cas clients)
+* Le contexte : a liké/commenté tel post sur tel sujet (ou trouvé via Lead Froid sur tel job/secteur)
+* Détails profil : titre, entreprise, localisation, enjeux (si visibles), mots du commentaire
+Sortie
+* 1 message court (3–6 lignes), ton pro/convivial, CTA clair (proposer 2 créneaux / lien Calendly), sans buzzwords, ultra-contextualisé.
+Envoi
+* Si déjà conversation possible : POST /v1/messages/send-message
+    * (L’endpoint gère l’existant / push notif. Reste soumis aux règles LinkedIn : 1er degré, Open Profile, etc.)
+* Sinon :
+    * Vérifier le statut/connexion : POST /v1/network/invitation-status
+    * Si pas connecté → envoyer une invitation (avec note courte) : POST /v1/network/connect
+    * (Option) si invitation acceptée ultérieurement → envoyer le message (tu peux automatiser la détection via webhooks)
+OK, faisable ✅ (avec garde-fous : limites LinkedIn & validation humaine avant envoi)
+
+🔁 Après publication d’un post (intégration au produit)
+1. Tu publies (ou programmes et publies à l’heure voulue) :
+    * Compte personnel : POST /v1/posts/create
+    * Page (client admin) : POST /v1/posts/create-company
+    * ⚠️ Pas de scheduling natif → tu gères la planif côté serveur (cron/queue).
+2. Après X heures :
+    * Pull des réactions / commentaires du post (posts/reactions & posts/extract-comments)
+    * Score des profils → top N
+    * Génération des messages → file de validation
+    * Envoi limité (batch avec pauses) : messages/send-message ou network/connect
+3. Boucle d’apprentissage
+    * Log : {post → portée/engagement} → {messages → réponses} → {RDV}
+    * Prioriser les thèmes/posts/CTA qui génèrent le plus de réponses & RDV.
+OK, faisable ✅
+
+🖥️ UI & Données (concis)
+UI
+* Calendrier des posts : Brouillon / À valider / Programmé / Publié
+* File de validation : posts & messages à approuver
+* Rapports : portée/engagement → leads → RDV
+Tables (suggestion)
+* content_briefs(id, client_id, objectifs, themes, ton, cta)
+* posts(id, page_id, texte, assets[], statut, scheduled_at, published_at, metrics_json)
+* post_variants(id, post_id, version, texte, metrics_json)
+* post_engagements(id, post_id, actor_profile_url, actor_name, type, comment_text, reacted_at)
+* prospects(id, source, profile_url, name, title, company, company_size, location, tags[], last_touch_at)
+* prospect_scores(prospect_id, model_version, score, features_json)
+* messages(id, prospect_id, channel, body, status, sent_at, delivery_meta)
+OK, faisable ✅
+
+🔔 Temps réel (option, très utile)
+* Webhooks messages (pour réagir aux réponses)
+    * Créer compte webhook : POST /v1/webhooks/accounts
+    * Start monitoring : POST /v1/webhooks/accounts/{id}/start
+    * Inbox/conversations à la demande :
+        * POST /v1/messages/inbox
+        * POST /v1/messages/conversation
+OK, faisable ✅ (surcoût crédit journalier quand actif)
+
+⚠️ Limites & bonnes pratiques
+* Crédits : extraction (1 crédit / 10 résultats) ; actions (1 crédit / requête).
+* LinkedIn : limites de messages/invitations → throttle (pauses), validation humaine avant envoi.
+* messages/send-message n’ouvre pas magiquement les DM : il fonctionne si la messagerie est éligible (1er degré, Open Profile, etc.). Sinon, passer par invitation.
+* Images/carrousels : OK via posts/create & posts/create-company (file ou files[] URLs directes).
+* A/B post : faisable côté app (deux variantes publiées à des créneaux/segments différents), metrics récupérées via feed/signaux.
+
+
+ 
+Je veux que avant d’envoyer des message peu importe le type de lead , que ca analyse d’abord le profile du client puis en fonction du score du client et du score que l’entreprise a mis ca décide ou ou non de lui envoyer une demande de connexion et un message

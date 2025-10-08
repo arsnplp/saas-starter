@@ -7,8 +7,10 @@ import {
     integer,
     uuid,
     index,
+    boolean,
+    jsonb,
 } from 'drizzle-orm/pg-core';
-import { relations } from 'drizzle-orm';
+import { relations, sql } from 'drizzle-orm';
 
 export const users = pgTable('users', {
     id: serial('id').primaryKey(),
@@ -114,22 +116,6 @@ export const activityLogsRelations = relations(activityLogs, ({ one }) => ({
     }),
 }));
 
-export type User = typeof users.$inferSelect;
-export type NewUser = typeof users.$inferInsert;
-export type Team = typeof teams.$inferSelect;
-export type NewTeam = typeof teams.$inferInsert;
-export type TeamMember = typeof teamMembers.$inferSelect;
-export type NewTeamMember = typeof teamMembers.$inferInsert;
-export type ActivityLog = typeof activityLogs.$inferSelect;
-export type NewActivityLog = typeof activityLogs.$inferInsert;
-export type Invitation = typeof invitations.$inferSelect;
-export type NewInvitation = typeof invitations.$inferInsert;
-export type TeamDataWithMembers = Team & {
-    teamMembers: (TeamMember & {
-        user: Pick<User, 'id' | 'name' | 'email'>;
-    })[];
-};
-
 export enum ActivityType {
     SIGN_UP = 'SIGN_UP',
     SIGN_IN = 'SIGN_IN',
@@ -143,29 +129,80 @@ export enum ActivityType {
     ACCEPT_INVITATION = 'ACCEPT_INVITATION',
 }
 
+export type User = typeof users.$inferSelect;
+export type NewUser = typeof users.$inferInsert;
+export type Team = typeof teams.$inferSelect;
+export type NewTeam = typeof teams.$inferInsert;
+export type TeamMember = typeof teamMembers.$inferSelect;
+export type NewTeamMember = typeof teamMembers.$inferInsert;
+export type ActivityLog = typeof activityLogs.$inferSelect;
+export type NewActivityLog = typeof activityLogs.$inferInsert;
+export type Invitation = typeof invitations.$inferSelect;
+export type NewInvitation = typeof invitations.$inferInsert;
+export type Lead = typeof leads.$inferSelect;
+export type NewLead = typeof leads.$inferInsert;
+export type Message = typeof messages.$inferSelect;
+export type NewMessage = typeof messages.$inferInsert;
+export type ScheduledPost = typeof scheduledPosts.$inferSelect;
+export type NewScheduledPost = typeof scheduledPosts.$inferInsert;
+export type ContentBrief = typeof contentBriefs.$inferSelect;
+export type NewContentBrief = typeof contentBriefs.$inferInsert;
+export type IcpProfile = typeof icpProfiles.$inferSelect;
+export type NewIcpProfile = typeof icpProfiles.$inferInsert;
+export type WebhookConfig = typeof webhookConfigs.$inferSelect;
+export type NewWebhookConfig = typeof webhookConfigs.$inferInsert;
+export type WebhookEvent = typeof webhookEvents.$inferSelect;
+export type NewWebhookEvent = typeof webhookEvents.$inferInsert;
+export type PostEngagement = typeof postEngagements.$inferSelect;
+export type NewPostEngagement = typeof postEngagements.$inferInsert;
+
+export type TeamDataWithMembers = Team & {
+    teamMembers: (TeamMember & {
+        user: Pick<User, 'id' | 'name' | 'email'>;
+    })[];
+};
+
 // ---------- LEADS TABLE ----------
 export const leads = pgTable(
     'leads',
     {
         id: uuid('id').defaultRandom().primaryKey(),
+        teamId: integer('team_id').references(() => teams.id).notNull(),
         email: varchar('email', { length: 255 }),
         firstName: varchar('first_name', { length: 120 }),
         lastName: varchar('last_name', { length: 120 }),
         company: varchar('company', { length: 255 }),
+        companySize: integer('company_size'),
+        companyDomain: varchar('company_domain', { length: 255 }),
         title: varchar('title', { length: 255 }),
+        location: varchar('location', { length: 255 }),
+        industry: varchar('industry', { length: 255 }),
         status: varchar('status', { length: 50 }).notNull().default('new'), // new | contacted | replied | qualified | lost
         score: integer('score').notNull().default(0),
+        scoreReason: text('score_reason'),
         linkedinUrl: varchar('linkedin_url', { length: 512 }),
+        profilePictureUrl: varchar('profile_picture_url', { length: 512 }),
+        sourceMode: varchar('source_mode', { length: 50 }).notNull(), // chaud | espion | magnet | froid
+        sourcePostUrl: varchar('source_post_url', { length: 1024 }),
+        engagementType: varchar('engagement_type', { length: 50 }), // reaction | comment
+        reactionType: varchar('reaction_type', { length: 50 }), // LIKE | PRAISE | etc
+        commentText: text('comment_text'),
+        profileData: jsonb('profile_data'),
+        tags: text('tags'),
         notes: text('notes'),
+        lastContactedAt: timestamp('last_contacted_at'),
         createdAt: timestamp('created_at').notNull().defaultNow(),
         updatedAt: timestamp('updated_at').notNull().defaultNow(),
     },
     (t) => ({
+        teamIdx: index('leads_team_idx').on(t.teamId),
         emailIdx: index('leads_email_idx').on(t.email),
         companyIdx: index('leads_company_idx').on(t.company),
         statusIdx: index('leads_status_idx').on(t.status),
+        sourceIdx: index('leads_source_idx').on(t.sourceMode),
+        linkedinIdx: index('leads_linkedin_idx').on(t.linkedinUrl),
+        scoreIdx: index('leads_score_idx').on(t.score),
     })
-
 );
 // ---------- POST ENGAGEMENTS ----------
 export const postEngagements = pgTable(
@@ -195,21 +232,149 @@ export const postEngagements = pgTable(
 // ---------- ICP PROFILES ----------
 export const icpProfiles = pgTable('icp_profiles', {
     id: serial('id').primaryKey(),
-    // Listes sous forme de texte séparé par des virgules (simple pour démarrer)
-    industries: text('industries'),                // ex: "SaaS,e-commerce"
-    locations: text('locations'),                  // ex: "France,Belgium,Remote"
-    buyerRoles: text('buyer_roles'),               // ex: "CMO,Head of Marketing,Growth Lead"
-    keywordsInclude: text('keywords_include'),     // ex: "SEO,lead gen"
-    keywordsExclude: text('keywords_exclude'),     // ex: "B2C only,agencies"
-
-    // Taille d'entreprise
+    teamId: integer('team_id').references(() => teams.id).notNull(),
+    name: varchar('name', { length: 255 }).notNull(),
+    industries: text('industries'),
+    locations: text('locations'),
+    buyerRoles: text('buyer_roles'),
+    keywordsInclude: text('keywords_include'),
+    keywordsExclude: text('keywords_exclude'),
     companySizeMin: integer('company_size_min').notNull().default(1),
     companySizeMax: integer('company_size_max').notNull().default(10000),
-
-    // Catégorie produit + langue
     productCategory: varchar('product_category', { length: 100 }),
     language: varchar('language', { length: 10 }).notNull().default('fr'),
-
+    minScore: integer('min_score').notNull().default(50),
     createdAt: timestamp('created_at').notNull().defaultNow(),
     updatedAt: timestamp('updated_at').notNull().defaultNow(),
 });
+
+// ---------- MESSAGES TABLE ----------
+export const messages = pgTable('messages', {
+    id: serial('id').primaryKey(),
+    teamId: integer('team_id').references(() => teams.id).notNull(),
+    leadId: uuid('lead_id').references(() => leads.id).notNull(),
+    messageText: text('message_text').notNull(),
+    status: varchar('status', { length: 50 }).notNull().default('draft'), // draft | approved | sent | delivered | failed
+    channel: varchar('channel', { length: 50 }).notNull().default('linkedin'), // linkedin | email
+    conversationId: varchar('conversation_id', { length: 255 }),
+    sentAt: timestamp('sent_at'),
+    deliveredAt: timestamp('delivered_at'),
+    errorMessage: text('error_message'),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+    updatedAt: timestamp('updated_at').notNull().defaultNow(),
+}, (t) => ({
+    teamIdx: index('messages_team_idx').on(t.teamId),
+    leadIdx: index('messages_lead_idx').on(t.leadId),
+    statusIdx: index('messages_status_idx').on(t.status),
+}));
+
+// ---------- SCHEDULED POSTS TABLE ----------
+export const scheduledPosts = pgTable('scheduled_posts', {
+    id: serial('id').primaryKey(),
+    teamId: integer('team_id').references(() => teams.id).notNull(),
+    userId: integer('user_id').references(() => users.id).notNull(),
+    postType: varchar('post_type', { length: 50 }).notNull().default('profile'), // profile | company
+    companyUrl: varchar('company_url', { length: 512 }),
+    messageText: text('message_text').notNull(),
+    mediaUrls: jsonb('media_urls'),
+    status: varchar('status', { length: 50 }).notNull().default('draft'), // draft | approved | scheduled | published | failed
+    scheduledAt: timestamp('scheduled_at'),
+    publishedAt: timestamp('published_at'),
+    postUrl: varchar('post_url', { length: 1024 }),
+    errorMessage: text('error_message'),
+    metrics: jsonb('metrics'),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+    updatedAt: timestamp('updated_at').notNull().defaultNow(),
+}, (t) => ({
+    teamIdx: index('scheduled_posts_team_idx').on(t.teamId),
+    statusIdx: index('scheduled_posts_status_idx').on(t.status),
+    scheduledIdx: index('scheduled_posts_scheduled_idx').on(t.scheduledAt),
+}));
+
+// ---------- CONTENT BRIEFS TABLE ----------
+export const contentBriefs = pgTable('content_briefs', {
+    id: serial('id').primaryKey(),
+    teamId: integer('team_id').references(() => teams.id).notNull(),
+    title: varchar('title', { length: 255 }).notNull(),
+    objectives: text('objectives'),
+    themes: text('themes'),
+    tone: varchar('tone', { length: 100 }),
+    cta: text('cta'),
+    targetAudience: text('target_audience'),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+    updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+// ---------- WEBHOOK CONFIGS TABLE ----------
+export const webhookConfigs = pgTable('webhook_configs', {
+    id: serial('id').primaryKey(),
+    teamId: integer('team_id').references(() => teams.id).notNull(),
+    accountId: varchar('account_id', { length: 255 }).notNull(),
+    accountName: varchar('account_name', { length: 255 }),
+    webhookUrl: varchar('webhook_url', { length: 1024 }).notNull(),
+    isActive: boolean('is_active').notNull().default(false),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+    updatedAt: timestamp('updated_at').notNull().defaultNow(),
+}, (t) => ({
+    teamIdx: index('webhook_configs_team_idx').on(t.teamId),
+    accountIdx: index('webhook_configs_account_idx').on(t.accountId),
+}));
+
+// ---------- WEBHOOK EVENTS TABLE ----------
+export const webhookEvents = pgTable('webhook_events', {
+    id: serial('id').primaryKey(),
+    teamId: integer('team_id').references(() => teams.id).notNull(),
+    webhookConfigId: integer('webhook_config_id').references(() => webhookConfigs.id).notNull(),
+    eventType: varchar('event_type', { length: 100 }).notNull(),
+    eventData: jsonb('event_data').notNull(),
+    processed: boolean('processed').notNull().default(false),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+}, (t) => ({
+    teamIdx: index('webhook_events_team_idx').on(t.teamId),
+    configIdx: index('webhook_events_config_idx').on(t.webhookConfigId),
+    processedIdx: index('webhook_events_processed_idx').on(t.processed),
+}));
+
+// Relations for new tables
+export const leadsRelations = relations(leads, ({ one }) => ({
+    team: one(teams, {
+        fields: [leads.teamId],
+        references: [teams.id],
+    }),
+}));
+
+export const messagesRelations = relations(messages, ({ one }) => ({
+    team: one(teams, {
+        fields: [messages.teamId],
+        references: [teams.id],
+    }),
+    lead: one(leads, {
+        fields: [messages.leadId],
+        references: [leads.id],
+    }),
+}));
+
+export const scheduledPostsRelations = relations(scheduledPosts, ({ one }) => ({
+    team: one(teams, {
+        fields: [scheduledPosts.teamId],
+        references: [teams.id],
+    }),
+    user: one(users, {
+        fields: [scheduledPosts.userId],
+        references: [users.id],
+    }),
+}));
+
+export const icpProfilesRelations = relations(icpProfiles, ({ one }) => ({
+    team: one(teams, {
+        fields: [icpProfiles.teamId],
+        references: [teams.id],
+    }),
+}));
+
+export const webhookConfigsRelations = relations(webhookConfigs, ({ one }) => ({
+    team: one(teams, {
+        fields: [webhookConfigs.teamId],
+        references: [teams.id],
+    }),
+}));
