@@ -6,6 +6,7 @@ import { and, asc, desc, eq, gte, lte, sql } from "drizzle-orm";
 
 import { db } from "@/lib/db";
 import { leads as leadsTable } from "@/lib/db/schema";
+import { getUser } from "@/lib/auth/session";
 import CopyButton from "@/components/CopyButton";
 import LeadStatusForm from "@/components/LeadStatusForm";
 import MarkContactedButton from "@/components/MarkContactedButton";
@@ -38,6 +39,17 @@ type Status = z.infer<typeof StatusSchema>;
 /** Créer un lead manuellement (formulaire en haut de page) */
 export async function createLead(formData: FormData) {
     "use server";
+    
+    const user = await getUser();
+    if (!user) {
+        throw new Error('User not authenticated');
+    }
+
+    const teamId = user.teamId;
+    if (!teamId) {
+        throw new Error('User has no team');
+    }
+
     const raw = {
         email: String(formData.get("email") || ""),
         firstName: (formData.get("firstName") as string) || undefined,
@@ -53,7 +65,11 @@ export async function createLead(formData: FormData) {
 
     const toInsert = {
         ...parsed.data,
-        linkedinUrl: parsed.data.linkedinUrl || undefined, // vide -> NULL
+        teamId,
+        linkedinUrl: parsed.data.linkedinUrl || undefined,
+        sourceMode: 'froid',
+        status: 'new',
+        score: 0,
     };
 
     await db.insert(leadsTable).values(toInsert);
