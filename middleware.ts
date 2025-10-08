@@ -32,9 +32,6 @@ export async function middleware(request: NextRequest) {
         expires: expiresInOneDay
       });
     } catch (error) {
-      console.error('Error updating session:', error);
-      console.error('Session cookie value:', sessionCookie.value.substring(0, 20) + '...');
-      console.error('Protected route:', isProtectedRoute, 'Path:', pathname);
       res.cookies.delete('session');
       if (isProtectedRoute) {
         return NextResponse.redirect(new URL('/sign-in', request.url));
