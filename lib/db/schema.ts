@@ -9,6 +9,7 @@ import {
     index,
     boolean,
     jsonb,
+    unique,
 } from 'drizzle-orm/pg-core';
 import { relations, sql } from 'drizzle-orm';
 
@@ -139,6 +140,8 @@ export type ActivityLog = typeof activityLogs.$inferSelect;
 export type NewActivityLog = typeof activityLogs.$inferInsert;
 export type Invitation = typeof invitations.$inferSelect;
 export type NewInvitation = typeof invitations.$inferInsert;
+export type ProspectCandidate = typeof prospectCandidates.$inferSelect;
+export type NewProspectCandidate = typeof prospectCandidates.$inferInsert;
 export type Lead = typeof leads.$inferSelect;
 export type NewLead = typeof leads.$inferInsert;
 export type Message = typeof messages.$inferSelect;
@@ -161,6 +164,42 @@ export type TeamDataWithMembers = Team & {
         user: Pick<User, 'id' | 'name' | 'email'>;
     })[];
 };
+
+// ---------- PROSPECT CANDIDATES TABLE (staging) ----------
+export const prospectCandidates = pgTable(
+    'prospect_candidates',
+    {
+        id: uuid('id').defaultRandom().primaryKey(),
+        source: varchar('source', { length: 50 }).notNull(),
+        sourceRef: varchar('source_ref', { length: 255 }).notNull(),
+        action: varchar('action', { length: 50 }).notNull(),
+        postUrl: varchar('post_url', { length: 1024 }),
+        reactionType: varchar('reaction_type', { length: 50 }),
+        commentId: varchar('comment_id', { length: 255 }),
+        commentText: text('comment_text'),
+        profileUrl: varchar('profile_url', { length: 512 }).notNull(),
+        actorUrn: varchar('actor_urn', { length: 255 }),
+        name: varchar('name', { length: 255 }),
+        title: varchar('title', { length: 255 }),
+        company: varchar('company', { length: 255 }),
+        location: varchar('location', { length: 255 }),
+        fetchedAt: timestamp('fetched_at').notNull().defaultNow(),
+        status: varchar('status', { length: 50 }).notNull().default('new'),
+        raw: jsonb('raw'),
+    },
+    (t) => ({
+        uniqueCandidate: unique('prospect_candidates_unique').on(
+            t.source,
+            t.sourceRef,
+            t.action,
+            t.profileUrl,
+            t.commentId
+        ),
+        postUrlIdx: index('prospect_candidates_post_url_idx').on(t.postUrl),
+        statusIdx: index('prospect_candidates_status_idx').on(t.status),
+        profileUrlIdx: index('prospect_candidates_profile_url_idx').on(t.profileUrl),
+    })
+);
 
 // ---------- LEADS TABLE ----------
 export const leads = pgTable(
