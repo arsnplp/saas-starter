@@ -4,15 +4,25 @@ import { useActionState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Loader2, CheckCircle, XCircle } from 'lucide-react';
-import { connectLinkedin, disconnectLinkedin } from './actions';
+import { Loader2, CheckCircle, XCircle, Shield } from 'lucide-react';
+import { connectLinkedin, disconnectLinkedin, verifyLinkedinCode } from './actions';
 import { useEffect, useState } from 'react';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 
 export default function LinkedinConnectionForm() {
   const [isConnected, setIsConnected] = useState(false);
   const [linkedinEmail, setLinkedinEmail] = useState<string | null>(null);
-  const [connectState, connectAction, isConnectPending] = useActionState(connectLinkedin, { error: '', success: '' });
+  const [showVerificationModal, setShowVerificationModal] = useState(false);
+  const [verificationEmail, setVerificationEmail] = useState('');
+  const [connectState, connectAction, isConnectPending] = useActionState(connectLinkedin, { error: '', success: '', needsVerification: false });
   const [disconnectState, disconnectAction, isDisconnectPending] = useActionState(disconnectLinkedin, { error: '', success: '' });
+  const [verifyState, verifyAction, isVerifyPending] = useActionState(verifyLinkedinCode, { error: '', success: '' });
 
   useEffect(() => {
     async function checkConnection() {
@@ -24,7 +34,23 @@ export default function LinkedinConnectionForm() {
       }
     }
     checkConnection();
-  }, [connectState.success, disconnectState.success]);
+  }, [connectState.success, disconnectState.success, verifyState.success]);
+
+  useEffect(() => {
+    if (connectState.needsVerification) {
+      const emailInput = document.getElementById('email') as HTMLInputElement;
+      if (emailInput?.value) {
+        setVerificationEmail(emailInput.value);
+      }
+      setShowVerificationModal(true);
+    }
+  }, [connectState.needsVerification]);
+
+  useEffect(() => {
+    if (verifyState.success) {
+      setShowVerificationModal(false);
+    }
+  }, [verifyState.success]);
 
   if (isConnected) {
     return (
@@ -127,6 +153,79 @@ export default function LinkedinConnectionForm() {
           'Connecter LinkedIn'
         )}
       </Button>
+
+      <Dialog open={showVerificationModal} onOpenChange={setShowVerificationModal}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Shield className="w-5 h-5 text-blue-600" />
+              Vérification en deux étapes
+            </DialogTitle>
+            <DialogDescription>
+              {connectState.message || 'Un code de vérification a été envoyé à votre email LinkedIn'}
+            </DialogDescription>
+          </DialogHeader>
+
+          <form action={verifyAction} className="space-y-4 mt-4">
+            <input type="hidden" name="email" value={verificationEmail} />
+            <input type="hidden" name="country" value="FR" />
+            
+            <div>
+              <Label htmlFor="code">Code de vérification</Label>
+              <Input
+                id="code"
+                name="code"
+                type="text"
+                placeholder="Entrez le code reçu par email"
+                required
+                autoFocus
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Vérifiez votre email LinkedIn ({verificationEmail})
+              </p>
+            </div>
+
+            {verifyState.error && (
+              <div className="bg-red-50 border border-red-200 rounded-lg p-3 flex items-start gap-2">
+                <XCircle className="w-4 h-4 text-red-600 mt-0.5" />
+                <p className="text-sm text-red-800">{verifyState.error}</p>
+              </div>
+            )}
+
+            {verifyState.success && (
+              <div className="bg-green-50 border border-green-200 rounded-lg p-3 flex items-start gap-2">
+                <CheckCircle className="w-4 h-4 text-green-600 mt-0.5" />
+                <p className="text-sm text-green-800">{verifyState.success}</p>
+              </div>
+            )}
+
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setShowVerificationModal(false)}
+                disabled={isVerifyPending}
+              >
+                Annuler
+              </Button>
+              <Button
+                type="submit"
+                className="bg-blue-600 hover:bg-blue-700 text-white flex-1"
+                disabled={isVerifyPending}
+              >
+                {isVerifyPending ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Vérification...
+                  </>
+                ) : (
+                  'Vérifier le code'
+                )}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
     </form>
   );
 }
