@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useState, useActionState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -21,70 +21,44 @@ type Engagement = {
 export default function LeadEspionForm({ teamId }: { teamId: number }) {
   const [postUrl, setPostUrl] = useState('');
   const [engagements, setEngagements] = useState<Engagement[]>([]);
-  const [isPending, startTransition] = useTransition();
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
+  const [state, formAction, isPending] = useActionState(importLeadsFromPost, null);
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setError('');
-    setSuccess('');
-    setEngagements([]);
-
-    if (!postUrl.trim()) {
-      setError('Veuillez entrer un lien de post LinkedIn');
-      return;
-    }
-
-    startTransition(async () => {
-      try {
-        const formData = new FormData();
-        formData.set('postUrl', postUrl);
-        formData.set('sourceMode', 'espion');
-        formData.set('teamId', teamId.toString());
-
-        const result = await importLeadsFromPost(formData);
-
-        if (result?.error) {
-          setError(result.error);
-        } else if (result?.count !== undefined) {
-          setSuccess(`${result.count} leads importés avec succès !`);
-          
-          // Simuler l'affichage des engagements pour la démo
-          // En production, vous voudrez peut-être récupérer les détails depuis result.leads
-          if (result.leads && result.leads.length > 0) {
-            const mappedEngagements = result.leads.map((lead: any) => ({
-              type: lead.engagementType || 'reaction',
-              firstName: lead.firstName || '',
-              lastName: lead.lastName || '',
-              headline: lead.title || '',
-              profileUrl: lead.linkedinUrl || '',
-              profilePictureUrl: lead.profilePictureUrl || '',
-              reactionType: lead.reactionType,
-              commentText: lead.commentText,
-            }));
-            setEngagements(mappedEngagements);
-          }
-        }
-      } catch (err: any) {
-        setError(err.message || 'Une erreur est survenue');
-      }
-    });
+  // Update engagements when state changes
+  if (state?.leads && state.leads.length > 0 && engagements.length === 0) {
+    const mappedEngagements = state.leads.map((lead: any) => ({
+      type: lead.engagementType || 'reaction',
+      firstName: lead.firstName || '',
+      lastName: lead.lastName || '',
+      headline: lead.title || '',
+      profileUrl: lead.linkedinUrl || '',
+      profilePictureUrl: lead.profilePictureUrl || '',
+      reactionType: lead.reactionType,
+      commentText: lead.commentText,
+    }));
+    setEngagements(mappedEngagements);
   }
+
+  const error = state?.error;
+  const success = state?.count !== undefined ? `${state.count} leads importés avec succès !` : '';
 
   return (
     <div className="space-y-6">
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form action={formAction} className="space-y-4">
+        <input type="hidden" name="teamId" value={teamId} />
+        <input type="hidden" name="sourceMode" value="espion" />
+        
         <div>
           <Label htmlFor="postUrl">Lien du post LinkedIn</Label>
           <Input
             id="postUrl"
+            name="postUrl"
             type="url"
             placeholder="https://www.linkedin.com/posts/..."
             value={postUrl}
             onChange={(e) => setPostUrl(e.target.value)}
             disabled={isPending}
             className="mt-1"
+            required
           />
           <p className="text-xs text-gray-500 mt-1">
             Collez le lien d'un post LinkedIn pour récupérer les personnes qui ont réagi ou commenté

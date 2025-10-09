@@ -10,7 +10,7 @@ import { eq, and, desc } from 'drizzle-orm';
 const importLeadsFromPostSchema = z.object({
   postUrl: z.string().url(),
   sourceMode: z.enum(['chaud', 'espion']),
-  teamId: z.number(),
+  teamId: z.string().transform(Number),
 });
 
 export const importLeadsFromPost = validatedActionWithUser(

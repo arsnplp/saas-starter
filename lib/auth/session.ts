@@ -62,8 +62,6 @@ export async function setSession(user: NewUser) {
     path: '/',
   };
   
-  console.log('🍪 [setSession] User:', user.id, '| isReplit:', isReplit, '| sameSite:', cookieOptions.sameSite);
-  
   const cookieStore = await cookies();
   cookieStore.set('session', encryptedSession, cookieOptions);
 }

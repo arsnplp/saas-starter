@@ -86,14 +86,10 @@ export const signIn = validatedAction(signInSchema, async (data, formData) => {
     };
   }
 
-  console.log('🔑 [SIGN-IN] User found:', { id: foundUser.id, email: foundUser.email });
-  
   await Promise.all([
     setSession(foundUser),
     logActivity(foundTeam?.id, foundUser.id, ActivityType.SIGN_IN)
   ]);
-
-  console.log('✅ [SIGN-IN] Session created, redirecting to dashboard');
 
   const redirectTo = formData.get('redirect') as string | null;
   if (redirectTo === 'checkout') {
