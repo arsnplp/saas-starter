@@ -152,7 +152,7 @@ function buildMessage(l: Lead): string {
 export default async function LeadsPage({
                                             searchParams,
                                         }: {
-    searchParams: { f_status?: string; f_from?: string; f_to?: string; f_order?: "newest" | "oldest" };
+    searchParams: Promise<{ f_status?: string; f_from?: string; f_to?: string; f_order?: "newest" | "oldest" }>;
 }) {
     const user = await getUser();
     if (!user) {
@@ -164,15 +164,17 @@ export default async function LeadsPage({
         return <div className="p-8">Vous devez faire partie d'une équipe.</div>;
     }
 
+    const params = await searchParams;
+
     // ---- Lecture des filtres depuis l'URL (noms préfixés pour éviter tout conflit)
-    const rawStatus = (searchParams.f_status ?? "").trim();
+    const rawStatus = (params.f_status ?? "").trim();
     const statusFilter: Status | undefined =
         rawStatus && StatusSchema.safeParse(rawStatus).success ? (rawStatus as Status) : undefined;
 
-    const fromDate = searchParams.f_from ? new Date(`${searchParams.f_from}T00:00:00.000Z`) : undefined;
-    const toDate = searchParams.f_to ? new Date(`${searchParams.f_to}T23:59:59.999Z`) : undefined;
+    const fromDate = params.f_from ? new Date(`${params.f_from}T00:00:00.000Z`) : undefined;
+    const toDate = params.f_to ? new Date(`${params.f_to}T23:59:59.999Z`) : undefined;
 
-    const orderBy = searchParams.f_order === "oldest" ? asc(leadsTable.createdAt) : desc(leadsTable.createdAt);
+    const orderBy = params.f_order === "oldest" ? asc(leadsTable.createdAt) : desc(leadsTable.createdAt);
 
     // ---- Construit les conditions dynamiques
     const conditions: any[] = [eq(leadsTable.teamId, team.id)];
@@ -222,17 +224,17 @@ export default async function LeadsPage({
 
                 <div className="flex flex-col">
                     <label className="text-xs text-gray-600 mb-1">Du</label>
-                    <input type="date" name="f_from" defaultValue={searchParams.f_from ?? ""} className="border rounded p-2" />
+                    <input type="date" name="f_from" defaultValue={params.f_from ?? ""} className="border rounded p-2" />
                 </div>
 
                 <div className="flex flex-col">
                     <label className="text-xs text-gray-600 mb-1">Au</label>
-                    <input type="date" name="f_to" defaultValue={searchParams.f_to ?? ""} className="border rounded p-2" />
+                    <input type="date" name="f_to" defaultValue={params.f_to ?? ""} className="border rounded p-2" />
                 </div>
 
                 <div className="flex flex-col">
                     <label className="text-xs text-gray-600 mb-1">Tri</label>
-                    <select name="f_order" defaultValue={searchParams.f_order === "oldest" ? "oldest" : "newest"} className="border rounded p-2 min-w-[160px]">
+                    <select name="f_order" defaultValue={params.f_order === "oldest" ? "oldest" : "newest"} className="border rounded p-2 min-w-[160px]">
                         <option value="newest">Plus récent d’abord</option>
                         <option value="oldest">Plus ancien d’abord</option>
                     </select>
