@@ -3,7 +3,7 @@
 import { z } from 'zod';
 import { db } from '@/lib/db/drizzle';
 import { leads, postEngagements } from '@/lib/db/schema';
-import { linkupClient, type LinkupPostEngagement } from '@/lib/integrations/linkup';
+import { getLinkupClient, type LinkupPostEngagement } from '@/lib/integrations/linkup';
 import { validatedActionWithUser } from '@/lib/auth/middleware';
 import { eq, and, desc } from 'drizzle-orm';
 
@@ -18,6 +18,7 @@ export const importLeadsFromPost = validatedActionWithUser(
   async (data, _, user) => {
     const { postUrl, sourceMode, teamId } = data;
 
+    const linkupClient = await getLinkupClient(teamId);
     const engagement = await linkupClient.getPostEngagement(postUrl);
 
     const newLeads = [];
@@ -136,6 +137,7 @@ export const enrichLead = validatedActionWithUser(
       return { success: false, error: 'Lead not found or missing LinkedIn URL' };
     }
 
+    const linkupClient = await getLinkupClient(teamId);
     const profile = await linkupClient.getProfile(lead.linkedinUrl);
 
     const [updatedLead] = await db
@@ -178,6 +180,7 @@ export const searchColdLeads = validatedActionWithUser(
   async (data, _, user) => {
     const { teamId, sourceMode, ...filters } = data;
 
+    const linkupClient = await getLinkupClient(teamId);
     const result = await linkupClient.searchProfiles(filters);
 
     const newLeads = [];

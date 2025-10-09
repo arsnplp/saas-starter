@@ -1,4 +1,7 @@
 import { z } from 'zod';
+import { db } from '@/lib/db/drizzle';
+import { linkedinConnections } from '@/lib/db/schema';
+import { eq } from 'drizzle-orm';
 
 const LINKUP_API_BASE_URL = 'https://api.linkupapi.com/v1';
 
@@ -236,6 +239,23 @@ export class LinkupClient {
       },
     };
   }
+}
+
+export async function getLinkupClient(teamId: number): Promise<LinkupClient> {
+  const connection = await db.query.linkedinConnections.findFirst({
+    where: eq(linkedinConnections.teamId, teamId),
+  });
+
+  if (connection && connection.isActive) {
+    await db
+      .update(linkedinConnections)
+      .set({ lastUsedAt: new Date() })
+      .where(eq(linkedinConnections.teamId, teamId));
+
+    return new LinkupClient(undefined, connection.loginToken);
+  }
+
+  return new LinkupClient();
 }
 
 export const linkupClient = new LinkupClient();
