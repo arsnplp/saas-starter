@@ -73,10 +73,30 @@ export const invitations = pgTable('invitations', {
     status: varchar('status', { length: 20 }).notNull().default('pending'),
 });
 
-export const teamsRelations = relations(teams, ({ many }) => ({
+export const linkedinConnections = pgTable('linkedin_connections', {
+    id: serial('id').primaryKey(),
+    teamId: integer('team_id')
+        .notNull()
+        .references(() => teams.id)
+        .unique(),
+    loginToken: text('login_token').notNull(),
+    linkedinEmail: varchar('linkedin_email', { length: 255 }),
+    connectedBy: integer('connected_by')
+        .notNull()
+        .references(() => users.id),
+    connectedAt: timestamp('connected_at').notNull().defaultNow(),
+    lastUsedAt: timestamp('last_used_at'),
+    isActive: boolean('is_active').notNull().default(true),
+});
+
+export const teamsRelations = relations(teams, ({ many, one }) => ({
     teamMembers: many(teamMembers),
     activityLogs: many(activityLogs),
     invitations: many(invitations),
+    linkedinConnection: one(linkedinConnections, {
+        fields: [teams.id],
+        references: [linkedinConnections.teamId],
+    }),
 }));
 
 export const usersRelations = relations(users, ({ many }) => ({
