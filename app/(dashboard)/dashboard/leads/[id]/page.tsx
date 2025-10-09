@@ -14,8 +14,8 @@ export default async function LeadDetailPage({ params }: PageProps) {
         redirect('/sign-in');
     }
 
-    const teamData = await getTeamForUser(user.id);
-    if (!teamData) {
+    const team = await getTeamForUser();
+    if (!team) {
         redirect('/sign-in');
     }
 
@@ -25,7 +25,7 @@ export default async function LeadDetailPage({ params }: PageProps) {
         .from(leads)
         .where(and(
             eq(leads.id, id),
-            eq(leads.teamId, teamData.team.id)
+            eq(leads.teamId, team.id)
         ))
         .limit(1);
 

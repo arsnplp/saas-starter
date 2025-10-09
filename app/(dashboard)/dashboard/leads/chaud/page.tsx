@@ -9,8 +9,8 @@ export default async function LeadChaudPage() {
     redirect('/sign-in');
   }
 
-  const teamData = await getTeamForUser(user.id);
-  if (!teamData) {
+  const team = await getTeamForUser();
+  if (!team) {
     redirect('/sign-in');
   }
 
@@ -29,7 +29,7 @@ export default async function LeadChaudPage() {
           <CardTitle>Importer des leads depuis votre post</CardTitle>
         </CardHeader>
         <CardContent>
-          <LeadChaudForm teamId={teamData.team.id} />
+          <LeadChaudForm teamId={team.id} />
         </CardContent>
       </Card>
     </section>
