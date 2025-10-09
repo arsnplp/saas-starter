@@ -1,18 +1,32 @@
 import { db } from "@/lib/db";
 import { leads } from "@/lib/db/schema";
-import { eq } from "drizzle-orm";
-import { notFound } from "next/navigation";
+import { eq, and } from "drizzle-orm";
+import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import CopyButton from "@/components/CopyButton";
+import { getUser, getTeamForUser } from "@/lib/db/queries";
 
 type PageProps = { params: Promise<{ id: string }> };
 
 export default async function LeadDetailPage({ params }: PageProps) {
+    const user = await getUser();
+    if (!user) {
+        redirect('/sign-in');
+    }
+
+    const teamData = await getTeamForUser(user.id);
+    if (!teamData) {
+        redirect('/sign-in');
+    }
+
     const { id } = await params;
     const rows = await db
         .select()
         .from(leads)
-        .where(eq(leads.id, id))
+        .where(and(
+            eq(leads.id, id),
+            eq(leads.teamId, teamData.team.id)
+        ))
         .limit(1);
 
     const lead = rows[0];
