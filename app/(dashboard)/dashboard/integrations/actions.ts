@@ -15,6 +15,12 @@ const connectLinkedinSchema = z.object({
   password: z.string().min(1, 'Mot de passe requis'),
 });
 
+const verifyLinkedinCodeSchema = z.object({
+  email: z.string().email('Email LinkedIn invalide'),
+  code: z.string().min(1, 'Code de vérification requis'),
+  country: z.string().default('FR'),
+});
+
 export const connectLinkedin = validatedActionWithUser(
   connectLinkedinSchema,
   async (data, _, user) => {
@@ -22,12 +28,12 @@ export const connectLinkedin = validatedActionWithUser(
       const team = await getTeamForUser();
       
       if (!team) {
-        return { error: 'Équipe non trouvée', success: '' };
+        return { error: 'Équipe non trouvée', success: '', needsVerification: false };
       }
 
       const apiKey = process.env.LINKUP_API_KEY;
       if (!apiKey) {
-        return { error: 'LINKUP_API_KEY non configurée', success: '' };
+        return { error: 'LINKUP_API_KEY non configurée', success: '', needsVerification: false };
       }
 
       const response = await fetch(`${LINKUP_API_BASE_URL}/auth/login`, {
@@ -47,6 +53,97 @@ export const connectLinkedin = validatedActionWithUser(
         const errorText = await response.text();
         return { 
           error: `Échec de connexion LinkedIn: ${response.status} - ${errorText}`, 
+          success: '',
+          needsVerification: false
+        };
+      }
+
+      const result = await response.json();
+
+      if (!result.login_token) {
+        return { 
+          error: '', 
+          success: '', 
+          needsVerification: true,
+          message: 'Un code de vérification a été envoyé à votre email LinkedIn'
+        };
+      }
+
+      const existing = await db.query.linkedinConnections.findFirst({
+        where: eq(linkedinConnections.teamId, team.id),
+      });
+
+      if (existing) {
+        await db
+          .update(linkedinConnections)
+          .set({
+            loginToken: result.login_token,
+            linkedinEmail: data.email,
+            connectedBy: user.id,
+            connectedAt: new Date(),
+            isActive: true,
+          })
+          .where(eq(linkedinConnections.teamId, team.id));
+      } else {
+        await db.insert(linkedinConnections).values({
+          teamId: team.id,
+          loginToken: result.login_token,
+          linkedinEmail: data.email,
+          connectedBy: user.id,
+          isActive: true,
+        });
+      }
+
+      revalidatePath('/dashboard/integrations');
+      
+      return { 
+        error: '', 
+        success: 'LinkedIn connecté avec succès ! Vous pouvez maintenant importer des leads.',
+        needsVerification: false
+      };
+    } catch (error) {
+      console.error('LinkedIn connection error:', error);
+      return { 
+        error: error instanceof Error ? error.message : 'Erreur lors de la connexion LinkedIn', 
+        success: '',
+        needsVerification: false
+      };
+    }
+  }
+);
+
+export const verifyLinkedinCode = validatedActionWithUser(
+  verifyLinkedinCodeSchema,
+  async (data, _, user) => {
+    try {
+      const team = await getTeamForUser();
+      
+      if (!team) {
+        return { error: 'Équipe non trouvée', success: '' };
+      }
+
+      const apiKey = process.env.LINKUP_API_KEY;
+      if (!apiKey) {
+        return { error: 'LINKUP_API_KEY non configurée', success: '' };
+      }
+
+      const response = await fetch(`${LINKUP_API_BASE_URL}/auth/verify`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': apiKey,
+        },
+        body: JSON.stringify({
+          email: data.email,
+          code: data.code,
+          country: data.country,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        return { 
+          error: `Code de vérification invalide: ${response.status} - ${errorText}`, 
           success: '' 
         };
       }
@@ -54,7 +151,7 @@ export const connectLinkedin = validatedActionWithUser(
       const result = await response.json();
 
       if (!result.login_token) {
-        return { error: 'Token de connexion non reçu', success: '' };
+        return { error: 'Token de connexion non reçu après vérification', success: '' };
       }
 
       const existing = await db.query.linkedinConnections.findFirst({
@@ -89,9 +186,9 @@ export const connectLinkedin = validatedActionWithUser(
         success: 'LinkedIn connecté avec succès ! Vous pouvez maintenant importer des leads.' 
       };
     } catch (error) {
-      console.error('LinkedIn connection error:', error);
+      console.error('LinkedIn verification error:', error);
       return { 
-        error: error instanceof Error ? error.message : 'Erreur lors de la connexion LinkedIn', 
+        error: error instanceof Error ? error.message : 'Erreur lors de la vérification', 
         success: '' 
       };
     }
