@@ -51,13 +51,18 @@ export async function setSession(user: NewUser) {
   };
   const encryptedSession = await signToken(session);
   
+  // Replit runs in iframe, need sameSite: 'none' for cookies to work
+  const isReplit = !!process.env.REPLIT_DEPLOYMENT || !!process.env.REPL_ID;
+  
   const cookieOptions = {
     expires: expiresInOneDay,
     httpOnly: true,
-    secure: false,
-    sameSite: 'lax' as const,
+    secure: isReplit, // Must be true for sameSite: 'none'
+    sameSite: (isReplit ? 'none' : 'lax') as 'none' | 'lax',
     path: '/',
   };
+  
+  console.log('🍪 [setSession] User:', user.id, '| isReplit:', isReplit, '| sameSite:', cookieOptions.sameSite);
   
   const cookieStore = await cookies();
   cookieStore.set('session', encryptedSession, cookieOptions);
