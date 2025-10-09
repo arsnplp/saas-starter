@@ -5,13 +5,14 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import CopyButton from "@/components/CopyButton";
 
-type PageProps = { params: { id: string } };
+type PageProps = { params: Promise<{ id: string }> };
 
 export default async function LeadDetailPage({ params }: PageProps) {
+    const { id } = await params;
     const rows = await db
         .select()
         .from(leads)
-        .where(eq(leads.id, params.id))
+        .where(eq(leads.id, id))
         .limit(1);
 
     const lead = rows[0];
