@@ -49,23 +49,45 @@ export const connectLinkedin = validatedActionWithUser(
         }),
       });
 
-      if (!response.ok) {
-        const errorText = await response.text();
+      const result = await response.json().catch(() => null);
+
+      if (!result) {
         return { 
-          error: `Échec de connexion LinkedIn: ${response.status} - ${errorText}`, 
+          error: `Échec de connexion LinkedIn: ${response.status} - Réponse invalide`, 
           success: '',
           needsVerification: false
         };
       }
 
-      const result = await response.json();
+      if (!response.ok) {
+        if (result.needs_verification || result.status === 'needs_verification') {
+          return { 
+            error: '', 
+            success: '', 
+            needsVerification: true,
+            message: result.message || 'Un code de vérification a été envoyé à votre email LinkedIn'
+          };
+        }
+        return { 
+          error: `Échec de connexion LinkedIn: ${result.message || response.statusText}`, 
+          success: '',
+          needsVerification: false
+        };
+      }
 
       if (!result.login_token) {
+        if (result.needs_verification !== false && result.status !== 'error') {
+          return { 
+            error: '', 
+            success: '', 
+            needsVerification: true,
+            message: result.message || 'Un code de vérification a été envoyé à votre email LinkedIn'
+          };
+        }
         return { 
-          error: '', 
+          error: result.message || 'Token de connexion non reçu', 
           success: '', 
-          needsVerification: true,
-          message: 'Un code de vérification a été envoyé à votre email LinkedIn'
+          needsVerification: false 
         };
       }
 
