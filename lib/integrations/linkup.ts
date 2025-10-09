@@ -1,262 +1,240 @@
 import { z } from 'zod';
 
-const LINKUP_API_BASE_URL = 'https://api.linkup.so/v1';
+const LINKUP_API_BASE_URL = 'https://api.linkupapi.com/v1';
 
 const linkupReactionSchema = z.object({
-  id: z.string(),
-  reaction_type: z.enum(['LIKE', 'PRAISE', 'EMPATHY', 'INTEREST', 'APPRECIATION', 'ENTERTAINMENT']),
-  reacted_at: z.string(),
-  reactor: z.object({
-    profile_id: z.string(),
-    public_id: z.string(),
-    profile_url: z.string(),
-    first_name: z.string().optional(),
-    last_name: z.string().optional(),
-    headline: z.string().optional(),
-    profile_picture_url: z.string().optional(),
-  }),
+  type: z.string(),
+  name: z.string(),
+  subtitle: z.string().optional(),
+  profile_url: z.string(),
+  actor_urn: z.string().optional(),
+  profile_picture: z.string().optional(),
+  connection_degree: z.string().optional(),
 });
 
 const linkupCommentSchema = z.object({
-  id: z.string(),
-  text: z.string(),
-  commented_at: z.string(),
-  commenter: z.object({
-    profile_id: z.string(),
-    public_id: z.string(),
-    profile_url: z.string(),
-    first_name: z.string().optional(),
-    last_name: z.string().optional(),
-    headline: z.string().optional(),
-    profile_picture_url: z.string().optional(),
+  comment_text: z.string(),
+  commented_at: z.string().optional(),
+  commenter_name: z.string(),
+  commenter_headline: z.string().optional(),
+  commenter_profile_url: z.string(),
+  commenter_profile_picture: z.string().optional(),
+  connection_degree: z.string().optional(),
+});
+
+const linkupReactionsResponseSchema = z.object({
+  status: z.string(),
+  data: z.object({
+    total_results: z.number(),
+    total_available_results: z.number(),
+    reactions: z.array(linkupReactionSchema),
+    pagination: z.object({
+      start_page: z.number(),
+      end_page: z.number(),
+      results_per_page: z.number(),
+      pages_fetched: z.number(),
+    }),
   }),
 });
 
-const linkupPostEngagementSchema = z.object({
-  reactions: z.array(linkupReactionSchema),
-  comments: z.array(linkupCommentSchema),
-  metadata: z.object({
-    post_url: z.string(),
-    total_reactions: z.number(),
-    total_comments: z.number(),
+const linkupCommentsResponseSchema = z.object({
+  status: z.string(),
+  data: z.object({
+    total_results: z.number(),
+    total_available_results: z.number(),
+    comments: z.array(linkupCommentSchema),
+    pagination: z.object({
+      start_page: z.number(),
+      end_page: z.number(),
+      results_per_page: z.number(),
+      pages_fetched: z.number(),
+    }),
   }),
-});
-
-const linkupProfileSchema = z.object({
-  profile_id: z.string(),
-  public_id: z.string(),
-  profile_url: z.string(),
-  first_name: z.string().optional(),
-  last_name: z.string().optional(),
-  headline: z.string().optional(),
-  summary: z.string().optional(),
-  location: z.string().optional(),
-  profile_picture_url: z.string().optional(),
-  current_company: z.object({
-    name: z.string().optional(),
-    industry: z.string().optional(),
-    size: z.number().optional(),
-    domain: z.string().optional(),
-  }).optional(),
-  experience: z.array(z.object({
-    title: z.string().optional(),
-    company: z.string().optional(),
-    duration: z.string().optional(),
-  })).optional(),
 });
 
 export type LinkupReaction = z.infer<typeof linkupReactionSchema>;
 export type LinkupComment = z.infer<typeof linkupCommentSchema>;
-export type LinkupPostEngagement = z.infer<typeof linkupPostEngagementSchema>;
-export type LinkupProfile = z.infer<typeof linkupProfileSchema>;
+
+export interface LinkupPostEngagement {
+  reactions: LinkupReaction[];
+  comments: LinkupComment[];
+  metadata: {
+    post_url: string;
+    total_reactions: number;
+    total_comments: number;
+  };
+}
 
 export class LinkupClient {
   private apiKey: string;
+  private loginToken: string;
   private mockMode: boolean;
 
-  constructor(apiKey?: string) {
+  constructor(apiKey?: string, loginToken?: string) {
     this.apiKey = apiKey || process.env.LINKUP_API_KEY || '';
+    this.loginToken = loginToken || process.env.LINKUP_LOGIN_TOKEN || '';
     this.mockMode = process.env.LINKUP_MOCK === '1' || !this.apiKey;
   }
 
-  private async makeRequest(endpoint: string, method: string = 'GET', body?: any) {
+  private async makeRequest(endpoint: string, body: any) {
     if (this.mockMode) {
       return this.getMockResponse(endpoint);
     }
 
+    if (!this.loginToken) {
+      throw new Error('LinkedIn login_token is required. Please add LINKUP_LOGIN_TOKEN to your environment variables.');
+    }
+
     const response = await fetch(`${LINKUP_API_BASE_URL}${endpoint}`, {
-      method,
+      method: 'POST',
       headers: {
-        'Authorization': `Bearer ${this.apiKey}`,
+        'x-api-key': this.apiKey,
         'Content-Type': 'application/json',
       },
-      body: body ? JSON.stringify(body) : undefined,
+      body: JSON.stringify({
+        ...body,
+        login_token: this.loginToken,
+      }),
     });
 
     if (!response.ok) {
-      throw new Error(`LinkUp API error: ${response.status} ${response.statusText}`);
+      const errorText = await response.text();
+      throw new Error(`LinkUp API error: ${response.status} ${response.statusText} - ${errorText}`);
     }
 
     return response.json();
   }
 
   private getMockResponse(endpoint: string) {
-    if (endpoint.includes('/posts/') && endpoint.includes('/engagement')) {
+    if (endpoint.includes('/posts/reactions')) {
       return {
-        reactions: [
-          {
-            id: 'mock-reaction-1',
-            reaction_type: 'LIKE',
-            reacted_at: new Date().toISOString(),
-            reactor: {
-              profile_id: 'mock-profile-1',
-              public_id: 'john-doe',
+        status: 'success',
+        data: {
+          total_results: 5,
+          total_available_results: 5,
+          reactions: [
+            {
+              type: 'LIKE',
+              name: 'John Doe',
+              subtitle: 'CEO at TechCorp',
               profile_url: 'https://linkedin.com/in/john-doe',
-              first_name: 'John',
-              last_name: 'Doe',
-              headline: 'CEO at TechCorp',
-              profile_picture_url: 'https://via.placeholder.com/150',
+              profile_picture: 'https://via.placeholder.com/150',
+              connection_degree: '2nd',
             },
-          },
-          {
-            id: 'mock-reaction-2',
-            reaction_type: 'PRAISE',
-            reacted_at: new Date().toISOString(),
-            reactor: {
-              profile_id: 'mock-profile-2',
-              public_id: 'jane-smith',
+            {
+              type: 'INTEREST',
+              name: 'Jane Smith',
+              subtitle: 'VP of Engineering at StartupCo',
               profile_url: 'https://linkedin.com/in/jane-smith',
-              first_name: 'Jane',
-              last_name: 'Smith',
-              headline: 'VP of Engineering at StartupCo',
-              profile_picture_url: 'https://via.placeholder.com/150',
+              profile_picture: 'https://via.placeholder.com/150',
+              connection_degree: '1st',
             },
-          },
-        ],
-        comments: [
-          {
-            id: 'mock-comment-1',
-            text: 'Great insights! This is exactly what we needed.',
-            commented_at: new Date().toISOString(),
-            commenter: {
-              profile_id: 'mock-profile-3',
-              public_id: 'alex-johnson',
+            {
+              type: 'PRAISE',
+              name: 'Alex Johnson',
+              subtitle: 'Product Manager at InnovateTech',
               profile_url: 'https://linkedin.com/in/alex-johnson',
-              first_name: 'Alex',
-              last_name: 'Johnson',
-              headline: 'Product Manager at InnovateTech',
-              profile_picture_url: 'https://via.placeholder.com/150',
+              profile_picture: 'https://via.placeholder.com/150',
+              connection_degree: '3rd',
             },
+            {
+              type: 'EMPATHY',
+              name: 'Sarah Williams',
+              subtitle: 'CTO at GrowthStartup',
+              profile_url: 'https://linkedin.com/in/sarah-williams',
+              connection_degree: '2nd',
+            },
+            {
+              type: 'APPRECIATION',
+              name: 'Michael Brown',
+              subtitle: 'Founder at NextGen Solutions',
+              profile_url: 'https://linkedin.com/in/michael-brown',
+              profile_picture: 'https://via.placeholder.com/150',
+              connection_degree: '1st',
+            },
+          ],
+          pagination: {
+            start_page: 1,
+            end_page: 1,
+            results_per_page: 50,
+            pages_fetched: 1,
           },
-        ],
-        metadata: {
-          post_url: 'https://linkedin.com/posts/example-123',
-          total_reactions: 2,
-          total_comments: 1,
         },
       };
     }
 
-    if (endpoint.includes('/profiles/')) {
+    if (endpoint.includes('/posts/extract-comments')) {
       return {
-        profile_id: 'mock-profile-full',
-        public_id: 'john-doe',
-        profile_url: 'https://linkedin.com/in/john-doe',
-        first_name: 'John',
-        last_name: 'Doe',
-        headline: 'CEO & Founder at TechCorp',
-        summary: 'Experienced technology leader with 15+ years in SaaS and enterprise software.',
-        location: 'San Francisco, CA',
-        profile_picture_url: 'https://via.placeholder.com/150',
-        current_company: {
-          name: 'TechCorp',
-          industry: 'Technology',
-          size: 500,
-          domain: 'techcorp.com',
-        },
-        experience: [
-          {
-            title: 'CEO & Founder',
-            company: 'TechCorp',
-            duration: '2018 - Present',
-          },
-          {
-            title: 'VP Engineering',
-            company: 'Previous Company',
-            duration: '2015 - 2018',
-          },
-        ],
-      };
-    }
-
-    if (endpoint.includes('/search/profiles')) {
-      return {
-        profiles: [
-          {
-            profile_id: 'search-result-1',
-            public_id: 'cto-prospect',
-            profile_url: 'https://linkedin.com/in/cto-prospect',
-            first_name: 'Sarah',
-            last_name: 'Williams',
-            headline: 'CTO at GrowthStartup',
-            location: 'New York, NY',
-            profile_picture_url: 'https://via.placeholder.com/150',
-            current_company: {
-              name: 'GrowthStartup',
-              industry: 'SaaS',
-              size: 100,
+        status: 'success',
+        data: {
+          total_results: 3,
+          total_available_results: 3,
+          comments: [
+            {
+              comment_text: 'Great insights! This is exactly what we needed.',
+              commented_at: new Date().toISOString(),
+              commenter_name: 'Emily Davis',
+              commenter_headline: 'Marketing Director at BrandCo',
+              commenter_profile_url: 'https://linkedin.com/in/emily-davis',
+              commenter_profile_picture: 'https://via.placeholder.com/150',
+              connection_degree: '2nd',
             },
+            {
+              comment_text: 'Interesting perspective. Would love to discuss this further.',
+              commented_at: new Date().toISOString(),
+              commenter_name: 'David Martinez',
+              commenter_headline: 'Sales Lead at EnterpriseHub',
+              commenter_profile_url: 'https://linkedin.com/in/david-martinez',
+              commenter_profile_picture: 'https://via.placeholder.com/150',
+              connection_degree: '1st',
+            },
+            {
+              comment_text: 'Thanks for sharing this valuable information!',
+              commented_at: new Date().toISOString(),
+              commenter_name: 'Lisa Anderson',
+              commenter_headline: 'HR Manager at PeopleCorp',
+              commenter_profile_url: 'https://linkedin.com/in/lisa-anderson',
+              connection_degree: '3rd',
+            },
+          ],
+          pagination: {
+            start_page: 1,
+            end_page: 1,
+            results_per_page: 50,
+            pages_fetched: 1,
           },
-        ],
-        total: 1,
+        },
       };
     }
 
-    return { error: 'Unknown endpoint' };
+    return { status: 'error', data: null };
   }
 
-  async getPostEngagement(postUrl: string): Promise<LinkupPostEngagement> {
-    const postId = this.extractPostId(postUrl);
-    const data = await this.makeRequest(`/posts/${postId}/engagement`);
-    return linkupPostEngagementSchema.parse(data);
-  }
+  async getPostEngagement(postUrl: string, totalResults: number = 50): Promise<LinkupPostEngagement> {
+    const reactionsResponse = await this.makeRequest('/posts/reactions', {
+      post_url: postUrl,
+      total_results: totalResults,
+      country: 'FR',
+    });
 
-  async getProfile(profileUrl: string): Promise<LinkupProfile> {
-    const profileId = this.extractProfileId(profileUrl);
-    const data = await this.makeRequest(`/profiles/${profileId}`);
-    return linkupProfileSchema.parse(data);
-  }
+    const commentsResponse = await this.makeRequest('/posts/extract-comments', {
+      post_url: postUrl,
+      total_results: totalResults,
+      country: 'FR',
+    });
 
-  async searchProfiles(filters: {
-    title?: string;
-    company?: string;
-    location?: string;
-    industry?: string;
-    keywords?: string;
-  }): Promise<{ profiles: LinkupProfile[]; total: number }> {
-    const queryParams = new URLSearchParams();
-    
-    if (filters.title) queryParams.append('title', filters.title);
-    if (filters.company) queryParams.append('company', filters.company);
-    if (filters.location) queryParams.append('location', filters.location);
-    if (filters.industry) queryParams.append('industry', filters.industry);
-    if (filters.keywords) queryParams.append('keywords', filters.keywords);
+    const reactionsData = linkupReactionsResponseSchema.parse(reactionsResponse);
+    const commentsData = linkupCommentsResponseSchema.parse(commentsResponse);
 
-    const data = await this.makeRequest(`/search/profiles?${queryParams.toString()}`);
     return {
-      profiles: data.profiles.map((p: any) => linkupProfileSchema.parse(p)),
-      total: data.total,
+      reactions: reactionsData.data.reactions,
+      comments: commentsData.data.comments,
+      metadata: {
+        post_url: postUrl,
+        total_reactions: reactionsData.data.total_available_results,
+        total_comments: commentsData.data.total_available_results,
+      },
     };
-  }
-
-  private extractPostId(postUrl: string): string {
-    const match = postUrl.match(/posts\/([^/?]+)/);
-    return match ? match[1] : postUrl;
-  }
-
-  private extractProfileId(profileUrl: string): string {
-    const match = profileUrl.match(/in\/([^/?]+)/);
-    return match ? match[1] : profileUrl;
   }
 }
 

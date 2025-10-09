@@ -25,27 +25,31 @@ export const importLeadsFromPost = validatedActionWithUser(
     for (const reaction of engagement.reactions) {
       const existingLead = await db.query.leads.findFirst({
         where: and(
-          eq(leads.linkedinUrl, reaction.reactor.profile_url),
+          eq(leads.linkedinUrl, reaction.profile_url),
           eq(leads.teamId, teamId)
         ),
       });
 
       if (existingLead) continue;
 
+      const nameParts = reaction.name.split(' ');
+      const firstName = nameParts[0] || '';
+      const lastName = nameParts.slice(1).join(' ') || '';
+
       const [lead] = await db.insert(leads).values({
         teamId,
-        firstName: reaction.reactor.first_name || '',
-        lastName: reaction.reactor.last_name || '',
-        linkedinUrl: reaction.reactor.profile_url,
-        profilePictureUrl: reaction.reactor.profile_picture_url,
-        title: reaction.reactor.headline,
+        firstName,
+        lastName,
+        linkedinUrl: reaction.profile_url,
+        profilePictureUrl: reaction.profile_picture,
+        title: reaction.subtitle,
         sourceMode,
         sourcePostUrl: postUrl,
         engagementType: 'reaction',
-        reactionType: reaction.reaction_type,
+        reactionType: reaction.type,
         status: 'new',
         score: 0,
-        profileData: reaction.reactor,
+        profileData: reaction,
       }).returning();
 
       newLeads.push(lead);
@@ -54,27 +58,31 @@ export const importLeadsFromPost = validatedActionWithUser(
     for (const comment of engagement.comments) {
       const existingLead = await db.query.leads.findFirst({
         where: and(
-          eq(leads.linkedinUrl, comment.commenter.profile_url),
+          eq(leads.linkedinUrl, comment.commenter_profile_url),
           eq(leads.teamId, teamId)
         ),
       });
 
       if (existingLead) continue;
 
+      const nameParts = comment.commenter_name.split(' ');
+      const firstName = nameParts[0] || '';
+      const lastName = nameParts.slice(1).join(' ') || '';
+
       const [lead] = await db.insert(leads).values({
         teamId,
-        firstName: comment.commenter.first_name || '',
-        lastName: comment.commenter.last_name || '',
-        linkedinUrl: comment.commenter.profile_url,
-        profilePictureUrl: comment.commenter.profile_picture_url,
-        title: comment.commenter.headline,
+        firstName,
+        lastName,
+        linkedinUrl: comment.commenter_profile_url,
+        profilePictureUrl: comment.commenter_profile_picture,
+        title: comment.commenter_headline,
         sourceMode,
         sourcePostUrl: postUrl,
         engagementType: 'comment',
-        commentText: comment.text,
+        commentText: comment.comment_text,
         status: 'new',
         score: 0,
-        profileData: comment.commenter,
+        profileData: comment,
       }).returning();
 
       newLeads.push(lead);
@@ -83,26 +91,22 @@ export const importLeadsFromPost = validatedActionWithUser(
     for (const reaction of engagement.reactions) {
       await db.insert(postEngagements).values({
         postUrl,
-        actorProfileUrl: reaction.reactor.profile_url,
-        actorName: reaction.reactor.first_name && reaction.reactor.last_name 
-          ? `${reaction.reactor.first_name} ${reaction.reactor.last_name}` 
-          : undefined,
+        actorProfileUrl: reaction.profile_url,
+        actorName: reaction.name,
         type: 'REACTION',
-        reactionType: reaction.reaction_type,
-        reactedAt: new Date(reaction.reacted_at),
+        reactionType: reaction.type,
+        reactedAt: new Date(),
       });
     }
 
     for (const comment of engagement.comments) {
       await db.insert(postEngagements).values({
         postUrl,
-        actorProfileUrl: comment.commenter.profile_url,
-        actorName: comment.commenter.first_name && comment.commenter.last_name 
-          ? `${comment.commenter.first_name} ${comment.commenter.last_name}` 
-          : undefined,
+        actorProfileUrl: comment.commenter_profile_url,
+        actorName: comment.commenter_name,
         type: 'COMMENT',
-        commentText: comment.text,
-        reactedAt: new Date(comment.commented_at),
+        commentText: comment.comment_text,
+        reactedAt: comment.commented_at ? new Date(comment.commented_at) : new Date(),
       });
     }
 

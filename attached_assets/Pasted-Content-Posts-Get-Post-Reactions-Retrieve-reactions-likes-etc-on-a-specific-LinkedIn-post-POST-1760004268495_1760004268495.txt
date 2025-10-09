@@ -1,0 +1,82 @@
+Content & Posts
+Get Post Reactions
+Retrieve reactions (likes, etc.) on a specific LinkedIn post
+POST
+/
+v1
+/
+posts
+/
+reactions
+
+Try it
+Get a detailed list of reactions on a LinkedIn post, including information about who reacted and the type of reaction.
+Credit Usage: 1 credit per 10 results (or fraction thereof). For example:
+1-10 results = 1 credit
+11-20 results = 2 credits
+300 results = 30 credits
+​
+Header Parameters
+
+​
+x-api-key
+stringrequired
+Your API key
+​
+Body Parameters
+
+​
+post_url
+stringrequired
+URL of the LinkedIn post to extract reactions from (supports feed/update and /posts/ formats)
+​
+total_results
+integerdefault:"10"
+Number of reactions to retrieve (used when not in pagination mode)
+​
+start_page
+integer
+First page to fetch when using pagination mode (default: 1)
+​
+end_page
+integer
+Last page to fetch when using pagination mode (default: same as start_page)
+​
+country
+stringdefault:"FR"
+Country code for proxy selection. Available: (US,UK,FR)
+​
+login_token
+stringrequired
+LinkedIn authentication cookie obtained from the login/verify process
+​
+Response
+
+​
+status
+string
+Request status (success/error)
+​
+data
+object
+Show Properties
+​
+Notes
+
+The API supports two post URL formats:
+Feed updates: https://www.linkedin.com/feed/update/urn:li:activity:...
+share url: https://www.linkedin.com/posts/..
+Results are paginated with a maximum of 50 reactions per page
+The profile picture URL may be null if not available or if the user has no profile picture
+Connection degree shows your network relationship with the reactor (1st, 2nd, or 3rd degree connection)
+Pagination Mode vs. Total Results Mode:
+Total Results Mode: Use the total_results parameter to specify how many reactions you want (default)
+Pagination Mode: Use start_page and end_page parameters to fetch specific pages of results
+Credit usage in pagination mode is based on the number of pages fetched (1 credit per page)
+When using pagination mode, total_results parameter is ignored
+The total_available_results field shows the total number of reactions available on the post
+Some reaction information may be limited based on:
+Your connection level with the reactor
+The reactor’s privacy settings
+The post’s visibility settings
+Rate limits apply to reaction retrieval requests
