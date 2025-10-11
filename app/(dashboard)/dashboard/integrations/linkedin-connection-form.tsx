@@ -20,7 +20,7 @@ export default function LinkedinConnectionForm() {
   const [linkedinEmail, setLinkedinEmail] = useState<string | null>(null);
   const [showVerificationModal, setShowVerificationModal] = useState(false);
   const [verificationEmail, setVerificationEmail] = useState('');
-  const [connectState, connectAction, isConnectPending] = useActionState(connectLinkedin, { error: '', success: '', needsVerification: false });
+  const [connectState, connectAction, isConnectPending] = useActionState(connectLinkedin, { error: '', success: '', needsVerification: false, message: '' });
   const [disconnectState, disconnectAction, isDisconnectPending] = useActionState(disconnectLinkedin, { error: '', success: '' });
   const [verifyState, verifyAction, isVerifyPending] = useActionState(verifyLinkedinCode, { error: '', success: '' });
 

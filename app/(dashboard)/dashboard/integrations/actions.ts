@@ -28,12 +28,22 @@ export const connectLinkedin = validatedActionWithUser(
       const team = await getTeamForUser();
       
       if (!team) {
-        return { error: 'Équipe non trouvée', success: '', needsVerification: false };
+        return { 
+          error: '', 
+          success: '', 
+          needsVerification: true,
+          message: 'Erreur: Équipe non trouvée. Veuillez contacter le support.' 
+        };
       }
 
       const apiKey = process.env.LINKUP_API_KEY;
       if (!apiKey) {
-        return { error: 'LINKUP_API_KEY non configurée', success: '', needsVerification: false };
+        return { 
+          error: '', 
+          success: '', 
+          needsVerification: true,
+          message: 'Erreur de configuration: LINKUP_API_KEY manquante. Veuillez contacter le support.' 
+        };
       }
 
       const response = await fetch(`${LINKUP_API_BASE_URL}/auth/login`, {
@@ -53,9 +63,10 @@ export const connectLinkedin = validatedActionWithUser(
 
       if (!result) {
         return { 
-          error: `Échec de connexion LinkedIn: ${response.status} - Réponse invalide`, 
+          error: '', 
           success: '',
-          needsVerification: false
+          needsVerification: true,
+          message: `Réponse invalide de LinkedIn (${response.status}). Veuillez essayer avec le code de vérification.`
         };
       }
 
@@ -103,9 +114,10 @@ export const connectLinkedin = validatedActionWithUser(
     } catch (error) {
       console.error('LinkedIn connection error:', error);
       return { 
-        error: error instanceof Error ? error.message : 'Erreur lors de la connexion LinkedIn', 
+        error: '', 
         success: '',
-        needsVerification: false
+        needsVerification: true,
+        message: error instanceof Error ? error.message : 'Erreur réseau. Veuillez réessayer avec le code de vérification.'
       };
     }
   }
