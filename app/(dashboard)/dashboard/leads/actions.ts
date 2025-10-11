@@ -24,6 +24,8 @@ export const importLeadsFromPost = validatedActionWithUser(
     const newLeads = [];
 
     for (const reaction of engagement.reactions) {
+      if (!reaction.profile_url) continue;
+
       const existingLead = await db.query.leads.findFirst({
         where: and(
           eq(leads.linkedinUrl, reaction.profile_url),
@@ -33,7 +35,7 @@ export const importLeadsFromPost = validatedActionWithUser(
 
       if (existingLead) continue;
 
-      const nameParts = reaction.name.split(' ');
+      const nameParts = (reaction.name || '').split(' ');
       const firstName = nameParts[0] || '';
       const lastName = nameParts.slice(1).join(' ') || '';
 
@@ -57,6 +59,8 @@ export const importLeadsFromPost = validatedActionWithUser(
     }
 
     for (const comment of engagement.comments) {
+      if (!comment.commenter_profile_url) continue;
+
       const existingLead = await db.query.leads.findFirst({
         where: and(
           eq(leads.linkedinUrl, comment.commenter_profile_url),
@@ -66,7 +70,7 @@ export const importLeadsFromPost = validatedActionWithUser(
 
       if (existingLead) continue;
 
-      const nameParts = comment.commenter_name.split(' ');
+      const nameParts = (comment.commenter_name || '').split(' ');
       const firstName = nameParts[0] || '';
       const lastName = nameParts.slice(1).join(' ') || '';
 

@@ -30,7 +30,7 @@ export default function LeadChaudForm({ teamId }: { teamId: number }) {
         formData.set('sourceMode', 'chaud');
         formData.set('teamId', teamId.toString());
 
-        const result = await importLeadsFromPost(formData);
+        const result = await importLeadsFromPost({}, formData);
 
         if (result?.error) {
           setError(result.error);
