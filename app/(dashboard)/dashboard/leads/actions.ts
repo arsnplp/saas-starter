@@ -59,18 +59,22 @@ export const importLeadsFromPost = validatedActionWithUser(
     }
 
     for (const comment of engagement.comments) {
-      if (!comment.commenter_profile_url) continue;
+      const profileUrl = comment.commenter?.linkedin_url || comment.commenter_profile_url;
+      const commenterName = comment.commenter?.name || comment.commenter_name || '';
+      const commenterHeadline = comment.commenter?.occupation || comment.commenter_headline || '';
+      
+      if (!profileUrl) continue;
 
       const existingLead = await db.query.leads.findFirst({
         where: and(
-          eq(leads.linkedinUrl, comment.commenter_profile_url),
+          eq(leads.linkedinUrl, profileUrl),
           eq(leads.teamId, teamId)
         ),
       });
 
       if (existingLead) continue;
 
-      const nameParts = (comment.commenter_name || '').split(' ');
+      const nameParts = commenterName.split(' ');
       const firstName = nameParts[0] || '';
       const lastName = nameParts.slice(1).join(' ') || '';
 
@@ -78,9 +82,9 @@ export const importLeadsFromPost = validatedActionWithUser(
         teamId,
         firstName,
         lastName,
-        linkedinUrl: comment.commenter_profile_url,
+        linkedinUrl: profileUrl,
         profilePictureUrl: comment.commenter_profile_picture,
-        title: comment.commenter_headline,
+        title: commenterHeadline,
         sourceMode,
         sourcePostUrl: postUrl,
         engagementType: 'comment',
@@ -105,10 +109,15 @@ export const importLeadsFromPost = validatedActionWithUser(
     }
 
     for (const comment of engagement.comments) {
+      const profileUrl = comment.commenter?.linkedin_url || comment.commenter_profile_url;
+      const commenterName = comment.commenter?.name || comment.commenter_name || '';
+      
+      if (!profileUrl) continue;
+
       await db.insert(postEngagements).values({
         postUrl,
-        actorProfileUrl: comment.commenter_profile_url,
-        actorName: comment.commenter_name,
+        actorProfileUrl: profileUrl,
+        actorName: commenterName,
         type: 'COMMENT',
         commentText: comment.comment_text,
         reactedAt: comment.commented_at ? new Date(comment.commented_at) : new Date(),

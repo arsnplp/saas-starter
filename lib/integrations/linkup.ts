@@ -18,6 +18,13 @@ const linkupReactionSchema = z.object({
 const linkupCommentSchema = z.object({
   comment_text: z.string().optional(),
   commented_at: z.string().optional(),
+  comment_urn: z.string().optional(),
+  commenter: z.object({
+    name: z.string().optional(),
+    linkedin_url: z.string().optional(),
+    occupation: z.string().optional(),
+    profile_urn: z.string().optional(),
+  }).optional(),
   commenter_name: z.string().optional(),
   commenter_headline: z.string().optional(),
   commenter_profile_url: z.string().optional(),
