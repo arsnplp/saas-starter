@@ -32,6 +32,7 @@ export const connectLinkedin = validatedActionWithUser(
           error: '', 
           success: '', 
           needsVerification: true,
+          linkedinEmail: data.email,
           message: 'Erreur: Équipe non trouvée. Veuillez contacter le support.' 
         };
       }
@@ -42,6 +43,7 @@ export const connectLinkedin = validatedActionWithUser(
           error: '', 
           success: '', 
           needsVerification: true,
+          linkedinEmail: data.email,
           message: 'Erreur de configuration: LINKUP_API_KEY manquante. Veuillez contacter le support.' 
         };
       }
@@ -66,6 +68,7 @@ export const connectLinkedin = validatedActionWithUser(
           error: '', 
           success: '',
           needsVerification: true,
+          linkedinEmail: data.email,
           message: `Réponse invalide de LinkedIn (${response.status}). Veuillez essayer avec le code de vérification.`
         };
       }
@@ -109,6 +112,7 @@ export const connectLinkedin = validatedActionWithUser(
         error: '', 
         success: '', 
         needsVerification: true,
+        linkedinEmail: data.email,
         message: result.message || 'Un code de vérification a été envoyé à votre email LinkedIn'
       };
     } catch (error) {
@@ -117,6 +121,7 @@ export const connectLinkedin = validatedActionWithUser(
         error: '', 
         success: '',
         needsVerification: true,
+        linkedinEmail: data.email,
         message: error instanceof Error ? error.message : 'Erreur réseau. Veuillez réessayer avec le code de vérification.'
       };
     }
