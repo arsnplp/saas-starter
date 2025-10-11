@@ -28,30 +28,30 @@ const linkupCommentSchema = z.object({
 const linkupReactionsResponseSchema = z.object({
   status: z.string(),
   data: z.object({
-    total_results: z.number(),
-    total_available_results: z.number(),
-    reactions: z.array(linkupReactionSchema),
+    total_results: z.number().optional().default(0),
+    total_available_results: z.number().optional().default(0),
+    reactions: z.array(linkupReactionSchema).optional().default([]),
     pagination: z.object({
       start_page: z.number(),
       end_page: z.number(),
       results_per_page: z.number(),
       pages_fetched: z.number(),
-    }),
+    }).optional(),
   }),
 });
 
 const linkupCommentsResponseSchema = z.object({
   status: z.string(),
   data: z.object({
-    total_results: z.number(),
-    total_available_results: z.number(),
-    comments: z.array(linkupCommentSchema),
+    total_results: z.number().optional().default(0),
+    total_available_results: z.number().optional().default(0),
+    comments: z.array(linkupCommentSchema).optional().default([]),
     pagination: z.object({
       start_page: z.number(),
       end_page: z.number(),
       results_per_page: z.number(),
       pages_fetched: z.number(),
-    }),
+    }).optional(),
   }),
 });
 
@@ -102,10 +102,13 @@ export class LinkupClient {
 
     if (!response.ok) {
       const errorText = await response.text();
+      console.error(`LinkUp API error (${endpoint}):`, response.status, errorText);
       throw new Error(`LinkUp API error: ${response.status} ${response.statusText} - ${errorText}`);
     }
 
-    return response.json();
+    const data = await response.json();
+    console.log(`LinkUp API response (${endpoint}):`, JSON.stringify(data, null, 2));
+    return data;
   }
 
   private getMockResponse(endpoint: string) {
