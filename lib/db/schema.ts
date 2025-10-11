@@ -89,6 +89,17 @@ export const linkedinConnections = pgTable('linkedin_connections', {
     isActive: boolean('is_active').notNull().default(true),
 });
 
+export const linkedinConnectionsRelations = relations(linkedinConnections, ({ one }) => ({
+    team: one(teams, {
+        fields: [linkedinConnections.teamId],
+        references: [teams.id],
+    }),
+    connectedByUser: one(users, {
+        fields: [linkedinConnections.connectedBy],
+        references: [users.id],
+    }),
+}));
+
 export const teamsRelations = relations(teams, ({ many, one }) => ({
     teamMembers: many(teamMembers),
     activityLogs: many(activityLogs),

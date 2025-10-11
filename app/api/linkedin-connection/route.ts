@@ -20,11 +20,27 @@ export async function GET(request: NextRequest) {
 
     const connection = await db.query.linkedinConnections.findFirst({
       where: eq(linkedinConnections.teamId, team.id),
+      with: {
+        connectedByUser: true,
+      },
     });
 
+    if (!connection) {
+      return NextResponse.json({
+        isConnected: false,
+        linkedinEmail: null,
+        connectedAt: null,
+        lastUsedAt: null,
+        connectedBy: null,
+      });
+    }
+
     return NextResponse.json({
-      isConnected: !!connection && connection.isActive,
-      linkedinEmail: connection?.linkedinEmail || null,
+      isConnected: connection.isActive,
+      linkedinEmail: connection.linkedinEmail || null,
+      connectedAt: connection.connectedAt?.toISOString() || null,
+      lastUsedAt: connection.lastUsedAt?.toISOString() || null,
+      connectedBy: connection.connectedByUser?.name || connection.connectedByUser?.email || null,
     });
   } catch (error) {
     console.error('LinkedIn connection check error:', error);
