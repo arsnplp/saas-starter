@@ -201,6 +201,7 @@ export const prospectCandidates = pgTable(
     'prospect_candidates',
     {
         id: uuid('id').defaultRandom().primaryKey(),
+        teamId: integer('team_id').references(() => teams.id).notNull(),
         source: varchar('source', { length: 50 }).notNull(),
         sourceRef: varchar('source_ref', { length: 255 }).notNull(),
         action: varchar('action', { length: 50 }).notNull(),

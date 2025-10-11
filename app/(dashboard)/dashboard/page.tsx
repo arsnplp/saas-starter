@@ -272,11 +272,13 @@ function InviteTeamMember() {
 
 function QuickLinks() {
   const links = [
+    { href: '/dashboard/prospects', label: '🎯 Prospects', description: 'Prospects en attente d\'analyse' },
     { href: '/dashboard/leads', label: 'Leads', description: 'Gérer tous vos leads' },
     { href: '/dashboard/leads/chaud', label: 'Lead Chaud', description: 'Leads depuis vos posts' },
     { href: '/dashboard/leads/espion', label: 'Lead Espion', description: 'Leads depuis posts concurrents' },
     { href: '/dashboard/leads/magnet', label: 'Lead Magnet', description: 'Leads filtrés et ciblés' },
     { href: '/dashboard/leads/froid', label: 'Lead Froid', description: 'Recherche de leads basée sur ICP' },
+    { href: '/dashboard/integrations', label: 'Intégrations', description: 'Connecter LinkedIn' },
     { href: '/dashboard/activity', label: 'Activité', description: 'Historique des actions' },
     { href: '/dashboard/general', label: 'Paramètres généraux', description: 'Configuration du compte' },
     { href: '/dashboard/security', label: 'Sécurité', description: 'Gérer la sécurité' },

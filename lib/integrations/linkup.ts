@@ -6,21 +6,21 @@ import { eq } from 'drizzle-orm';
 const LINKUP_API_BASE_URL = 'https://api.linkupapi.com/v1';
 
 const linkupReactionSchema = z.object({
-  type: z.string(),
-  name: z.string(),
+  type: z.string().optional(),
+  name: z.string().optional(),
   subtitle: z.string().optional(),
-  profile_url: z.string(),
+  profile_url: z.string().optional(),
   actor_urn: z.string().optional(),
   profile_picture: z.string().optional(),
   connection_degree: z.string().optional(),
 });
 
 const linkupCommentSchema = z.object({
-  comment_text: z.string(),
+  comment_text: z.string().optional(),
   commented_at: z.string().optional(),
-  commenter_name: z.string(),
+  commenter_name: z.string().optional(),
   commenter_headline: z.string().optional(),
-  commenter_profile_url: z.string(),
+  commenter_profile_url: z.string().optional(),
   commenter_profile_picture: z.string().optional(),
   connection_degree: z.string().optional(),
 });
