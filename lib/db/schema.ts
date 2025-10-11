@@ -221,6 +221,7 @@ export const prospectCandidates = pgTable(
     },
     (t) => ({
         uniqueCandidate: unique('prospect_candidates_unique').on(
+            t.teamId,
             t.source,
             t.sourceRef,
             t.action,
