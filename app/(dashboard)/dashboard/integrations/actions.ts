@@ -59,69 +59,46 @@ export const connectLinkedin = validatedActionWithUser(
         };
       }
 
-      if (!response.ok) {
-        if (result.needs_verification || result.status === 'needs_verification') {
-          return { 
-            error: '', 
-            success: '', 
-            needsVerification: true,
-            message: result.message || 'Un code de vérification a été envoyé à votre email LinkedIn'
-          };
+      if (result.login_token) {
+        const existing = await db.query.linkedinConnections.findFirst({
+          where: eq(linkedinConnections.teamId, team.id),
+        });
+
+        if (existing) {
+          await db
+            .update(linkedinConnections)
+            .set({
+              loginToken: result.login_token,
+              linkedinEmail: data.email,
+              connectedBy: user.id,
+              connectedAt: new Date(),
+              isActive: true,
+            })
+            .where(eq(linkedinConnections.teamId, team.id));
+        } else {
+          await db.insert(linkedinConnections).values({
+            teamId: team.id,
+            loginToken: result.login_token,
+            linkedinEmail: data.email,
+            connectedBy: user.id,
+            isActive: true,
+          });
         }
+
+        revalidatePath('/dashboard/integrations');
+        
         return { 
-          error: `Échec de connexion LinkedIn: ${result.message || response.statusText}`, 
-          success: '',
+          error: '', 
+          success: 'LinkedIn connecté avec succès ! Vous pouvez maintenant importer des leads.',
           needsVerification: false
         };
       }
 
-      if (!result.login_token) {
-        if (result.needs_verification !== false && result.status !== 'error') {
-          return { 
-            error: '', 
-            success: '', 
-            needsVerification: true,
-            message: result.message || 'Un code de vérification a été envoyé à votre email LinkedIn'
-          };
-        }
-        return { 
-          error: result.message || 'Token de connexion non reçu', 
-          success: '', 
-          needsVerification: false 
-        };
-      }
-
-      const existing = await db.query.linkedinConnections.findFirst({
-        where: eq(linkedinConnections.teamId, team.id),
-      });
-
-      if (existing) {
-        await db
-          .update(linkedinConnections)
-          .set({
-            loginToken: result.login_token,
-            linkedinEmail: data.email,
-            connectedBy: user.id,
-            connectedAt: new Date(),
-            isActive: true,
-          })
-          .where(eq(linkedinConnections.teamId, team.id));
-      } else {
-        await db.insert(linkedinConnections).values({
-          teamId: team.id,
-          loginToken: result.login_token,
-          linkedinEmail: data.email,
-          connectedBy: user.id,
-          isActive: true,
-        });
-      }
-
-      revalidatePath('/dashboard/integrations');
-      
       return { 
         error: '', 
-        success: 'LinkedIn connecté avec succès ! Vous pouvez maintenant importer des leads.',
-        needsVerification: false
+        success: '', 
+        needsVerification: true,
+        message: result.message || 'Un code de vérification a été envoyé à votre email LinkedIn'
       };
     } catch (error) {
       console.error('LinkedIn connection error:', error);
