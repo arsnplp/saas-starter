@@ -273,6 +273,7 @@ function InviteTeamMember() {
 function QuickLinks() {
   const links = [
     { href: '/dashboard/prospects', label: '🎯 Prospects', description: 'Prospects en attente d\'analyse' },
+    { href: '/dashboard/icp', label: '🎯 Mon Prospect Idéal', description: 'Définir vos critères ICP' },
     { href: '/dashboard/leads', label: 'Leads', description: 'Gérer tous vos leads' },
     { href: '/dashboard/leads/chaud', label: 'Lead Chaud', description: 'Leads depuis vos posts' },
     { href: '/dashboard/leads/espion', label: 'Lead Espion', description: 'Leads depuis posts concurrents' },
