@@ -59,16 +59,24 @@ Preferred communication style: Simple, everyday language.
 **Database Layer**:
 - PostgreSQL as primary database
 - Drizzle ORM for type-safe database queries
-- Connection pooling via `pg` library
-- Schema includes: users, teams, team_members, activity_logs, invitations, leads, icp_profiles
+- Connection pooling via `pg` library with 5-second timeout
+- Schema includes: users, teams, team_members, activity_logs, invitations, prospect_candidates, leads, messages, icp_profiles
 
 **Key Tables**:
 - `users`: Authentication and profile data with soft deletes
 - `teams`: Multi-tenant organization units with Stripe metadata
 - `team_members`: Junction table for user-team relationships with roles
-- `leads`: Contact management with LinkedIn integration
+- `prospect_candidates`: **Staging table** for LinkedIn engagements (reactions/comments) before manual validation
+- `leads`: **Qualified contacts** after manual validation and conversion from prospects
+- `messages`: Outbound communications sent to leads (LinkedIn DMs, emails)
 - `activity_logs`: Audit trail for user actions
 - `icp_profiles`: Ideal Customer Profile definitions for lead discovery
+
+**Lead Generation Workflow**:
+1. LinkedIn post engagement → `prospect_candidates` (staging)
+2. Manual review and analysis of prospects
+3. Validation → conversion to `leads`
+4. Outreach messages stored in `messages` table
 
 **Business Logic Patterns**:
 - Server Actions with Zod schema validation
