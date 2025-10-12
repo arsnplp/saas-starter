@@ -72,11 +72,23 @@ Preferred communication style: Simple, everyday language.
 - `activity_logs`: Audit trail for user actions
 - `icp_profiles`: Ideal Customer Profile definitions for lead discovery
 
-**Lead Generation Workflow**:
+**Lead Generation Workflow** (AI-Powered):
 1. LinkedIn post engagement → `prospect_candidates` (staging)
-2. Manual review and analysis of prospects
-3. Validation → conversion to `leads`
+2. **AI Scoring Pipeline**:
+   - Click "Scorer" button triggers profile enrichment via LinkUp API (`/v1/profile/info`)
+   - Enriched profile includes: name, headline, location, industry, experience (with company_size), education, skills
+   - OpenAI GPT-4o analyzes profile against ICP criteria (industries, roles, location, keywords, company size)
+   - Returns score 0-100 + detailed reasoning in French
+   - Stores `ai_score`, `ai_reasoning`, `enriched_profile` in `prospect_candidates`
+3. **Auto-Promotion Logic**:
+   - If score ≥ `icp_profiles.minScore` → automatically converts to `leads` table
+   - If score < minScore → remains in prospects with status 'analyzed'
 4. Outreach messages stored in `messages` table
+
+**Cost Optimization Strategy**:
+- LinkUp API charged 1 credit per profile enrichment
+- Enrichment only happens once per prospect (cached in `enriched_profile` JSONB field)
+- Subsequent scoring reuses cached data to avoid redundant API calls
 
 **Business Logic Patterns**:
 - Server Actions with Zod schema validation
@@ -94,10 +106,16 @@ Preferred communication style: Simple, everyday language.
 - Products: Base ($8/month) and Plus ($12/month) plans with 7-14 day trials
 
 **Third-Party APIs**:
-- LinkUp API for LinkedIn social engagement data
-  - Fetches post reactions and comments
-  - Extracts profile URLs for lead generation
+- **LinkUp API** for LinkedIn data extraction
+  - `/posts/reactions` & `/posts/extract-comments`: Fetches post engagements
+  - `/v1/profile/info`: Enriches LinkedIn profiles (name, headline, experience, education, skills, company size)
   - Mock mode available for development (`LINKUP_MOCK=1`)
+  - Cost: 1 credit per profile enrichment
+- **OpenAI API** for AI-powered lead scoring
+  - Model: GPT-4o
+  - Analyzes LinkedIn profiles against ICP criteria
+  - Returns JSON: `{ score: 0-100, reasoning: "..." }`
+  - Handles missing data gracefully (e.g., awards 5/10 for company size if unavailable)
 
 **Database**:
 - PostgreSQL (Replit managed Postgres)
@@ -117,6 +135,7 @@ Required environment variables:
 - `STRIPE_WEBHOOK_SECRET`: Webhook signature verification
 - `BASE_URL`: Application base URL for redirects (auto-configured from REPLIT_DEV_DOMAIN)
 - `LINKUP_API_KEY`: LinkedIn engagement API (optional)
+- `OPENAI_API_KEY`: OpenAI API key for AI-powered lead scoring
 
 **Replit-Specific Configuration**:
 - Server runs on port 5000, binding to 0.0.0.0
