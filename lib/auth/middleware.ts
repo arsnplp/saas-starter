@@ -38,18 +38,36 @@ export function validatedActionWithUser<S extends z.ZodType<any, any>, T>(
   schema: S,
   action: ValidatedActionWithUserFunction<S, T>
 ) {
-  return async (prevState: ActionState, formData: FormData) => {
+  return async (prevState: ActionState | any, formData?: FormData | any) => {
     const user = await getUser();
     if (!user) {
       throw new Error('User is not authenticated');
     }
 
-    const result = schema.safeParse(Object.fromEntries(formData));
+    // Handle both FormData (from forms) and plain objects (from client-side calls)
+    let dataToValidate: any;
+    let originalFormData: FormData | undefined;
+    
+    if (formData instanceof FormData) {
+      // Traditional form submission
+      dataToValidate = Object.fromEntries(formData);
+      originalFormData = formData;
+    } else if (typeof prevState === 'object' && prevState !== null && !prevState.error && !prevState.success) {
+      // Direct function call with object (e.g., from client component)
+      dataToValidate = prevState;
+      originalFormData = undefined;
+    } else {
+      // Form submission case where prevState is ActionState
+      dataToValidate = formData ? Object.fromEntries(formData as FormData) : {};
+      originalFormData = formData as FormData;
+    }
+
+    const result = schema.safeParse(dataToValidate);
     if (!result.success) {
       return { error: result.error.errors[0].message };
     }
 
-    return action(result.data, formData, user);
+    return action(result.data, originalFormData as FormData, user);
   };
 }
 
