@@ -16,6 +16,7 @@ export default function IcpForm({ teamId, existingIcp }: IcpFormProps) {
   return (
     <form action={formAction} className="space-y-6">
       <input type="hidden" name="teamId" value={teamId} />
+      {existingIcp && <input type="hidden" name="icpId" value={existingIcp.id} />}
 
       {/* Nom du profil ICP */}
       <div>
