@@ -13,6 +13,7 @@ if (!connectionString) {
 const pool = new Pool({
     connectionString,
     ssl: connectionString.includes('sslmode=require') ? { rejectUnauthorized: true } : false,
+    connectionTimeoutMillis: 5000,
 });
 
 export const db = drizzle(pool, { schema });
