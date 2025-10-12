@@ -2,7 +2,7 @@
 
 import { z } from 'zod';
 import { db } from '@/lib/db/drizzle';
-import { leads, postEngagements } from '@/lib/db/schema';
+import { leads, postEngagements, prospectCandidates } from '@/lib/db/schema';
 import { getLinkupClient, type LinkupPostEngagement } from '@/lib/integrations/linkup';
 import { validatedActionWithUser } from '@/lib/auth/middleware';
 import { eq, and, desc } from 'drizzle-orm';
@@ -21,41 +21,40 @@ export const importLeadsFromPost = validatedActionWithUser(
     const linkupClient = await getLinkupClient(teamId);
     const engagement = await linkupClient.getPostEngagement(postUrl);
 
-    const newLeads = [];
+    const newProspects = [];
 
     for (const reaction of engagement.reactions) {
       if (!reaction.profile_url) continue;
 
-      const existingLead = await db.query.leads.findFirst({
+      const existingProspect = await db.query.prospectCandidates.findFirst({
         where: and(
-          eq(leads.linkedinUrl, reaction.profile_url),
-          eq(leads.teamId, teamId)
+          eq(prospectCandidates.profileUrl, reaction.profile_url),
+          eq(prospectCandidates.teamId, teamId),
+          eq(prospectCandidates.postUrl, postUrl),
+          eq(prospectCandidates.action, 'reaction')
         ),
       });
 
-      if (existingLead) continue;
+      if (existingProspect) continue;
 
-      const nameParts = (reaction.name || '').split(' ');
-      const firstName = nameParts[0] || '';
-      const lastName = nameParts.slice(1).join(' ') || '';
+      const { profile_picture, ...reactionWithoutPicture } = reaction;
 
-      const [lead] = await db.insert(leads).values({
+      const [prospect] = await db.insert(prospectCandidates).values({
         teamId,
-        firstName,
-        lastName,
-        linkedinUrl: reaction.profile_url,
-        profilePictureUrl: reaction.profile_picture,
-        title: reaction.subtitle,
-        sourceMode,
-        sourcePostUrl: postUrl,
-        engagementType: 'reaction',
+        source: 'linkedin_post',
+        sourceRef: postUrl,
+        action: 'reaction',
+        postUrl,
         reactionType: reaction.type,
+        profileUrl: reaction.profile_url,
+        actorUrn: reaction.actor_urn,
+        name: reaction.name,
+        title: reaction.subtitle,
         status: 'new',
-        score: 0,
-        profileData: reaction,
+        raw: reactionWithoutPicture,
       }).returning();
 
-      newLeads.push(lead);
+      newProspects.push(prospect);
     }
 
     for (const comment of engagement.comments) {
@@ -65,36 +64,39 @@ export const importLeadsFromPost = validatedActionWithUser(
       
       if (!profileUrl) continue;
 
-      const existingLead = await db.query.leads.findFirst({
+      const existingProspect = await db.query.prospectCandidates.findFirst({
         where: and(
-          eq(leads.linkedinUrl, profileUrl),
-          eq(leads.teamId, teamId)
+          eq(prospectCandidates.profileUrl, profileUrl),
+          eq(prospectCandidates.teamId, teamId),
+          eq(prospectCandidates.postUrl, postUrl),
+          eq(prospectCandidates.action, 'comment')
         ),
       });
 
-      if (existingLead) continue;
+      if (existingProspect) continue;
 
-      const nameParts = commenterName.split(' ');
-      const firstName = nameParts[0] || '';
-      const lastName = nameParts.slice(1).join(' ') || '';
+      const { commenter_profile_picture, ...commentWithoutPicture } = comment;
+      if (commentWithoutPicture.commenter) {
+        const { profile_picture, ...commenterWithoutPicture } = commentWithoutPicture.commenter;
+        commentWithoutPicture.commenter = commenterWithoutPicture;
+      }
 
-      const [lead] = await db.insert(leads).values({
+      const [prospect] = await db.insert(prospectCandidates).values({
         teamId,
-        firstName,
-        lastName,
-        linkedinUrl: profileUrl,
-        profilePictureUrl: comment.commenter_profile_picture,
-        title: commenterHeadline,
-        sourceMode,
-        sourcePostUrl: postUrl,
-        engagementType: 'comment',
+        source: 'linkedin_post',
+        sourceRef: postUrl,
+        action: 'comment',
+        postUrl,
+        commentId: comment.comment_urn,
         commentText: comment.comment_text,
+        profileUrl,
+        name: commenterName,
+        title: commenterHeadline,
         status: 'new',
-        score: 0,
-        profileData: comment,
+        raw: commentWithoutPicture,
       }).returning();
 
-      newLeads.push(lead);
+      newProspects.push(prospect);
     }
 
     for (const reaction of engagement.reactions) {
@@ -126,8 +128,8 @@ export const importLeadsFromPost = validatedActionWithUser(
 
     return {
       success: true,
-      count: newLeads.length,
-      leads: newLeads,
+      count: newProspects.length,
+      prospects: newProspects,
     };
   }
 );
