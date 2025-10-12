@@ -269,3 +269,92 @@ export async function getLinkupClient(teamId: number): Promise<LinkupClient> {
 }
 
 export const linkupClient = new LinkupClient();
+
+const linkupProfileSchema = z.object({
+  name: z.string().optional(),
+  headline: z.string().optional(),
+  location: z.string().optional(),
+  industry: z.string().optional(),
+  summary: z.string().optional(),
+  experience: z.array(z.object({
+    title: z.string().optional(),
+    company: z.string().optional(),
+    company_size: z.string().optional(),
+    duration: z.string().optional(),
+    description: z.string().optional(),
+    location: z.string().optional(),
+  })).optional(),
+  education: z.array(z.object({
+    school: z.string().optional(),
+    degree: z.string().optional(),
+    field: z.string().optional(),
+    start_date: z.string().optional(),
+    end_date: z.string().optional(),
+  })).optional(),
+  skills: z.array(z.string()).optional(),
+});
+
+const linkupProfileResponseSchema = z.object({
+  status: z.string(),
+  data: linkupProfileSchema,
+});
+
+export type LinkupProfile = z.infer<typeof linkupProfileSchema>;
+
+export async function fetchLinkedInProfile(profileUrl: string): Promise<LinkupProfile> {
+  const mockMode = process.env.LINKUP_MOCK === '1' || !process.env.LINKUP_API_KEY;
+  
+  if (mockMode) {
+    return {
+      name: 'Mock User',
+      headline: 'CEO at TechCorp',
+      location: 'Paris, France',
+      industry: 'Technology',
+      summary: 'Experienced CEO with a passion for innovation',
+      experience: [
+        {
+          title: 'CEO',
+          company: 'TechCorp',
+          company_size: '51-200',
+          duration: '2 years',
+          description: 'Leading the company to success',
+        },
+      ],
+      education: [
+        {
+          school: 'HEC Paris',
+          degree: 'MBA',
+          field: 'Business Administration',
+        },
+      ],
+      skills: ['Leadership', 'Strategy', 'Innovation'],
+    };
+  }
+
+  const apiKey = process.env.LINKUP_API_KEY;
+  if (!apiKey) {
+    throw new Error('LINKUP_API_KEY is required');
+  }
+
+  const response = await fetch(`${LINKUP_API_BASE_URL}/profile/info`, {
+    method: 'POST',
+    headers: {
+      'x-api-key': apiKey,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      linkedin_url: profileUrl,
+    }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('LinkUp profile API error:', response.status, errorText);
+    throw new Error(`LinkUp profile API error: ${response.status} ${response.statusText}`);
+  }
+
+  const data = await response.json();
+  const parsed = linkupProfileResponseSchema.parse(data);
+  
+  return parsed.data;
+}

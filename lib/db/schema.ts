@@ -215,6 +215,9 @@ export const prospectCandidates = pgTable(
         location: varchar('location', { length: 255 }),
         fetchedAt: timestamp('fetched_at').notNull().defaultNow(),
         status: varchar('status', { length: 50 }).notNull().default('new'),
+        aiScore: integer('ai_score'),
+        aiReasoning: text('ai_reasoning'),
+        enrichedProfile: jsonb('enriched_profile'),
         raw: jsonb('raw'),
     },
     (t) => ({

@@ -8,6 +8,7 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Users, TrendingUp, Clock, ExternalLink } from 'lucide-react';
+import { ProspectScoreButton } from './prospect-score-button';
 
 async function getProspects(teamId: number) {
   return await db.query.prospectCandidates.findMany({
@@ -176,6 +177,11 @@ export default async function ProspectsPage() {
                     </div>
 
                     <div className="flex flex-col gap-2">
+                      <ProspectScoreButton 
+                        prospectId={prospect.id} 
+                        currentScore={prospect.aiScore}
+                        status={prospect.status}
+                      />
                       {prospect.profileUrl && (
                         <Button
                           variant="outline"
