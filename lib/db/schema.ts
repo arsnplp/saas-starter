@@ -187,8 +187,6 @@ export type WebhookConfig = typeof webhookConfigs.$inferSelect;
 export type NewWebhookConfig = typeof webhookConfigs.$inferInsert;
 export type WebhookEvent = typeof webhookEvents.$inferSelect;
 export type NewWebhookEvent = typeof webhookEvents.$inferInsert;
-export type PostEngagement = typeof postEngagements.$inferSelect;
-export type NewPostEngagement = typeof postEngagements.$inferInsert;
 
 export type TeamDataWithMembers = Team & {
     teamMembers: (TeamMember & {
@@ -276,31 +274,6 @@ export const leads = pgTable(
         scoreIdx: index('leads_score_idx').on(t.score),
     })
 );
-// ---------- POST ENGAGEMENTS ----------
-export const postEngagements = pgTable(
-    "post_engagements",
-    {
-        id: serial("id").primaryKey(),
-        postUrl: varchar("post_url", { length: 1024 }).notNull(),
-
-        actorName: varchar("actor_name", { length: 255 }),
-        actorProfileUrl: varchar("actor_profile_url", { length: 512 }).notNull(),
-        actorUrn: varchar("actor_urn", { length: 255 }),
-
-        type: varchar("type", { length: 20 }).notNull(), // "REACTION" | "COMMENT"
-        reactionType: varchar("reaction_type", { length: 30 }), // LIKE/PRAISE/...
-        commentText: text("comment_text"),
-
-        reactedAt: timestamp("reacted_at"),
-        createdAt: timestamp("created_at").notNull().defaultNow(),
-    },
-    (t) => ({
-        postIdx: index("post_eng_post_idx").on(t.postUrl),
-        actorIdx: index("post_eng_actor_idx").on(t.actorProfileUrl),
-    })
-);
-
-
 // ---------- ICP PROFILES ----------
 export const icpProfiles = pgTable('icp_profiles', {
     id: serial('id').primaryKey(),

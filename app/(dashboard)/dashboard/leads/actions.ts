@@ -2,7 +2,7 @@
 
 import { z } from 'zod';
 import { db } from '@/lib/db/drizzle';
-import { leads, postEngagements, prospectCandidates } from '@/lib/db/schema';
+import { leads, prospectCandidates } from '@/lib/db/schema';
 import { getLinkupClient, type LinkupPostEngagement } from '@/lib/integrations/linkup';
 import { validatedActionWithUser } from '@/lib/auth/middleware';
 import { eq, and, desc } from 'drizzle-orm';
@@ -97,33 +97,6 @@ export const importLeadsFromPost = validatedActionWithUser(
       }).returning();
 
       newProspects.push(prospect);
-    }
-
-    for (const reaction of engagement.reactions) {
-      await db.insert(postEngagements).values({
-        postUrl,
-        actorProfileUrl: reaction.profile_url,
-        actorName: reaction.name,
-        type: 'REACTION',
-        reactionType: reaction.type,
-        reactedAt: new Date(),
-      });
-    }
-
-    for (const comment of engagement.comments) {
-      const profileUrl = comment.commenter?.linkedin_url || comment.commenter_profile_url;
-      const commenterName = comment.commenter?.name || comment.commenter_name || '';
-      
-      if (!profileUrl) continue;
-
-      await db.insert(postEngagements).values({
-        postUrl,
-        actorProfileUrl: profileUrl,
-        actorName: commenterName,
-        type: 'COMMENT',
-        commentText: comment.comment_text,
-        reactedAt: comment.commented_at ? new Date(comment.commented_at) : new Date(),
-      });
     }
 
     return {
