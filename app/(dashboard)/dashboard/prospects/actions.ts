@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { db } from '@/lib/db/drizzle';
 import { prospectCandidates, leads, icpProfiles } from '@/lib/db/schema';
 import { eq, and } from 'drizzle-orm';
-import { validatedActionWithUser } from '@/lib/db/middleware';
+import { validatedActionWithUser } from '@/lib/auth/middleware';
 import { getTeamForUser } from '@/lib/db/queries';
 import { fetchLinkedInProfile } from '@/lib/integrations/linkup';
 import { scoreProfileAgainstICP, type EnrichedProfile, type ICPCriteria } from '@/lib/integrations/openai';

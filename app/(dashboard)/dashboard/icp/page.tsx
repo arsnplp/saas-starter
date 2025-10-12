@@ -9,7 +9,7 @@ import Link from 'next/link';
 export default async function IcpPage({
   searchParams,
 }: {
-  searchParams: { icpId?: string };
+  searchParams: Promise<{ icpId?: string }>;
 }) {
   const user = await getUser();
   if (!user) {
@@ -21,11 +21,12 @@ export default async function IcpPage({
     redirect('/sign-in');
   }
 
+  const params = await searchParams;
   const allIcps = await getAllIcpProfiles(team.id);
   
   let selectedIcp = null;
-  if (searchParams.icpId) {
-    selectedIcp = await getIcpProfileById(team.id, Number(searchParams.icpId));
+  if (params.icpId) {
+    selectedIcp = await getIcpProfileById(team.id, Number(params.icpId));
   }
   
   if (!selectedIcp && allIcps.length > 0) {
