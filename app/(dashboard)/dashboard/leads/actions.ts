@@ -2,7 +2,7 @@
 
 import { z } from 'zod';
 import { db } from '@/lib/db/drizzle';
-import { leads, prospectCandidates, icpProfiles } from '@/lib/db/schema';
+import { leads, prospectCandidates, icpProfiles, messages } from '@/lib/db/schema';
 import { getLinkupClient, type LinkupPostEngagement } from '@/lib/integrations/linkup';
 import { validatedActionWithUser } from '@/lib/auth/middleware';
 import { eq, and, desc } from 'drizzle-orm';
@@ -433,6 +433,178 @@ export const searchLeadsByICP = validatedActionWithUser(
       success: true,
       count: newProspects.length,
       prospects: newProspects,
+    };
+  }
+);
+
+const generateMessageSchema = z.object({
+  leadId: z.string().uuid(),
+});
+
+interface MessageGenerationContext {
+  leadName: string;
+  leadTitle?: string;
+  leadCompany?: string;
+  leadLocation?: string;
+  leadExperience?: string;
+  productDescription?: string;
+  companyContext?: string;
+}
+
+async function generatePersonalizedMessage(
+  context: MessageGenerationContext
+): Promise<string> {
+  const OpenAI = (await import('openai')).default;
+  const openai = new OpenAI({
+    apiKey: process.env.OPENAI_API_KEY,
+  });
+
+  const systemPrompt = `Tu es un expert en prospection B2B LinkedIn. Ta mission est de créer un message de prospection court, professionnel et personnalisé qui maximise les chances d'obtenir un RDV téléphonique.
+
+RÈGLES STRICTES :
+1. Maximum 150 mots (c'est court et percutant)
+2. Tutoiement naturel français
+3. Commencer par une accroche personnalisée basée sur le profil du prospect
+4. Présenter rapidement la solution (1 phrase max)
+5. Terminer par une proposition de RDV avec 2 créneaux concrets
+6. Pas de formule de politesse trop longue
+7. Ton professionnel mais accessible
+8. Focus sur la VALEUR pour le prospect, pas sur nous
+
+STRUCTURE RECOMMANDÉE :
+1. Accroche personnalisée (observation du profil)
+2. Lien rapide avec notre solution
+3. Bénéfice concret pour leur contexte
+4. Proposition de RDV avec créneaux
+5. Signature courte`;
+
+  const userPrompt = `Génère un message de prospection LinkedIn pour :
+
+PROSPECT :
+- Nom : ${context.leadName}
+- Poste : ${context.leadTitle || 'Non spécifié'}
+- Entreprise : ${context.leadCompany || 'Non spécifiée'}
+${context.leadLocation ? `- Localisation : ${context.leadLocation}` : ''}
+${context.leadExperience ? `- Contexte professionnel : ${context.leadExperience}` : ''}
+
+NOTRE SOLUTION :
+${context.productDescription || 'Solution SaaS B2B innovante'}
+
+${context.companyContext ? `CONTEXTE SUPPLÉMENTAIRE :\n${context.companyContext}` : ''}
+
+Crée un message COURT (max 150 mots), personnalisé et orienté RDV. Propose 2 créneaux concrets (exemple: "mardi 11h ou jeudi 15h").`;
+
+  const response = await openai.chat.completions.create({
+    model: 'gpt-4o',
+    messages: [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: userPrompt },
+    ],
+    temperature: 0.7,
+    max_tokens: 500,
+  });
+
+  return response.choices[0]?.message?.content || '';
+}
+
+export const generateLeadMessage = validatedActionWithUser(
+  generateMessageSchema,
+  async (data, _, user) => {
+    const teamMemberships = await db.query.teamMembers.findMany({
+      where: (teamMembers, { eq }) => eq(teamMembers.userId, user.id),
+      with: { team: true },
+    });
+
+    if (teamMemberships.length === 0) {
+      throw new Error('Aucune équipe trouvée');
+    }
+
+    const team = teamMemberships[0].team;
+
+    const lead = await db.query.leads.findFirst({
+      where: and(eq(leads.id, data.leadId), eq(leads.teamId, team.id)),
+    });
+
+    if (!lead) {
+      throw new Error('Lead non trouvé');
+    }
+
+    const icp = await db.query.icpProfiles.findFirst({
+      where: eq(icpProfiles.teamId, team.id),
+    });
+
+    let enrichedProfile: any = null;
+
+    if (lead.profileData) {
+      enrichedProfile = lead.profileData;
+      console.log('✅ Utilisation des données de profil existantes (économie de crédits)');
+    } else if (lead.linkedinUrl) {
+      console.log('🔍 Enrichissement du profil via LinkUp API...');
+      const linkupClient = await getLinkupClient(team.id);
+      const profileData = await linkupClient.getProfile(lead.linkedinUrl);
+      
+      enrichedProfile = {
+        name: profileData.name || [lead.firstName, lead.lastName].filter(Boolean).join(' ') || undefined,
+        headline: profileData.headline || lead.title || undefined,
+        location: profileData.location || lead.location || undefined,
+        industry: profileData.industry || lead.industry || undefined,
+        experience: profileData.experience || [],
+        education: profileData.education || [],
+        skills: profileData.skills || [],
+        summary: profileData.summary || undefined,
+      };
+
+      await db
+        .update(leads)
+        .set({ profileData: enrichedProfile as any })
+        .where(eq(leads.id, lead.id));
+
+      console.log('✅ Profil enrichi et sauvegardé');
+    }
+
+    const leadName = enrichedProfile?.name || [lead.firstName, lead.lastName].filter(Boolean).join(' ') || 'Bonjour';
+    const leadTitle = enrichedProfile?.headline || lead.title;
+    const leadCompany = enrichedProfile?.experience?.[0]?.company || lead.company;
+    const leadLocation = enrichedProfile?.location || lead.location;
+    
+    const experienceSummary = enrichedProfile?.experience
+      ?.slice(0, 2)
+      .map((exp: any) => `${exp.title || ''} ${exp.company ? `chez ${exp.company}` : ''}`.trim())
+      .filter(Boolean)
+      .join(', ');
+
+    const context: MessageGenerationContext = {
+      leadName,
+      leadTitle,
+      leadCompany,
+      leadLocation,
+      leadExperience: experienceSummary,
+      productDescription: icp?.problemStatement || undefined,
+      companyContext: icp?.idealCustomerExample || undefined,
+    };
+
+    const generatedMessage = await generatePersonalizedMessage(context);
+
+    const [savedMessage] = await db
+      .insert(messages)
+      .values({
+        teamId: team.id,
+        leadId: lead.id,
+        messageText: generatedMessage,
+        status: 'draft',
+        channel: 'linkedin',
+      })
+      .returning();
+
+    await db
+      .update(leads)
+      .set({ lastContactedAt: new Date() })
+      .where(eq(leads.id, lead.id));
+
+    return {
+      success: true,
+      message: generatedMessage,
+      messageId: savedMessage.id,
     };
   }
 );
