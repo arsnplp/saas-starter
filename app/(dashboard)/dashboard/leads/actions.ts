@@ -317,7 +317,7 @@ export async function updateLeadStatus(formData: FormData) {
 }
 
 const searchLeadsByICPSchema = z.object({
-  icpId: z.string().uuid(),
+  icpId: z.coerce.number(),
   teamId: z.coerce.number(),
   totalResults: z.coerce.number().default(20),
 });

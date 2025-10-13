@@ -7,7 +7,7 @@ import { Loader2, Users, Search } from 'lucide-react';
 import { searchLeadsByICP } from '../actions';
 
 type ICP = {
-  id: string;
+  id: number;
   name: string;
   description: string | null;
   targetRoles: string[] | null;
@@ -24,7 +24,7 @@ type LeadFroidFormProps = {
 };
 
 export default function LeadFroidForm({ teamId, icps }: LeadFroidFormProps) {
-  const [selectedIcpId, setSelectedIcpId] = useState<string>(icps[0]?.id || '');
+  const [selectedIcpId, setSelectedIcpId] = useState<number>(icps[0]?.id || 0);
   const [totalResults, setTotalResults] = useState(20);
   const [state, formAction, isPending] = useActionState(searchLeadsByICP, null);
 
@@ -57,7 +57,7 @@ export default function LeadFroidForm({ teamId, icps }: LeadFroidFormProps) {
           <select
             id="icpSelect"
             value={selectedIcpId}
-            onChange={(e) => setSelectedIcpId(e.target.value)}
+            onChange={(e) => setSelectedIcpId(Number(e.target.value))}
             disabled={isPending}
             className="mt-1 block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus:border-orange-500 focus:outline-none focus:ring-1 focus:ring-orange-500"
           >
