@@ -35,7 +35,10 @@ export default function LeadChaudForm({ teamId }: { teamId: number }) {
         if (result?.error) {
           setError(result.error);
         } else if (result?.count !== undefined) {
-          setSuccess(`${result.count} leads importés avec succès !`);
+          const duplicatesMsg = result.duplicatesSkipped > 0 
+            ? ` (${result.duplicatesSkipped} doublon${result.duplicatesSkipped > 1 ? 's' : ''} évité${result.duplicatesSkipped > 1 ? 's' : ''})`
+            : '';
+          setSuccess(`${result.count} prospect${result.count > 1 ? 's' : ''} importé${result.count > 1 ? 's' : ''} avec succès !${duplicatesMsg}`);
           setPostUrl('');
         }
       } catch (err: any) {
@@ -78,7 +81,7 @@ export default function LeadChaudForm({ teamId }: { teamId: number }) {
         <Button
           type="submit"
           disabled={isPending}
-          className="w-full bg-orange-500 hover:bg-orange-600"
+          className="w-full"
         >
           {isPending ? (
             <>

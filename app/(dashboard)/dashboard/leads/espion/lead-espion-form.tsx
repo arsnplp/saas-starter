@@ -40,7 +40,12 @@ export default function LeadEspionForm({ teamId }: { teamId: number }) {
   }
 
   const error = state?.error;
-  const success = state?.count !== undefined ? `${state.count} leads importés avec succès !` : '';
+  const duplicatesMsg = state?.duplicatesSkipped > 0 
+    ? ` (${state.duplicatesSkipped} doublon${state.duplicatesSkipped > 1 ? 's' : ''} évité${state.duplicatesSkipped > 1 ? 's' : ''})`
+    : '';
+  const success = state?.count !== undefined 
+    ? `${state.count} prospect${state.count > 1 ? 's' : ''} importé${state.count > 1 ? 's' : ''} avec succès !${duplicatesMsg}` 
+    : '';
 
   return (
     <div className="space-y-6">
@@ -130,7 +135,7 @@ export default function LeadEspionForm({ teamId }: { teamId: number }) {
         <Button
           type="submit"
           disabled={isPending}
-          className="w-full bg-orange-500 hover:bg-orange-600"
+          className="w-full"
         >
           {isPending ? (
             <>
