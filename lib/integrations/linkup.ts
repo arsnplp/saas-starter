@@ -239,6 +239,41 @@ export class LinkupClient {
     const reactionsData = linkupReactionsResponseSchema.parse(reactionsResponse);
     const commentsData = linkupCommentsResponseSchema.parse(commentsResponse);
 
+    // 🔍 LOGS DE COMPARAISON RÉACTIONS VS COMMENTAIRES
+    console.log('\n========== ANALYSE ENDPOINT LINKEDIN ==========');
+    console.log(`📊 RÉACTIONS (/posts/reactions): ${reactionsData.data.reactions.length} personnes`);
+    console.log(`💬 COMMENTAIRES (/posts/extract-comments): ${commentsData.data.comments.length} personnes`);
+    
+    // Afficher les 5 premiers de chaque endpoint
+    console.log('\n--- Aperçu RÉACTIONS (5 premiers) ---');
+    reactionsData.data.reactions.slice(0, 5).forEach((r, i) => {
+      console.log(`${i + 1}. ${r.name || 'Sans nom'} | Type: ${r.type || 'N/A'} | URL: ${r.profile_url || 'N/A'}`);
+    });
+
+    console.log('\n--- Aperçu COMMENTAIRES (5 premiers) ---');
+    commentsData.data.comments.slice(0, 5).forEach((c, i) => {
+      const name = c.commenter?.name || c.commenter_name || 'Sans nom';
+      const url = c.commenter?.linkedin_url || c.commenter_profile_url || 'N/A';
+      console.log(`${i + 1}. ${name} | URL: ${url}`);
+    });
+
+    // Vérifier si des commentateurs sont aussi dans les réactions
+    const reactionUrls = new Set(reactionsData.data.reactions.map(r => r.profile_url).filter(Boolean));
+    const commentUrls = commentsData.data.comments.map(c => 
+      c.commenter?.linkedin_url || c.commenter_profile_url
+    ).filter(Boolean);
+    
+    const overlap = commentUrls.filter(url => reactionUrls.has(url));
+    console.log(`\n🔗 Personnes présentes dans les DEUX: ${overlap.length}/${commentUrls.length} commentateurs`);
+    
+    if (overlap.length > 0) {
+      console.log('   → Certains commentateurs ont AUSSI réagi (présents dans les 2 endpoints)');
+    } else if (commentUrls.length > 0) {
+      console.log('   → Les commentateurs ne sont PAS dans les réactions (endpoints séparés)');
+    }
+    
+    console.log('==============================================\n');
+
     return {
       reactions: reactionsData.data.reactions,
       comments: commentsData.data.comments,
