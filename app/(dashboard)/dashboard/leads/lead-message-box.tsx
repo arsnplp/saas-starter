@@ -59,7 +59,7 @@ export default function LeadMessageBox({ lead }: { lead: Lead }) {
           <button
             type="submit"
             disabled={isPending}
-            className="text-xs bg-orange-500 hover:bg-orange-600 text-white rounded px-3 py-1 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="text-xs bg-primary hover:bg-primary/90 text-white rounded px-3 py-1 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isPending ? 'Génération...' : '✨ Personnaliser'}
           </button>
