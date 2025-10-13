@@ -2,7 +2,7 @@
 
 import { z } from 'zod';
 import { db } from '@/lib/db/drizzle';
-import { leads, prospectCandidates } from '@/lib/db/schema';
+import { leads, prospectCandidates, icpProfiles } from '@/lib/db/schema';
 import { getLinkupClient, type LinkupPostEngagement } from '@/lib/integrations/linkup';
 import { validatedActionWithUser } from '@/lib/auth/middleware';
 import { eq, and, desc } from 'drizzle-orm';
@@ -315,3 +315,124 @@ export async function updateLeadStatus(formData: FormData) {
 
   return updatedLead;
 }
+
+const searchLeadsByICPSchema = z.object({
+  icpId: z.string().uuid(),
+  teamId: z.coerce.number(),
+  totalResults: z.coerce.number().default(20),
+});
+
+export const searchLeadsByICP = validatedActionWithUser(
+  searchLeadsByICPSchema,
+  async (data, _, user) => {
+    const { icpId, teamId, totalResults } = data;
+
+    // Récupérer l'ICP
+    const icp = await db.query.icpProfiles.findFirst({
+      where: and(
+        eq(icpProfiles.teamId, teamId),
+        eq(icpProfiles.id, icpId)
+      ),
+    });
+
+    if (!icp) {
+      return { error: 'ICP not found', count: 0, prospects: [] };
+    }
+
+    // Mapper les critères ICP vers les paramètres LinkUp
+    const searchParams: {
+      total_results: number;
+      title?: string;
+      location?: string;
+      keyword?: string;
+    } = {
+      total_results: totalResults,
+    };
+
+    // Mapper les métiers (targetRoles) vers title
+    if (icp.targetRoles && icp.targetRoles.length > 0) {
+      searchParams.title = icp.targetRoles.join(';');
+    }
+
+    // Mapper la localisation vers location
+    if (icp.targetLocation && icp.targetLocation.length > 0) {
+      searchParams.location = icp.targetLocation.join(';');
+    }
+
+    // Mapper les mots-clés et secteurs vers keyword
+    const keywords = [];
+    if (icp.targetKeywords && icp.targetKeywords.length > 0) {
+      keywords.push(...icp.targetKeywords);
+    }
+    if (icp.targetIndustries && icp.targetIndustries.length > 0) {
+      keywords.push(...icp.targetIndustries);
+    }
+    if (keywords.length > 0) {
+      searchParams.keyword = keywords.join(' ');
+    }
+
+    console.log('🔍 Recherche Lead Froid - Paramètres mappés:', searchParams);
+
+    let profiles;
+    try {
+      const linkupClient = await getLinkupClient(teamId);
+      profiles = await linkupClient.searchProfiles(searchParams);
+      console.log(`✅ ${profiles.length} profils trouvés via recherche ICP`);
+    } catch (error) {
+      console.error('❌ Erreur lors de la recherche LinkUp:', error);
+      return { 
+        error: 'Failed to search profiles. Please check your LinkUp API configuration.', 
+        count: 0, 
+        prospects: [] 
+      };
+    }
+
+    // Récupérer tous les prospects existants pour cette équipe en une seule requête
+    const profileUrls = profiles.map(p => p.profile_url).filter(Boolean) as string[];
+    const existingProspects = await db.query.prospectCandidates.findMany({
+      where: and(
+        eq(prospectCandidates.teamId, teamId),
+        // Note: Drizzle ne supporte pas inArray directement ici, donc on filtre après
+      ),
+      columns: { profileUrl: true },
+    });
+    
+    const existingUrls = new Set(existingProspects.map(p => p.profileUrl));
+    const newProspects = [];
+
+    // Insérer les profils dans prospect_candidates (seulement les nouveaux)
+    for (const profile of profiles) {
+      if (!profile.profile_url || existingUrls.has(profile.profile_url)) continue;
+
+      const [prospect] = await db.insert(prospectCandidates).values({
+        teamId,
+        source: 'linkedin_search',
+        sourceRef: icp.name,
+        action: 'search',
+        profileUrl: profile.profile_url,
+        name: profile.name || 'N/A',
+        title: profile.job_title || '',
+        location: profile.location || '',
+        connectionDegree: profile.connection_level || '',
+        invitationState: profile.invitation_state || '',
+        status: 'new',
+        raw: profile,
+      }).returning();
+
+      newProspects.push({
+        id: prospect.id,
+        name: prospect.name,
+        title: prospect.title,
+        location: prospect.location,
+        profileUrl: prospect.profileUrl,
+        profilePictureUrl: (profile.profile_picture || '') as string,
+      });
+    }
+
+    return {
+      success: true,
+      count: newProspects.length,
+      prospects: newProspects,
+    };
+  }
+);

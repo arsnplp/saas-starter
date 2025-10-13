@@ -75,6 +75,34 @@ export interface LinkupPostEngagement {
   };
 }
 
+// Schema pour la recherche de profils
+const linkupSearchProfileSchema = z.object({
+  name: z.string().optional(),
+  job_title: z.string().optional(),
+  connection_level: z.string().optional(),
+  location: z.string().optional(),
+  profile_url: z.string().optional(),
+  profile_picture: z.string().nullable().optional(),
+  invitation_state: z.string().optional(),
+});
+
+const linkupSearchProfilesResponseSchema = z.object({
+  status: z.string(),
+  data: z.object({
+    total_results: z.number().optional().default(0),
+    total_available_results: z.number().optional().default(0),
+    profiles: z.array(linkupSearchProfileSchema).optional().default([]),
+    pagination: z.object({
+      start_page: z.number(),
+      end_page: z.number(),
+      results_per_page: z.number(),
+      pages_fetched: z.number(),
+    }).optional(),
+  }),
+});
+
+export type LinkupSearchProfile = z.infer<typeof linkupSearchProfileSchema>;
+
 export class LinkupClient {
   private apiKey: string;
   private loginToken: string;
@@ -227,6 +255,51 @@ export class LinkupClient {
       };
     }
 
+    if (endpoint.includes('/profile/search')) {
+      return {
+        status: 'success',
+        data: {
+          total_results: 3,
+          total_available_results: 125,
+          profiles: [
+            {
+              name: 'Pierre Dubois',
+              job_title: 'Directeur Commercial chez TechStart',
+              connection_level: '2nd degree',
+              location: 'Paris, Île-de-France',
+              profile_url: 'https://linkedin.com/in/pierre-dubois-mock',
+              profile_picture: 'https://via.placeholder.com/150',
+              invitation_state: 'CAN_INVITE',
+            },
+            {
+              name: 'Marie Laurent',
+              job_title: 'CEO chez InnovCorp',
+              connection_level: '3rd+ degree',
+              location: 'Lyon, Auvergne-Rhône-Alpes',
+              profile_url: 'https://linkedin.com/in/marie-laurent-mock',
+              profile_picture: null,
+              invitation_state: 'CAN_INVITE',
+            },
+            {
+              name: 'Thomas Bernard',
+              job_title: 'VP Sales chez CloudSolutions',
+              connection_level: '2nd degree',
+              location: 'Paris, Île-de-France',
+              profile_url: 'https://linkedin.com/in/thomas-bernard-mock',
+              profile_picture: 'https://via.placeholder.com/150',
+              invitation_state: 'INVITATION_SENT',
+            },
+          ],
+          pagination: {
+            start_page: 1,
+            end_page: 1,
+            results_per_page: 50,
+            pages_fetched: 1,
+          },
+        },
+      };
+    }
+
     return { status: 'error', data: null };
   }
 
@@ -301,6 +374,34 @@ export class LinkupClient {
 
     const commentsData = linkupCommentsResponseSchema.parse(commentsResponse);
     return commentsData.data.comments;
+  }
+
+  async searchProfiles(params: {
+    title?: string;
+    location?: string;
+    keyword?: string;
+    company_url?: string;
+    school_url?: string;
+    network?: string;
+    total_results?: number;
+  }): Promise<LinkupSearchProfile[]> {
+    const searchResponse = await this.makeRequest('/profile/search', {
+      title: params.title,
+      location: params.location,
+      keyword: params.keyword,
+      company_url: params.company_url,
+      school_url: params.school_url,
+      network: params.network,
+      total_results: params.total_results || 20,
+      country: 'FR',
+      fetch_invitation_state: true,
+    });
+
+    const searchData = linkupSearchProfilesResponseSchema.parse(searchResponse);
+    
+    console.log(`\n🔍 Profils trouvés: ${searchData.data.profiles.length}/${searchData.data.total_available_results} disponibles`);
+    
+    return searchData.data.profiles;
   }
 }
 
