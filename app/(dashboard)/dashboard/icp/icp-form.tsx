@@ -159,21 +159,21 @@ export default function IcpForm({ teamId, existingIcp }: IcpFormProps) {
         />
       </div>
 
-      {/* Problème résolu (nouveau) */}
+      {/* Description du produit/entreprise */}
       <div>
         <label htmlFor="problemStatement" className="block text-sm font-medium text-gray-700 mb-1">
-          Quel problème résolvez-vous ? (optionnel)
+          Description du produit de l'entreprise (optionnel)
         </label>
         <textarea
           id="problemStatement"
           name="problemStatement"
           defaultValue={existingIcp?.problemStatement || ''}
-          placeholder="Ex: Les équipes sales perdent du temps à qualifier manuellement les leads..."
+          placeholder="Ex: Plateforme SaaS qui automatise la qualification de leads B2B via l'IA..."
           rows={3}
           className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-orange-500 focus:border-transparent"
         />
         <p className="mt-1 text-xs text-gray-500">
-          Aide l'IA à mieux comprendre votre cible en expliquant le problème que vous résolvez
+          Décrivez ce que fait votre entreprise/produit pour aider l'IA à mieux comprendre votre cible
         </p>
       </div>
 

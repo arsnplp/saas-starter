@@ -72,8 +72,8 @@ Preferred communication style: Simple, everyday language.
 - `activity_logs`: Audit trail for user actions
 - `icp_profiles`: Ideal Customer Profile definitions for lead discovery
   - Required fields: industries, locations, buyer_roles, keywords_include/exclude, company_size_min/max, min_score
-  - **Optional context fields** (added Oct 2025): `problem_statement` (TEXT), `ideal_customer_example` (TEXT)
-  - Context fields enhance AI scoring with business problem and perfect customer example for calibration
+  - **Optional context fields** (added Oct 2025): `problem_statement` (TEXT - description du produit/entreprise), `ideal_customer_example` (TEXT)
+  - Context fields enhance AI scoring with product description and perfect customer example for calibration
 
 **Lead Generation Workflow** (AI-Powered):
 1. LinkedIn post engagement → `prospect_candidates` (staging)

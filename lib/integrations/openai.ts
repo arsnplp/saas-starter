@@ -50,7 +50,7 @@ export async function scoreProfileAgainstICP(
   const systemPrompt = `Tu es un expert SDR (Sales Development Representative) spécialisé en qualification de leads B2B. Ta tâche est d'analyser un profil LinkedIn et de le scorer de 0 à 100 selon des critères ICP (Ideal Customer Profile).
 
 ${icp.problemStatement ? `CONTEXTE BUSINESS :
-Notre solution résout : ${icp.problemStatement}
+Notre produit/entreprise : ${icp.problemStatement}
 ` : ''}
 ${icp.idealCustomerExample ? `CLIENT IDÉAL :
 Profil type parfait : ${icp.idealCustomerExample}
@@ -76,8 +76,8 @@ MÉTHODE DE SCORING (pondération adaptative) :
    - Industrie : ${icp.industries?.join(", ") || "toutes industries"} (bonus si vertical exact)
    - Contexte d'entreprise pertinent ?
 
-3. FIT PROBLÈME (0-25 points)
-   ${icp.problemStatement ? `- Le profil montre-t-il des SIGNAUX du problème qu'on résout : "${icp.problemStatement}" ?` : ''}
+3. FIT SOLUTION (0-25 points)
+   ${icp.problemStatement ? `- Le profil montre-t-il de l'INTÉRÊT potentiel pour notre solution : "${icp.problemStatement}" ?` : ''}
    - Mots-clés pertinents : ${icp.keywordsInclude?.join(", ") || "aucun"}
    - Expérience dans des contextes similaires ?
 
@@ -106,7 +106,7 @@ Réponds UNIQUEMENT en JSON avec cette structure exacte :
   "reasoning": "<Explication DÉTAILLÉE en français :
     - Fit métier : X/30 car...
     - Fit entreprise : X/25 car...
-    - Fit problème : X/25 car...
+    - Fit solution : X/25 car...
     - Signaux exclusion : 0 ou -50 car...
     - Localisation : X/10 car...
     - Bonus signaux achat : X/10 car...
