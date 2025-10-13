@@ -510,101 +510,130 @@ Crée un message COURT (max 150 mots), personnalisé et orienté RDV. Propose 2 
 export const generateLeadMessage = validatedActionWithUser(
   generateMessageSchema,
   async (data, _, user) => {
-    const teamMemberships = await db.query.teamMembers.findMany({
-      where: (teamMembers, { eq }) => eq(teamMembers.userId, user.id),
-      with: { team: true },
-    });
+    try {
+      const teamMemberships = await db.query.teamMembers.findMany({
+        where: (teamMembers, { eq }) => eq(teamMembers.userId, user.id),
+        with: { team: true },
+      });
 
-    if (teamMemberships.length === 0) {
-      throw new Error('Aucune équipe trouvée');
-    }
+      if (teamMemberships.length === 0) {
+        return { success: false, error: 'Aucune équipe trouvée' };
+      }
 
-    const team = teamMemberships[0].team;
+      const team = teamMemberships[0].team;
 
-    const lead = await db.query.leads.findFirst({
-      where: and(eq(leads.id, data.leadId), eq(leads.teamId, team.id)),
-    });
+      const lead = await db.query.leads.findFirst({
+        where: and(eq(leads.id, data.leadId), eq(leads.teamId, team.id)),
+      });
 
-    if (!lead) {
-      throw new Error('Lead non trouvé');
-    }
+      if (!lead) {
+        return { success: false, error: 'Lead non trouvé' };
+      }
 
-    const icp = await db.query.icpProfiles.findFirst({
-      where: eq(icpProfiles.teamId, team.id),
-    });
+      const icp = await db.query.icpProfiles.findFirst({
+        where: eq(icpProfiles.teamId, team.id),
+      });
 
-    let enrichedProfile: any = null;
+      let enrichedProfile: any = null;
 
-    if (lead.profileData) {
-      enrichedProfile = lead.profileData;
-      console.log('✅ Utilisation des données de profil existantes (économie de crédits)');
-    } else if (lead.linkedinUrl) {
-      console.log('🔍 Enrichissement du profil via LinkUp API...');
-      const linkupClient = await getLinkupClient(team.id);
-      const profileData = await linkupClient.getProfile(lead.linkedinUrl);
+      if (lead.profileData) {
+        enrichedProfile = lead.profileData;
+        console.log('✅ Utilisation des données de profil existantes (économie de crédits)');
+      } else if (lead.linkedinUrl) {
+        try {
+          console.log('🔍 Enrichissement du profil via LinkUp API...');
+          const linkupClient = await getLinkupClient(team.id);
+          const profileData = await linkupClient.getProfile(lead.linkedinUrl);
+          
+          enrichedProfile = {
+            name: profileData.name || [lead.firstName, lead.lastName].filter(Boolean).join(' ') || undefined,
+            headline: profileData.headline || lead.title || undefined,
+            location: profileData.location || lead.location || undefined,
+            industry: profileData.industry || lead.industry || undefined,
+            experience: profileData.experience || [],
+            education: profileData.education || [],
+            skills: profileData.skills || [],
+            summary: profileData.summary || undefined,
+          };
+
+          await db
+            .update(leads)
+            .set({ profileData: enrichedProfile as any })
+            .where(eq(leads.id, lead.id));
+
+          console.log('✅ Profil enrichi et sauvegardé');
+        } catch (linkupError) {
+          console.error('❌ Erreur LinkUp API:', linkupError);
+          return { 
+            success: false, 
+            error: 'Impossible d\'enrichir le profil LinkedIn. Veuillez réessayer.' 
+          };
+        }
+      }
+
+      const leadName = enrichedProfile?.name || [lead.firstName, lead.lastName].filter(Boolean).join(' ') || 'Bonjour';
+      const leadTitle = enrichedProfile?.headline || lead.title;
+      const leadCompany = enrichedProfile?.experience?.[0]?.company || lead.company;
+      const leadLocation = enrichedProfile?.location || lead.location;
       
-      enrichedProfile = {
-        name: profileData.name || [lead.firstName, lead.lastName].filter(Boolean).join(' ') || undefined,
-        headline: profileData.headline || lead.title || undefined,
-        location: profileData.location || lead.location || undefined,
-        industry: profileData.industry || lead.industry || undefined,
-        experience: profileData.experience || [],
-        education: profileData.education || [],
-        skills: profileData.skills || [],
-        summary: profileData.summary || undefined,
+      const experienceSummary = enrichedProfile?.experience
+        ?.slice(0, 2)
+        .map((exp: any) => `${exp.title || ''} ${exp.company ? `chez ${exp.company}` : ''}`.trim())
+        .filter(Boolean)
+        .join(', ');
+
+      const context: MessageGenerationContext = {
+        leadName,
+        leadTitle,
+        leadCompany,
+        leadLocation,
+        leadExperience: experienceSummary,
+        productDescription: icp?.problemStatement || undefined,
+        companyContext: icp?.idealCustomerExample || undefined,
       };
+
+      let generatedMessage: string;
+      try {
+        generatedMessage = await generatePersonalizedMessage(context);
+      } catch (openaiError) {
+        console.error('❌ Erreur OpenAI API:', openaiError);
+        return { 
+          success: false, 
+          error: 'Impossible de générer le message. Veuillez vérifier votre clé API OpenAI.' 
+        };
+      }
+
+      const [savedMessage] = await db
+        .insert(messages)
+        .values({
+          teamId: team.id,
+          leadId: lead.id,
+          messageText: generatedMessage,
+          status: 'draft',
+          channel: 'linkedin',
+        })
+        .returning();
 
       await db
         .update(leads)
-        .set({ profileData: enrichedProfile as any })
+        .set({ lastContactedAt: new Date() })
         .where(eq(leads.id, lead.id));
 
-      console.log('✅ Profil enrichi et sauvegardé');
+      const { revalidatePath } = await import('next/cache');
+      revalidatePath('/dashboard/leads');
+      revalidatePath(`/dashboard/leads/${lead.id}`);
+
+      return {
+        success: true,
+        message: generatedMessage,
+        messageId: savedMessage.id,
+      };
+    } catch (error) {
+      console.error('❌ Erreur inattendue lors de la génération du message:', error);
+      return { 
+        success: false, 
+        error: 'Une erreur inattendue est survenue. Veuillez réessayer.' 
+      };
     }
-
-    const leadName = enrichedProfile?.name || [lead.firstName, lead.lastName].filter(Boolean).join(' ') || 'Bonjour';
-    const leadTitle = enrichedProfile?.headline || lead.title;
-    const leadCompany = enrichedProfile?.experience?.[0]?.company || lead.company;
-    const leadLocation = enrichedProfile?.location || lead.location;
-    
-    const experienceSummary = enrichedProfile?.experience
-      ?.slice(0, 2)
-      .map((exp: any) => `${exp.title || ''} ${exp.company ? `chez ${exp.company}` : ''}`.trim())
-      .filter(Boolean)
-      .join(', ');
-
-    const context: MessageGenerationContext = {
-      leadName,
-      leadTitle,
-      leadCompany,
-      leadLocation,
-      leadExperience: experienceSummary,
-      productDescription: icp?.problemStatement || undefined,
-      companyContext: icp?.idealCustomerExample || undefined,
-    };
-
-    const generatedMessage = await generatePersonalizedMessage(context);
-
-    const [savedMessage] = await db
-      .insert(messages)
-      .values({
-        teamId: team.id,
-        leadId: lead.id,
-        messageText: generatedMessage,
-        status: 'draft',
-        channel: 'linkedin',
-      })
-      .returning();
-
-    await db
-      .update(leads)
-      .set({ lastContactedAt: new Date() })
-      .where(eq(leads.id, lead.id));
-
-    return {
-      success: true,
-      message: generatedMessage,
-      messageId: savedMessage.id,
-    };
   }
 );

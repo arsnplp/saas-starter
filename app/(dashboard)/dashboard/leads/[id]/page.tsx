@@ -1,10 +1,10 @@
 import { db } from "@/lib/db";
-import { leads } from "@/lib/db/schema";
-import { eq, and } from "drizzle-orm";
+import { leads, messages } from "@/lib/db/schema";
+import { eq, and, desc } from "drizzle-orm";
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
-import CopyButton from "@/components/CopyButton";
 import { getUser, getTeamForUser } from "@/lib/db/queries";
+import LeadMessageSection from './lead-message-section';
 
 type PageProps = { params: Promise<{ id: string }> };
 
@@ -32,7 +32,17 @@ export default async function LeadDetailPage({ params }: PageProps) {
     const lead = rows[0];
     if (!lead) notFound();
 
-    const message = generateMessage(lead);
+    const latestMessage = await db
+        .select()
+        .from(messages)
+        .where(and(
+            eq(messages.leadId, lead.id),
+            eq(messages.teamId, team.id)
+        ))
+        .orderBy(desc(messages.createdAt))
+        .limit(1);
+
+    const message = latestMessage[0]?.messageText || generateMessage(lead);
 
     const displayName =
         [lead.firstName, lead.lastName].filter(Boolean).join(" ") ||
@@ -70,45 +80,11 @@ export default async function LeadDetailPage({ params }: PageProps) {
                     </div>
                 </div>
 
-                <div>
-                    <div className="text-xs text-gray-500 mb-1">
-                        Message personnalisé (à copier/coller)
-                    </div>
-
-                    <textarea
-                        readOnly
-                        className="w-full border rounded p-3"
-                        rows={12}
-                        value={message}
-                    />
-
-                    {/* Actions sous le message */}
-                    <div className="flex items-center gap-2 mt-2">
-                        {/* Copier le message */}
-                        <CopyButton text={message} />
-
-                        {/* Ouvrir LinkedIn (désactivé si pas d'URL) */}
-                        {lead.linkedinUrl ? (
-                            <a
-                                href={lead.linkedinUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-xs border rounded px-3 py-2"
-                            >
-                                Ouvrir le profil LinkedIn
-                            </a>
-                        ) : (
-                            <button
-                                type="button"
-                                className="text-xs border rounded px-3 py-2 opacity-50 cursor-not-allowed"
-                                title="Aucune URL LinkedIn enregistrée"
-                                disabled
-                            >
-                                Ouvrir le profil LinkedIn
-                            </button>
-                        )}
-                    </div>
-                </div>
+                <LeadMessageSection
+                    leadId={lead.id}
+                    linkedinUrl={lead.linkedinUrl}
+                    defaultMessage={message}
+                />
 
             </div>
         </div>
