@@ -30,7 +30,15 @@ export default function LeadFroidForm({ teamId, icps }: LeadFroidFormProps) {
 
   const selectedIcp = icps.find(icp => icp.id === selectedIcpId);
   const error = state?.error;
-  const success = state?.count !== undefined ? `${state.count} profils trouvés et importés !` : '';
+  
+  let success = '';
+  if (state?.count !== undefined) {
+    if (state.count === 0) {
+      success = 'Recherche effectuée : tous les profils trouvés sont déjà dans vos prospects (doublons évités)';
+    } else {
+      success = `${state.count} nouveau${state.count > 1 ? 'x' : ''} prospect${state.count > 1 ? 's' : ''} importé${state.count > 1 ? 's' : ''} !`;
+    }
+  }
 
   if (icps.length === 0) {
     return (
@@ -129,7 +137,7 @@ export default function LeadFroidForm({ teamId, icps }: LeadFroidFormProps) {
         <Button
           type="submit"
           disabled={isPending}
-          className="w-full bg-orange-500 hover:bg-orange-600"
+          className="w-full"
         >
           {isPending ? (
             <>
