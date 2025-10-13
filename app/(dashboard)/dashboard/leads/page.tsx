@@ -7,9 +7,9 @@ import { and, asc, desc, eq, gte, lte, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { leads as leadsTable } from "@/lib/db/schema";
 import { getUser, getTeamForUser } from "@/lib/db/queries";
-import CopyButton from "@/components/CopyButton";
 import LeadStatusForm from "@/components/LeadStatusForm";
 import MarkContactedButton from "@/components/MarkContactedButton";
+import LeadMessageBox from "./lead-message-box";
 
 // Évite le cache côté route
 export const dynamic = "force-dynamic";
@@ -300,16 +300,13 @@ export default async function LeadsPage({
                                         </summary>
 
                                         <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                                            {/* Message pré-généré */}
-                                            <textarea className="border rounded-lg p-3 w-full h-40" readOnly value={buildMessage(l)} />
+                                            {/* Message (template ou personnalisé) */}
+                                            <LeadMessageBox lead={l as any} />
 
                                             {/* Actions + Notes */}
                                             <div className="flex flex-col gap-3">
                                                 <div className="flex items-center gap-2">
-                                                    {/* 1) Copier le message */}
-                                                    <CopyButton text={buildMessage(l)} />
-
-                                                    {/* 2) Ouvrir LinkedIn */}
+                                                    {/* 1) Ouvrir LinkedIn */}
                                                     {l.linkedinUrl ? (
                                                         <a href={l.linkedinUrl} target="_blank" rel="noopener noreferrer" className="text-xs border rounded px-2 py-1">
                                                             Ouvrir LinkedIn
