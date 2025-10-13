@@ -51,6 +51,7 @@ export const importLeadsFromPost = validatedActionWithUser(
     }
 
     const newProspects = [];
+    let duplicatesSkipped = 0;
 
     // Traiter les réactions (seulement si mode "all")
     for (const reaction of reactions) {
@@ -59,13 +60,14 @@ export const importLeadsFromPost = validatedActionWithUser(
       const existingProspect = await db.query.prospectCandidates.findFirst({
         where: and(
           eq(prospectCandidates.profileUrl, reaction.profile_url),
-          eq(prospectCandidates.teamId, teamId),
-          eq(prospectCandidates.postUrl, decodedPostUrl),
-          eq(prospectCandidates.action, 'reaction')
+          eq(prospectCandidates.teamId, teamId)
         ),
       });
 
-      if (existingProspect) continue;
+      if (existingProspect) {
+        duplicatesSkipped++;
+        continue;
+      }
 
       const { profile_picture, ...reactionWithoutPicture } = reaction;
 
@@ -98,13 +100,14 @@ export const importLeadsFromPost = validatedActionWithUser(
       const existingProspect = await db.query.prospectCandidates.findFirst({
         where: and(
           eq(prospectCandidates.profileUrl, profileUrl),
-          eq(prospectCandidates.teamId, teamId),
-          eq(prospectCandidates.postUrl, decodedPostUrl),
-          eq(prospectCandidates.action, 'comment')
+          eq(prospectCandidates.teamId, teamId)
         ),
       });
 
-      if (existingProspect) continue;
+      if (existingProspect) {
+        duplicatesSkipped++;
+        continue;
+      }
 
       const { commenter_profile_picture, ...commentWithoutPicture } = comment;
       if (commentWithoutPicture.commenter) {
@@ -130,9 +133,12 @@ export const importLeadsFromPost = validatedActionWithUser(
       newProspects.push(prospect);
     }
 
+    console.log(`✅ Import terminé: ${newProspects.length} nouveaux prospects, ${duplicatesSkipped} doublons évités`);
+
     return {
       success: true,
       count: newProspects.length,
+      duplicatesSkipped,
       prospects: newProspects,
     };
   }
