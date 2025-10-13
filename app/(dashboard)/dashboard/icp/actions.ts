@@ -21,6 +21,8 @@ const icpSchema = z.object({
   productCategory: z.string().optional(),
   language: z.string().default('fr'),
   minScore: z.coerce.number().min(0).max(100).default(50),
+  problemStatement: z.string().optional(),
+  idealCustomerExample: z.string().optional(),
 });
 
 export const saveIcpProfile = validatedActionWithUser(

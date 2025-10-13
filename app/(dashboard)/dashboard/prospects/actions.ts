@@ -75,6 +75,8 @@ export const scoreProspect = validatedActionWithUser(
       companySizeMin: icp.companySizeMin,
       companySizeMax: icp.companySizeMax,
       minScore: icp.minScore,
+      problemStatement: icp.problemStatement || undefined,
+      idealCustomerExample: icp.idealCustomerExample || undefined,
     };
 
     const scoringResult = await scoreProfileAgainstICP(enrichedProfile, icpCriteria);

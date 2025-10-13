@@ -159,6 +159,42 @@ export default function IcpForm({ teamId, existingIcp }: IcpFormProps) {
         />
       </div>
 
+      {/* Problème résolu (nouveau) */}
+      <div>
+        <label htmlFor="problemStatement" className="block text-sm font-medium text-gray-700 mb-1">
+          Quel problème résolvez-vous ? (optionnel)
+        </label>
+        <textarea
+          id="problemStatement"
+          name="problemStatement"
+          defaultValue={existingIcp?.problemStatement || ''}
+          placeholder="Ex: Les équipes sales perdent du temps à qualifier manuellement les leads..."
+          rows={3}
+          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+        />
+        <p className="mt-1 text-xs text-gray-500">
+          Aide l'IA à mieux comprendre votre cible en expliquant le problème que vous résolvez
+        </p>
+      </div>
+
+      {/* Exemple de client idéal (nouveau) */}
+      <div>
+        <label htmlFor="idealCustomerExample" className="block text-sm font-medium text-gray-700 mb-1">
+          Exemple de client parfait (optionnel)
+        </label>
+        <textarea
+          id="idealCustomerExample"
+          name="idealCustomerExample"
+          defaultValue={existingIcp?.idealCustomerExample || ''}
+          placeholder="Ex: CEO d'une startup SaaS B2B, 20-50 employés, Series A, utilise Salesforce..."
+          rows={3}
+          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+        />
+        <p className="mt-1 text-xs text-gray-500">
+          Décrivez un profil client concret pour calibrer le scoring IA
+        </p>
+      </div>
+
       {/* Score minimum */}
       <div>
         <label htmlFor="minScore" className="block text-sm font-medium text-gray-700 mb-1">

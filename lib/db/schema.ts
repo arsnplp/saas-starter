@@ -292,6 +292,8 @@ export const icpProfiles = pgTable('icp_profiles', {
     productCategory: varchar('product_category', { length: 100 }),
     language: varchar('language', { length: 10 }).notNull().default('fr'),
     minScore: integer('min_score').notNull().default(50),
+    problemStatement: text('problem_statement'),
+    idealCustomerExample: text('ideal_customer_example'),
     createdAt: timestamp('created_at').notNull().defaultNow(),
     updatedAt: timestamp('updated_at').notNull().defaultNow(),
 });
