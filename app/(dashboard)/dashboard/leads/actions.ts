@@ -26,6 +26,11 @@ export const importLeadsFromPost = validatedActionWithUser(
       .replace(/&quot;/g, '"')
       .replace(/&#39;/g, "'");
 
+    console.log('🔧 URL Décodage:');
+    console.log('  AVANT:', postUrl);
+    console.log('  APRÈS:', decodedPostUrl);
+    console.log('  Changé?', postUrl !== decodedPostUrl);
+
     const linkupClient = await getLinkupClient(teamId);
     const engagement = await linkupClient.getPostEngagement(decodedPostUrl);
 
