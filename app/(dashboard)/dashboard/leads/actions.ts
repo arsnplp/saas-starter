@@ -18,8 +18,16 @@ export const importLeadsFromPost = validatedActionWithUser(
   async (data, _, user) => {
     const { postUrl, sourceMode, teamId } = data;
 
+    // Décoder les entités HTML dans l'URL (ex: &amp; → &)
+    const decodedPostUrl = postUrl
+      .replace(/&amp;/g, '&')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&quot;/g, '"')
+      .replace(/&#39;/g, "'");
+
     const linkupClient = await getLinkupClient(teamId);
-    const engagement = await linkupClient.getPostEngagement(postUrl);
+    const engagement = await linkupClient.getPostEngagement(decodedPostUrl);
 
     const newProspects = [];
 
@@ -30,7 +38,7 @@ export const importLeadsFromPost = validatedActionWithUser(
         where: and(
           eq(prospectCandidates.profileUrl, reaction.profile_url),
           eq(prospectCandidates.teamId, teamId),
-          eq(prospectCandidates.postUrl, postUrl),
+          eq(prospectCandidates.postUrl, decodedPostUrl),
           eq(prospectCandidates.action, 'reaction')
         ),
       });
@@ -42,9 +50,9 @@ export const importLeadsFromPost = validatedActionWithUser(
       const [prospect] = await db.insert(prospectCandidates).values({
         teamId,
         source: 'linkedin_post',
-        sourceRef: postUrl,
+        sourceRef: decodedPostUrl,
         action: 'reaction',
-        postUrl,
+        postUrl: decodedPostUrl,
         reactionType: reaction.type,
         profileUrl: reaction.profile_url,
         actorUrn: reaction.actor_urn,
@@ -68,7 +76,7 @@ export const importLeadsFromPost = validatedActionWithUser(
         where: and(
           eq(prospectCandidates.profileUrl, profileUrl),
           eq(prospectCandidates.teamId, teamId),
-          eq(prospectCandidates.postUrl, postUrl),
+          eq(prospectCandidates.postUrl, decodedPostUrl),
           eq(prospectCandidates.action, 'comment')
         ),
       });
@@ -84,9 +92,9 @@ export const importLeadsFromPost = validatedActionWithUser(
       const [prospect] = await db.insert(prospectCandidates).values({
         teamId,
         source: 'linkedin_post',
-        sourceRef: postUrl,
+        sourceRef: decodedPostUrl,
         action: 'comment',
-        postUrl,
+        postUrl: decodedPostUrl,
         commentId: comment.comment_urn,
         commentText: comment.comment_text,
         profileUrl,
