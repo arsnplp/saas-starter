@@ -384,6 +384,7 @@ export class LinkupClient {
     school_url?: string;
     network?: string;
     total_results?: number;
+    start_page?: number;
   }): Promise<LinkupSearchProfile[]> {
     const searchResponse = await this.makeRequest('/profile/search', {
       title: params.title,
@@ -393,6 +394,7 @@ export class LinkupClient {
       school_url: params.school_url,
       network: params.network,
       total_results: params.total_results || 20,
+      start_page: params.start_page,
       country: 'FR',
       fetch_invitation_state: true,
     });
