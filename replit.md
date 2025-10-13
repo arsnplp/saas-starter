@@ -71,14 +71,24 @@ Preferred communication style: Simple, everyday language.
 - `messages`: Outbound communications sent to leads (LinkedIn DMs, emails)
 - `activity_logs`: Audit trail for user actions
 - `icp_profiles`: Ideal Customer Profile definitions for lead discovery
+  - Required fields: industries, locations, buyer_roles, keywords_include/exclude, company_size_min/max, min_score
+  - **Optional context fields** (added Oct 2025): `problem_statement` (TEXT), `ideal_customer_example` (TEXT)
+  - Context fields enhance AI scoring with business problem and perfect customer example for calibration
 
 **Lead Generation Workflow** (AI-Powered):
 1. LinkedIn post engagement → `prospect_candidates` (staging)
-2. **AI Scoring Pipeline**:
+2. **AI Scoring Pipeline** (Enhanced with Contextual Analysis):
    - Click "Scorer" button triggers profile enrichment via LinkUp API (`/v1/profile/info`)
    - Enriched profile includes: name, headline, location, industry, experience (with company_size), education, skills
-   - OpenAI GPT-4o analyzes profile against ICP criteria (industries, roles, location, keywords, company size)
-   - Returns score 0-100 + detailed reasoning in French
+   - OpenAI GPT-4o analyzes profile against ICP criteria using **adaptive weighting system**:
+     - **Fit Métier** (0-30pts): Decision-making power and role alignment
+     - **Fit Entreprise** (0-25pts): Company size (strict), industry, context
+     - **Fit Problème** (0-25pts): Signals of business problem we solve (uses `problem_statement` if provided)
+     - **Signaux Exclusion** (-50pts penalty): Presence of exclusion keywords
+     - **Localisation** (0-10pts): Geographic alignment
+     - **Signaux d'Achat Bonus** (0-10pts): Recent job change, company growth indicators
+   - Uses `ideal_customer_example` for score calibration when provided (90-100 = near-perfect match)
+   - Returns JSON: `{ score: 0-100, reasoning: "detailed breakdown + recommendation" }` in French
    - Stores `ai_score`, `ai_reasoning`, `enriched_profile` in `prospect_candidates`
 3. **Auto-Promotion Logic**:
    - If score ≥ `icp_profiles.minScore` → automatically converts to `leads` table
