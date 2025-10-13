@@ -95,16 +95,23 @@ export class LinkupClient {
       throw new Error('LinkedIn login_token is required. Please add LINKUP_LOGIN_TOKEN to your environment variables.');
     }
 
+    const requestBody = {
+      ...body,
+      login_token: this.loginToken,
+    };
+
+    console.log(`\n🔍 LinkUp API Request (${endpoint}):`);
+    console.log('  Body:', JSON.stringify(requestBody, null, 2));
+    console.log('  Has login_token:', !!this.loginToken);
+    console.log('  Has API key:', !!this.apiKey);
+
     const response = await fetch(`${LINKUP_API_BASE_URL}${endpoint}`, {
       method: 'POST',
       headers: {
         'x-api-key': this.apiKey,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        ...body,
-        login_token: this.loginToken,
-      }),
+      body: JSON.stringify(requestBody),
     });
 
     if (!response.ok) {
