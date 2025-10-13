@@ -345,14 +345,22 @@ export const searchLeadsByICP = validatedActionWithUser(
       return { error: 'ICP not found', count: 0, prospects: [] };
     }
 
+    // Calculer la page de départ en fonction de l'offset actuel
+    const currentOffset = icp.lastSearchOffset || 0;
+    const startPage = Math.floor(currentOffset / totalResults) + 1;
+    
+    console.log(`📄 Pagination: offset=${currentOffset}, page=${startPage}, total_results=${totalResults}`);
+
     // Mapper les critères ICP vers les paramètres LinkUp
     const searchParams: {
       total_results: number;
+      start_page?: number;
       title?: string;
       location?: string;
       keyword?: string;
     } = {
       total_results: totalResults,
+      start_page: startPage,
     };
 
     // Mapper les métiers (targetRoles) vers title
@@ -435,10 +443,30 @@ export const searchLeadsByICP = validatedActionWithUser(
       });
     }
 
+    // Incrémenter l'offset pour la prochaine recherche (seulement si des profils ont été trouvés)
+    if (profiles.length > 0) {
+      const newOffset = currentOffset + profiles.length;
+      await db
+        .update(icpProfiles)
+        .set({ 
+          lastSearchOffset: newOffset,
+          updatedAt: new Date() 
+        })
+        .where(eq(icpProfiles.id, icpId));
+      
+      console.log(`📊 Offset mis à jour: ${currentOffset} → ${newOffset} (prochaine page: ${Math.floor(newOffset / totalResults) + 1})`);
+    }
+
+    // Calculer la plage de profils importés
+    const startRange = currentOffset + 1;
+    const endRange = currentOffset + profiles.length;
+
     return {
       success: true,
       count: newProspects.length,
       prospects: newProspects,
+      range: `${startRange}-${endRange}`,
+      totalAvailable: profiles.length > 0 ? '1M+' : '0',
     };
   }
 );
