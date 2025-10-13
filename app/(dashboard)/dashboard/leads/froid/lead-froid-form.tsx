@@ -34,9 +34,12 @@ export default function LeadFroidForm({ teamId, icps }: LeadFroidFormProps) {
   let success = '';
   if (state?.count !== undefined) {
     if (state.count === 0) {
-      success = 'Recherche effectuée : tous les profils trouvés sont déjà dans vos prospects (doublons évités)';
+      const rangeInfo = state.range ? ` (profils ${state.range} déjà importés)` : '';
+      success = `Recherche effectuée : tous les profils trouvés sont déjà dans vos prospects${rangeInfo}`;
     } else {
-      success = `${state.count} nouveau${state.count > 1 ? 'x' : ''} prospect${state.count > 1 ? 's' : ''} importé${state.count > 1 ? 's' : ''} !`;
+      const rangeInfo = state.range ? ` - Profils ${state.range}` : '';
+      const totalInfo = state.totalAvailable ? ` sur ${state.totalAvailable} disponibles` : '';
+      success = `${state.count} nouveau${state.count > 1 ? 'x' : ''} prospect${state.count > 1 ? 's' : ''} importé${state.count > 1 ? 's' : ''}${rangeInfo}${totalInfo} !`;
     }
   }
 
