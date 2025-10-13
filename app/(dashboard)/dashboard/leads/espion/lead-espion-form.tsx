@@ -20,6 +20,7 @@ type Engagement = {
 
 export default function LeadEspionForm({ teamId }: { teamId: number }) {
   const [postUrl, setPostUrl] = useState('');
+  const [importMode, setImportMode] = useState<'all' | 'comments_only'>('all');
   const [engagements, setEngagements] = useState<Engagement[]>([]);
   const [state, formAction, isPending] = useActionState(importLeadsFromPost, null);
 
@@ -46,6 +47,7 @@ export default function LeadEspionForm({ teamId }: { teamId: number }) {
       <form action={formAction} className="space-y-4">
         <input type="hidden" name="teamId" value={teamId} />
         <input type="hidden" name="sourceMode" value="espion" />
+        <input type="hidden" name="importMode" value={importMode} />
         
         <div>
           <Label htmlFor="postUrl">Lien du post LinkedIn</Label>
@@ -63,6 +65,54 @@ export default function LeadEspionForm({ teamId }: { teamId: number }) {
           <p className="text-xs text-gray-500 mt-1">
             Collez le lien d'un post LinkedIn pour récupérer les personnes qui ont réagi ou commenté
           </p>
+        </div>
+
+        <div>
+          <Label>Mode d'importation</Label>
+          <div className="mt-2 space-y-2">
+            <label className="flex items-start gap-3 p-3 border rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
+              <input
+                type="radio"
+                name="importMode"
+                value="comments_only"
+                checked={importMode === 'comments_only'}
+                onChange={(e) => setImportMode(e.target.value as 'comments_only')}
+                disabled={isPending}
+                className="mt-1"
+              />
+              <div className="flex-1">
+                <div className="flex items-center gap-2">
+                  <MessageSquare className="w-4 h-4 text-green-600" />
+                  <span className="font-medium text-sm">Commentateurs uniquement</span>
+                  <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">Économique</span>
+                </div>
+                <p className="text-xs text-gray-600 mt-1">
+                  Récupère seulement les personnes qui ont commenté (1 appel API = économie de crédits)
+                </p>
+              </div>
+            </label>
+
+            <label className="flex items-start gap-3 p-3 border rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
+              <input
+                type="radio"
+                name="importMode"
+                value="all"
+                checked={importMode === 'all'}
+                onChange={(e) => setImportMode(e.target.value as 'all')}
+                disabled={isPending}
+                className="mt-1"
+              />
+              <div className="flex-1">
+                <div className="flex items-center gap-2">
+                  <Users className="w-4 h-4 text-blue-600" />
+                  <span className="font-medium text-sm">Tous (réactions + commentaires)</span>
+                </div>
+                <p className="text-xs text-gray-600 mt-1">
+                  Récupère toutes les personnes qui ont réagi ou commenté (2 appels API)
+                </p>
+              </div>
+            </label>
+          </div>
         </div>
 
         {error && (

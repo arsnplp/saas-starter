@@ -10,13 +10,14 @@ import { eq, and, desc } from 'drizzle-orm';
 const importLeadsFromPostSchema = z.object({
   postUrl: z.string().url(),
   sourceMode: z.enum(['chaud', 'espion']),
+  importMode: z.enum(['all', 'comments_only']).default('all'),
   teamId: z.string().transform(Number),
 });
 
 export const importLeadsFromPost = validatedActionWithUser(
   importLeadsFromPostSchema,
   async (data, _, user) => {
-    const { postUrl, sourceMode, teamId } = data;
+    const { postUrl, sourceMode, importMode, teamId } = data;
 
     // Décoder les entités HTML dans l'URL (ex: &amp; → &)
     const decodedPostUrl = postUrl
@@ -26,17 +27,33 @@ export const importLeadsFromPost = validatedActionWithUser(
       .replace(/&quot;/g, '"')
       .replace(/&#39;/g, "'");
 
-    console.log('🔧 URL Décodage:');
-    console.log('  AVANT:', postUrl);
-    console.log('  APRÈS:', decodedPostUrl);
-    console.log('  Changé?', postUrl !== decodedPostUrl);
+    console.log('🔧 Import Configuration:');
+    console.log('  Mode:', importMode);
+    console.log('  URL:', decodedPostUrl);
 
     const linkupClient = await getLinkupClient(teamId);
-    const engagement = await linkupClient.getPostEngagement(decodedPostUrl);
+    
+    let reactions: any[] = [];
+    let comments: any[] = [];
+
+    // Mode "Tous" : appeler les 2 endpoints (réactions + commentaires)
+    if (importMode === 'all') {
+      const engagement = await linkupClient.getPostEngagement(decodedPostUrl);
+      reactions = engagement.reactions;
+      comments = engagement.comments;
+      console.log(`✅ Mode ALL: ${reactions.length} réactions + ${comments.length} commentaires récupérés`);
+    } 
+    // Mode "Commentateurs uniquement" : appeler seulement l'endpoint des commentaires
+    else if (importMode === 'comments_only') {
+      const commentsData = await linkupClient.getPostComments(decodedPostUrl);
+      comments = commentsData;
+      console.log(`✅ Mode COMMENTS_ONLY: ${comments.length} commentaires récupérés (économie de 1 appel API)`);
+    }
 
     const newProspects = [];
 
-    for (const reaction of engagement.reactions) {
+    // Traiter les réactions (seulement si mode "all")
+    for (const reaction of reactions) {
       if (!reaction.profile_url) continue;
 
       const existingProspect = await db.query.prospectCandidates.findFirst({
@@ -70,7 +87,8 @@ export const importLeadsFromPost = validatedActionWithUser(
       newProspects.push(prospect);
     }
 
-    for (const comment of engagement.comments) {
+    // Traiter les commentaires
+    for (const comment of comments) {
       const profileUrl = comment.commenter?.linkedin_url || comment.commenter_profile_url;
       const commenterName = comment.commenter?.name || comment.commenter_name || '';
       const commenterHeadline = comment.commenter?.occupation || comment.commenter_headline || '';

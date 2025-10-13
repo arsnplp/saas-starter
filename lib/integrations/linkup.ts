@@ -291,6 +291,17 @@ export class LinkupClient {
       },
     };
   }
+
+  async getPostComments(postUrl: string, totalResults: number = 50): Promise<LinkupComment[]> {
+    const commentsResponse = await this.makeRequest('/posts/extract-comments', {
+      post_url: postUrl,
+      total_results: totalResults,
+      country: 'FR',
+    });
+
+    const commentsData = linkupCommentsResponseSchema.parse(commentsResponse);
+    return commentsData.data.comments;
+  }
 }
 
 export async function getLinkupClient(teamId: number): Promise<LinkupClient> {
