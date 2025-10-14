@@ -76,24 +76,39 @@ Preferred communication style: Simple, everyday language.
   - Context fields enhance AI scoring with product description and perfect customer example for calibration
 
 **Lead Generation Workflow** (AI-Powered):
-1. LinkedIn post engagement → `prospect_candidates` (staging)
-2. **AI Scoring Pipeline** (Enhanced with Contextual Analysis):
-   - Click "Scorer" button triggers profile enrichment via LinkUp API (`/v1/profile/info`)
-   - Enriched profile includes: name, headline, location, industry, experience (with company_size), education, skills
-   - OpenAI GPT-4o analyzes profile against ICP criteria using **adaptive weighting system**:
-     - **Fit Métier** (0-30pts): Decision-making power and role alignment
-     - **Fit Entreprise** (0-25pts): Company size (strict), industry, context
-     - **Fit Problème** (0-25pts): Signals of business problem we solve (uses `problem_statement` if provided)
-     - **Signaux Exclusion** (-50pts penalty): Presence of exclusion keywords
-     - **Localisation** (0-10pts): Geographic alignment
-     - **Signaux d'Achat Bonus** (0-10pts): Recent job change, company growth indicators
-   - Uses `ideal_customer_example` for score calibration when provided (90-100 = near-perfect match)
-   - Returns JSON: `{ score: 0-100, reasoning: "detailed breakdown + recommendation" }` in French
-   - Stores `ai_score`, `ai_reasoning`, `enriched_profile` in `prospect_candidates`
-3. **Auto-Promotion Logic**:
-   - If score ≥ `icp_profiles.minScore` → automatically converts to `leads` table
-   - If score < minScore → remains in prospects with status 'analyzed'
-4. Outreach messages stored in `messages` table
+
+**Mode 1-3 (Chaud/Espion/Magnet)**: LinkedIn post engagement → `prospect_candidates` (staging)
+
+**Mode 4 (Lead Froid)** - **NEW Approach (Oct 2025)**:
+1. **GPT generates 10-15 target companies** based on ICP criteria (industries, problem_statement, ideal_customer_example)
+   - Avoids previously suggested companies (stored in `icp_profiles.suggestedCompanies` JSONB field)
+   - Temperature 0.8 for creative variation each search
+2. **Search profiles in target companies**: For each company, search LinkUp for profiles matching buyer role
+   - Query format: `{buyerRole} {companyName}` (e.g., "CTO Doctolib")
+   - Max 5 profiles per company
+   - Filters invalid URLs (search results pages, headless, "Utilisateur LinkedIn")
+3. **Cost-optimized batching**: Stops at 10 qualified profiles OR 50 total profiles (5 credits max)
+4. **Display companies used**: UI shows which companies yielded results for transparency
+
+**AI Scoring Pipeline** (Modes 1-3):
+- Click "Scorer" button triggers profile enrichment via LinkUp API (`/v1/profile/info`)
+- Enriched profile includes: name, headline, location, industry, experience (with company_size), education, skills
+- OpenAI GPT-4o analyzes profile against ICP criteria using **adaptive weighting system**:
+  - **Fit Métier** (0-30pts): Decision-making power and role alignment
+  - **Fit Entreprise** (0-25pts): Company size (strict), industry, context
+  - **Fit Problème** (0-25pts): Signals of business problem we solve (uses `problem_statement` if provided)
+  - **Signaux Exclusion** (-50pts penalty): Presence of exclusion keywords
+  - **Localisation** (0-10pts): Geographic alignment
+  - **Signaux d'Achat Bonus** (0-10pts): Recent job change, company growth indicators
+- Uses `ideal_customer_example` for score calibration when provided (90-100 = near-perfect match)
+- Returns JSON: `{ score: 0-100, reasoning: "detailed breakdown + recommendation" }` in French
+- Stores `ai_score`, `ai_reasoning`, `enriched_profile` in `prospect_candidates`
+
+**Auto-Promotion Logic**:
+- If score ≥ `icp_profiles.minScore` → automatically converts to `leads` table
+- If score < minScore → remains in prospects with status 'analyzed'
+
+**Outreach**: Messages stored in `messages` table
 
 **Cost Optimization Strategy**:
 - LinkUp API charged 1 credit per profile enrichment

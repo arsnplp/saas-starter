@@ -720,15 +720,16 @@ export const searchLeadsByICP = validatedActionWithUser(
           keyword: `${mainRole} ${company}`,
         };
         
-        const profiles = await linkupClient.searchProfiles(searchParams);
+        const result = await linkupClient.searchProfiles(searchParams);
+        const profiles = Array.isArray(result) ? result : (result as any).profiles || [];
         
-        if (!Array.isArray(profiles) || profiles.length === 0) {
+        if (profiles.length === 0) {
           console.log(`  ⚠️ Aucun profil trouvé`);
           continue;
         }
         
         // Filtrer les URLs invalides
-        const validProfiles = profiles.filter(p => 
+        const validProfiles = profiles.filter((p: any) => 
           p.profile_url && 
           !p.profile_url.includes('/search/results/') && 
           !p.profile_url.includes('headless?') &&
