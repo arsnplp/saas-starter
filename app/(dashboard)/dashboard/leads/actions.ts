@@ -589,8 +589,9 @@ export const searchLeadsByICP = validatedActionWithUser(
         // searchProfiles retourne directement un tableau de profils
         const allProfiles = await linkupClient.searchProfiles(searchParams);
         
-        // Récupérer 50 profils pour avoir un bon échantillon à filtrer
-        const candidateProfiles = allProfiles.slice(0, 50);
+        // TOUJOURS récupérer 50 profils pour avoir un bon échantillon à filtrer
+        const FILTER_BATCH_SIZE = 50;
+        const candidateProfiles = allProfiles.slice(0, FILTER_BATCH_SIZE);
         console.log(`📥 ${candidateProfiles.length} profils récupérés pour filtrage (sur ${allProfiles.length} disponibles)`);
         
         // Filtrer par entreprises pertinentes si on a une description produit
@@ -601,8 +602,13 @@ export const searchLeadsByICP = validatedActionWithUser(
           console.log(`📊 Après filtrage: ${filteredProfiles.length}/${candidateProfiles.length} profils pertinents`);
         }
         
-        // Limiter aux X premiers profils pertinents demandés
-        profiles = filteredProfiles.slice(0, totalResults);
+        // Limiter à 10 profils finaux (peu importe totalResults)
+        const FINAL_LIMIT = 10;
+        profiles = filteredProfiles.slice(0, FINAL_LIMIT);
+        
+        // IMPORTANT : Stocker le nombre de profils RAW consommés pour la pagination
+        (profiles as any).rawProfilesConsumed = candidateProfiles.length;
+        
         console.log(`✅ ${profiles.length} profils finaux sélectionnés avec ${level}`);
         
         if (profiles.length > 0) {
@@ -664,9 +670,10 @@ export const searchLeadsByICP = validatedActionWithUser(
       });
     }
 
-    // Incrémenter l'offset pour la prochaine recherche (seulement si des profils ont été trouvés)
+    // Incrémenter l'offset pour la prochaine recherche (utiliser le nombre de profils RAW consommés)
     if (profiles.length > 0) {
-      const newOffset = currentOffset + profiles.length;
+      const rawConsumed = (profiles as any).rawProfilesConsumed || profiles.length;
+      const newOffset = currentOffset + rawConsumed;
       await db
         .update(icpProfiles)
         .set({ 
@@ -675,7 +682,7 @@ export const searchLeadsByICP = validatedActionWithUser(
         })
         .where(eq(icpProfiles.id, icpId));
       
-      console.log(`📊 Offset mis à jour: ${currentOffset} → ${newOffset} (prochaine page: ${Math.floor(newOffset / totalResults) + 1})`);
+      console.log(`📊 Offset mis à jour: ${currentOffset} → ${newOffset} (${rawConsumed} profils raw consommés, ${profiles.length} finaux retenus)`);
     }
 
     // Calculer la plage de profils importés
