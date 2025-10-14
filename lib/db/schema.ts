@@ -187,6 +187,8 @@ export type WebhookConfig = typeof webhookConfigs.$inferSelect;
 export type NewWebhookConfig = typeof webhookConfigs.$inferInsert;
 export type WebhookEvent = typeof webhookEvents.$inferSelect;
 export type NewWebhookEvent = typeof webhookEvents.$inferInsert;
+export type TargetCompany = typeof targetCompanies.$inferSelect;
+export type NewTargetCompany = typeof targetCompanies.$inferInsert;
 
 export type TeamDataWithMembers = Team & {
     teamMembers: (TeamMember & {
@@ -428,5 +430,42 @@ export const webhookConfigsRelations = relations(webhookConfigs, ({ one }) => ({
     team: one(teams, {
         fields: [webhookConfigs.teamId],
         references: [teams.id],
+    }),
+}));
+
+// ---------- TARGET COMPANIES TABLE ----------
+export const targetCompanies = pgTable(
+    'target_companies',
+    {
+        id: uuid('id').defaultRandom().primaryKey(),
+        teamId: integer('team_id').references(() => teams.id).notNull(),
+        icpId: integer('icp_id').references(() => icpProfiles.id),
+        name: varchar('name', { length: 255 }).notNull(),
+        industry: varchar('industry', { length: 255 }),
+        reason: text('reason'),
+        linkedinUrl: varchar('linkedin_url', { length: 512 }),
+        website: varchar('website', { length: 512 }),
+        status: varchar('status', { length: 50 }).notNull().default('not_contacted'),
+        notes: text('notes'),
+        contactedAt: timestamp('contacted_at'),
+        createdAt: timestamp('created_at').notNull().defaultNow(),
+        updatedAt: timestamp('updated_at').notNull().defaultNow(),
+    },
+    (t) => ({
+        teamIdx: index('target_companies_team_idx').on(t.teamId),
+        icpIdx: index('target_companies_icp_idx').on(t.icpId),
+        statusIdx: index('target_companies_status_idx').on(t.status),
+        nameIdx: index('target_companies_name_idx').on(t.name),
+    })
+);
+
+export const targetCompaniesRelations = relations(targetCompanies, ({ one }) => ({
+    team: one(teams, {
+        fields: [targetCompanies.teamId],
+        references: [teams.id],
+    }),
+    icp: one(icpProfiles, {
+        fields: [targetCompanies.icpId],
+        references: [icpProfiles.id],
     }),
 }));
