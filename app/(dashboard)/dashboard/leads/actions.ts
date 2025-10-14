@@ -846,9 +846,9 @@ export const searchLeadsByICP = validatedActionWithUser(
       })
       .where(eq(icpProfiles.id, icpId));
     
-    // Déterminer le rôle principal à rechercher
+    // Extraire les rôles de l'ICP (maximum 2)
     const roles = icp.buyerRoles?.split(',').map((r: string) => r.trim()).filter(Boolean) || [];
-    const mainRole = roles[0] || 'CTO'; // Par défaut CTO
+    const targetRoles = roles.length > 0 ? roles.slice(0, 2) : ['CTO']; // Max 2 rôles, défaut CTO
     
     const linkupClient = await getLinkupClient(teamId);
     const collectedProfiles: any[] = [];
@@ -856,43 +856,57 @@ export const searchLeadsByICP = validatedActionWithUser(
     const MAX_PROFILES = 50; // Limite max = 5 crédits
     const TARGET_COUNT = 10; // Objectif : 10 profils
     
-    console.log('\n=== 🔍 ÉTAPE 3: RECHERCHE LINKUP PAR ENTREPRISE ===');
-    console.log(`🎯 Recherche de profils "${mainRole}" dans ${targetCompanies.length} entreprises cibles`);
-    console.log(`📊 Objectif: ${TARGET_COUNT} profils | Limite max: ${MAX_PROFILES} profils (${MAX_PROFILES/10} crédits)`);
+    // Calcul du nombre de profils à chercher par (entreprise, rôle)
+    // Si 1 rôle : 10 prospects = 10 entreprises × 1 rôle
+    // Si 2 rôles : 10 prospects = 5 entreprises × 2 rôles
+    const profilesPerCompanyRole = targetRoles.length === 2 ? 1 : 2;
     
-    // Pour chaque entreprise, chercher des profils
+    console.log('\n=== 🔍 ÉTAPE 3: RECHERCHE LINKUP PAR ENTREPRISE × RÔLE ===');
+    console.log(`🎯 Recherche de ${targetRoles.length} rôle(s): ${targetRoles.join(', ')}`);
+    console.log(`🏢 Dans ${targetCompanies.length} entreprises cibles`);
+    console.log(`📊 Objectif: ${TARGET_COUNT} profils | ${profilesPerCompanyRole} profil(s) par (entreprise × rôle)`);
+    console.log(`💰 Limite max: ${MAX_PROFILES} profils (${MAX_PROFILES/10} crédits)`);
+    
+    // DOUBLE BOUCLE: Pour chaque entreprise, chercher CHAQUE rôle
     for (const company of targetCompanies) {
       if (collectedProfiles.length >= TARGET_COUNT || totalProfilesTried >= MAX_PROFILES) {
         console.log(`\n⏹️ ARRÊT: ${collectedProfiles.length}/${TARGET_COUNT} profils collectés, ${totalProfilesTried}/${MAX_PROFILES} tentés`);
         break; // On a atteint l'objectif ou la limite
       }
       
-      try {
-        console.log(`\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
-        console.log(`🏢 ENTREPRISE ${targetCompanies.indexOf(company) + 1}/${targetCompanies.length}: ${company.name}`);
-        console.log(`   LinkedIn URL: ${company.linkedinUrl || '❌ AUCUNE URL'}`);
-        
-        // Chercher des profils avec filtrage par entreprise ET localisation
-        const searchParams: any = {
-          total_results: 5, // 5 profils par entreprise max
-        };
-        
-        // 🌍 CRITIQUE: Appliquer le filtre de localisation ICP
-        if (icp.locations) {
-          searchParams.location = icp.locations;
-          console.log(`   🌍 Filtre géo ICP: "${icp.locations}"`);
+      // Chercher chaque rôle dans cette entreprise
+      for (const role of targetRoles) {
+        if (collectedProfiles.length >= TARGET_COUNT || totalProfilesTried >= MAX_PROFILES) {
+          break;
         }
         
-        if (company.linkedinUrl) {
-          // ✅ Filtrage précis avec company_url (garantit bonne entreprise)
-          searchParams.title = mainRole;
-          searchParams.company_url = company.linkedinUrl;
-          console.log(`   🎯 Mode PRÉCIS: title="${mainRole}" + company_url`);
-        } else {
-          // ⚠️ Fallback: recherche par keyword (moins précis)
-          searchParams.keyword = `${mainRole} ${company.name}`;
-          console.log(`   ⚠️ Mode FALLBACK: keyword="${searchParams.keyword}"`);
-        }
+        try {
+          console.log(`\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
+          console.log(`🏢 ENTREPRISE ${targetCompanies.indexOf(company) + 1}/${targetCompanies.length}: ${company.name}`);
+          console.log(`👤 RÔLE ${targetRoles.indexOf(role) + 1}/${targetRoles.length}: ${role}`);
+          console.log(`   LinkedIn URL: ${company.linkedinUrl || '❌ AUCUNE URL'}`);
+          
+          // Chercher des profils avec filtrage par entreprise ET localisation
+          const searchParams: any = {
+            total_results: profilesPerCompanyRole, // 1 ou 2 profils selon le nombre de rôles
+          };
+          
+          // 🌍 CRITIQUE: Appliquer le filtre de localisation ICP
+          if (icp.locations) {
+            searchParams.location = icp.locations;
+            console.log(`   🌍 Filtre géo ICP: "${icp.locations}"`);
+          }
+          
+          if (company.linkedinUrl) {
+            // ✅ Filtrage précis avec company_url (garantit bonne entreprise)
+            searchParams.title = role;
+            searchParams.company_url = company.linkedinUrl;
+            console.log(`   🎯 Mode PRÉCIS: title="${role}" + company_url`);
+          } else {
+            // ⚠️ Fallback: recherche par keyword (moins précis)
+            searchParams.keyword = `${role} ${company.name}`;
+            console.log(`   ⚠️ Mode FALLBACK: keyword="${searchParams.keyword}"`);
+          }
         
         console.log('\n   📤 PARAMÈTRES ENVOYÉS À LINKUP:');
         console.log('   ', JSON.stringify(searchParams, null, 2).replace(/\n/g, '\n   '));
@@ -971,7 +985,7 @@ export const searchLeadsByICP = validatedActionWithUser(
           }
         }
         
-        console.log(`\n   ✅ FINAL: ${validProfiles.length} profils valides pour cette entreprise`);
+        console.log(`\n   ✅ FINAL: ${validProfiles.length} profils valides pour ${company.name} / ${role}`);
         
         totalProfilesTried += profiles.length;
         collectedProfiles.push(...validProfiles);
@@ -981,10 +995,11 @@ export const searchLeadsByICP = validatedActionWithUser(
           console.log(`\n✅ Objectif atteint : ${collectedProfiles.length} profils collectés`);
           break;
         }
-      } catch (error) {
-        console.error(`  ❌ Erreur recherche ${company}:`, error);
-      }
-    }
+        } catch (error) {
+          console.error(`  ❌ Erreur recherche ${company.name} / ${role}:`, error);
+        }
+      } // Fin de la boucle sur les rôles
+    } // Fin de la boucle sur les entreprises
     
     // Limiter à 10 profils finaux
     const profiles = collectedProfiles.slice(0, TARGET_COUNT);
