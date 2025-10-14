@@ -9,11 +9,10 @@ import { searchLeadsByICP } from '../actions';
 type ICP = {
   id: number;
   name: string;
-  description: string | null;
-  targetRoles: string[] | null;
-  targetIndustries: string[] | null;
-  targetLocation: string[] | null;
-  targetKeywords: string[] | null;
+  buyerRoles: string | null;
+  industries: string | null;
+  locations: string | null;
+  keywordsInclude: string | null;
   companySizeMin: number | null;
   companySizeMax: number | null;
 };
@@ -83,24 +82,24 @@ export default function LeadFroidForm({ teamId, icps }: LeadFroidFormProps) {
         {selectedIcp && (
           <div className="p-3 bg-gray-50 border border-gray-200 rounded-md space-y-2">
             <h4 className="text-sm font-medium text-gray-900">Critères de recherche :</h4>
-            {selectedIcp.targetRoles && selectedIcp.targetRoles.length > 0 && (
+            {selectedIcp.buyerRoles && (
               <p className="text-xs text-gray-600">
-                <span className="font-medium">Métiers :</span> {selectedIcp.targetRoles.join(', ')}
+                <span className="font-medium">Métiers :</span> {selectedIcp.buyerRoles}
               </p>
             )}
-            {selectedIcp.targetLocation && selectedIcp.targetLocation.length > 0 && (
+            {selectedIcp.locations && (
               <p className="text-xs text-gray-600">
-                <span className="font-medium">Localisation :</span> {selectedIcp.targetLocation.join(', ')}
+                <span className="font-medium">Localisation :</span> {selectedIcp.locations}
               </p>
             )}
-            {selectedIcp.targetIndustries && selectedIcp.targetIndustries.length > 0 && (
+            {selectedIcp.industries && (
               <p className="text-xs text-gray-600">
-                <span className="font-medium">Secteurs :</span> {selectedIcp.targetIndustries.join(', ')}
+                <span className="font-medium">Secteurs :</span> {selectedIcp.industries}
               </p>
             )}
-            {selectedIcp.targetKeywords && selectedIcp.targetKeywords.length > 0 && (
+            {selectedIcp.keywordsInclude && (
               <p className="text-xs text-gray-600">
-                <span className="font-medium">Mots-clés :</span> {selectedIcp.targetKeywords.join(', ')}
+                <span className="font-medium">Mots-clés :</span> {selectedIcp.keywordsInclude}
               </p>
             )}
           </div>

@@ -363,23 +363,31 @@ export const searchLeadsByICP = validatedActionWithUser(
       start_page: startPage,
     };
 
-    // Mapper les métiers (targetRoles) vers title
-    if (icp.targetRoles && icp.targetRoles.length > 0) {
-      searchParams.title = icp.targetRoles.join(';');
+    // Mapper les métiers (buyerRoles) vers title
+    if (icp.buyerRoles) {
+      const roles = icp.buyerRoles.split(',').map(r => r.trim()).filter(Boolean);
+      if (roles.length > 0) {
+        searchParams.title = roles.join(';');
+      }
     }
 
     // Mapper la localisation vers location
-    if (icp.targetLocation && icp.targetLocation.length > 0) {
-      searchParams.location = icp.targetLocation.join(';');
+    if (icp.locations) {
+      const locs = icp.locations.split(',').map(l => l.trim()).filter(Boolean);
+      if (locs.length > 0) {
+        searchParams.location = locs.join(';');
+      }
     }
 
     // Mapper les mots-clés et secteurs vers keyword
     const keywords = [];
-    if (icp.targetKeywords && icp.targetKeywords.length > 0) {
-      keywords.push(...icp.targetKeywords);
+    if (icp.keywordsInclude) {
+      const kw = icp.keywordsInclude.split(',').map(k => k.trim()).filter(Boolean);
+      keywords.push(...kw);
     }
-    if (icp.targetIndustries && icp.targetIndustries.length > 0) {
-      keywords.push(...icp.targetIndustries);
+    if (icp.industries) {
+      const ind = icp.industries.split(',').map(i => i.trim()).filter(Boolean);
+      keywords.push(...ind);
     }
     if (keywords.length > 0) {
       searchParams.keyword = keywords.join(' ');
