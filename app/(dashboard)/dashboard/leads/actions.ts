@@ -334,40 +334,46 @@ async function generateSearchStrategy(icp: any): Promise<Array<{
     apiKey: process.env.OPENAI_API_KEY,
   });
 
-  const systemPrompt = `Tu es un expert en optimisation de recherche LinkedIn. Ton rôle est de créer une stratégie de recherche progressive qui TROUVE DES PROFILS CIBLÉS.
+  const systemPrompt = `Tu es un expert en optimisation de recherche LinkedIn B2B. Ton rôle est de créer une stratégie de recherche progressive qui cible LES ENTREPRISES QUI PEUVENT ACHETER LE PRODUIT.
+
+MISSION PRINCIPALE : Analyser le produit et générer des keywords de SECTEUR/INDUSTRIE pour cibler les bonnes entreprises dès la recherche.
 
 RÈGLES ABSOLUES - UN SEUL CRITÈRE À LA FOIS :
-1. Niveau 1 (ultra-ciblé) : UN métier + UN pays + Keywords
+1. Niveau 1 (ultra-ciblé) : UN métier + UN pays + Keywords de SECTEUR intelligents
 2. Niveau 2 (ciblé) : UN métier + UN pays (sans keywords)  
 3. Niveau 3 (large) : UN métier seul (garantit de trouver des profils)
 
+STRATÉGIE KEYWORDS NIVEAU 1 :
+- Analyser le produit pour identifier les SECTEURS/INDUSTRIES cibles
+- Générer des keywords qui ciblent les ENTREPRISES qui achètent ce type de produit
+- Exemples :
+  * Produit "Solution IoT énergie bâtiments" → Keywords: "Real Estate Facility Management Property Energy"
+  * Produit "CRM B2B SaaS" → Keywords: "Enterprise Software Sales Tech"
+  * Produit "Cybersécurité cloud" → Keywords: "Finance Banking Healthcare Technology"
+
 IMPORTANT :
-- Choisir LE métier le plus important (pas de ";" - un seul)
-- Choisir LE pays principal (France en priorité, sinon le premier)
-- Exemple CORRECT niveau 1: "CTO" + "France" + "IoT EnergyTech"
-- Exemple INCORRECT: "CTO;Head of Innovation" (trop de métiers)
+- Choisir LE métier le plus important (un seul, pas de ";")
+- Choisir LE pays principal (France en priorité)
+- Keywords = SECTEURS où les entreprises peuvent acheter le produit
 
 FORMAT DE SORTIE (JSON strict) :
 {
   "strategies": [
-    { "level": "1-ultra-ciblé", "title": "CTO", "location": "France", "keyword": "IoT EnergyTech" },
+    { "level": "1-ultra-ciblé", "title": "CTO", "location": "France", "keyword": "Real Estate Facility Management Energy" },
     { "level": "2-ciblé", "title": "CTO", "location": "France" },
     { "level": "3-large", "title": "CTO" }
   ]
-}
-
-FORMATS :
-- title: UN SEUL métier (ex: "CTO" ou "Energy Manager")
-- location: UN SEUL pays (ex: "France" ou "Suisse")
-- keyword: Mots-clés séparés par espaces (ex: "IoT EnergyTech")`;
+}`;
 
   const userPrompt = `ICP à analyser :
-- Métiers : ${icp.buyerRoles || 'Non spécifié'}
-- Secteurs : ${icp.industries || 'Non spécifié'}
+- Métiers cibles : ${icp.buyerRoles || 'Non spécifié'}
 - Localisation : ${icp.locations || 'Non spécifié'}
+- Secteurs mentionnés : ${icp.industries || 'Non spécifié'}
 - Mots-clés : ${icp.keywordsInclude || 'Non spécifié'}
+${icp.problemStatement ? `- PRODUIT/SERVICE : ${icp.problemStatement}` : ''}
 
-Génère 3 niveaux de recherche qui garantissent de trouver des profils PERTINENTS par rapport à cet ICP.`;
+MISSION : Analyse le produit et génère des keywords de SECTEUR pour cibler les entreprises qui peuvent l'acheter.
+Crée 3 niveaux de recherche progressifs.`;
 
   try {
     const response = await openai.chat.completions.create({
