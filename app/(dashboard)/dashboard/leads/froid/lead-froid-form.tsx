@@ -38,7 +38,8 @@ export default function LeadFroidForm({ teamId, icps }: LeadFroidFormProps) {
     } else {
       const rangeInfo = state.range ? ` - Profils ${state.range}` : '';
       const totalInfo = state.totalAvailable ? ` sur ${state.totalAvailable} disponibles` : '';
-      success = `${state.count} nouveau${state.count > 1 ? 'x' : ''} prospect${state.count > 1 ? 's' : ''} importé${state.count > 1 ? 's' : ''}${rangeInfo}${totalInfo} !`;
+      const strategyInfo = state.strategyMessage || '';
+      success = `${state.count} nouveau${state.count > 1 ? 'x' : ''} prospect${state.count > 1 ? 's' : ''} importé${state.count > 1 ? 's' : ''}${rangeInfo}${totalInfo}${strategyInfo} !`;
     }
   }
 

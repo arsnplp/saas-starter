@@ -322,6 +322,117 @@ export async function updateLeadStatus(formData: FormData) {
   return updatedLead;
 }
 
+// Fonction pour générer une stratégie de recherche intelligente avec GPT
+async function generateSearchStrategy(icp: any): Promise<Array<{
+  level: string;
+  title?: string;
+  location?: string;
+  keyword?: string;
+}>> {
+  const OpenAI = (await import('openai')).default;
+  const openai = new OpenAI({
+    apiKey: process.env.OPENAI_API_KEY,
+  });
+
+  const systemPrompt = `Tu es un expert en optimisation de recherche LinkedIn. Ton rôle est de créer une stratégie de recherche progressive qui MAINTIENT TOUJOURS LA PERTINENCE avec l'ICP.
+
+RÈGLES ABSOLUES :
+1. Chaque niveau doit inclure AU MINIMUM le métier OU le secteur (jamais de recherche vide)
+2. Niveau 1 (ultra-ciblé) : Métier + Secteur + Mots-clés + Localisation
+3. Niveau 2 (ciblé) : Métier + Secteur + Localisation (retire les mots-clés trop spécifiques)
+4. Niveau 3 (minimum pertinent) : Métier + Localisation OU Métier + Secteur (toujours garder le métier)
+
+FORMAT DE SORTIE (JSON strict) :
+{
+  "strategies": [
+    { "level": "1-ultra-ciblé", "title": "...", "location": "...", "keyword": "..." },
+    { "level": "2-ciblé", "title": "...", "location": "..." },
+    { "level": "3-minimum", "title": "...", "location": "..." }
+  ]
+}
+
+FORMATS :
+- title: Métiers séparés par ";" (ex: "CTO;VP Engineering")
+- location: Pays/régions séparés par ";" (ex: "France;Suisse")
+- keyword: Mots-clés séparés par espaces (ex: "IoT EnergyTech")`;
+
+  const userPrompt = `ICP à analyser :
+- Métiers : ${icp.buyerRoles || 'Non spécifié'}
+- Secteurs : ${icp.industries || 'Non spécifié'}
+- Localisation : ${icp.locations || 'Non spécifié'}
+- Mots-clés : ${icp.keywordsInclude || 'Non spécifié'}
+
+Génère 3 niveaux de recherche qui garantissent de trouver des profils PERTINENTS par rapport à cet ICP.`;
+
+  try {
+    const response = await openai.chat.completions.create({
+      model: 'gpt-4o',
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt },
+      ],
+      temperature: 0.3,
+      response_format: { type: 'json_object' },
+    });
+
+    const result = JSON.parse(response.choices[0].message.content || '{}');
+    return result.strategies || [];
+  } catch (error) {
+    console.error('❌ Erreur GPT pour stratégie de recherche:', error);
+    // Fallback manuel si GPT échoue
+    return generateManualStrategy(icp);
+  }
+}
+
+// Fallback manuel si GPT échoue
+function generateManualStrategy(icp: any) {
+  const strategies = [];
+  
+  const roles = icp.buyerRoles?.split(',').map((r: string) => r.trim()).filter(Boolean) || [];
+  const locs = icp.locations?.split(',').map((l: string) => l.trim()).filter(Boolean) || [];
+  const industries = icp.industries?.split(',').map((i: string) => i.trim()).filter(Boolean) || [];
+  const keywords = icp.keywordsInclude?.split(',').map((k: string) => k.trim()).filter(Boolean) || [];
+
+  // Niveau 1 : Tout
+  if (roles.length > 0) {
+    strategies.push({
+      level: '1-ultra-ciblé',
+      title: roles.join(';'),
+      location: locs.length > 0 ? locs.join(';') : undefined,
+      keyword: [...keywords, ...industries].filter(Boolean).join(' ') || undefined,
+    });
+  }
+
+  // Niveau 2 : Métier + Secteur + Localisation
+  if (roles.length > 0) {
+    strategies.push({
+      level: '2-ciblé',
+      title: roles.join(';'),
+      location: locs.length > 0 ? locs.join(';') : undefined,
+      keyword: industries.length > 0 ? industries.join(' ') : undefined,
+    });
+  }
+
+  // Niveau 3 : Métier + (Localisation OU Secteur) - garantit toujours la pertinence
+  if (roles.length > 0) {
+    const level3: any = {
+      level: '3-minimum',
+      title: roles.join(';'),
+    };
+    
+    // Toujours inclure localisation OU secteur pour maintenir la pertinence
+    if (locs.length > 0) {
+      level3.location = locs.join(';');
+    } else if (industries.length > 0) {
+      level3.keyword = industries.join(' ');
+    }
+    
+    strategies.push(level3);
+  }
+
+  return strategies;
+}
+
 const searchLeadsByICPSchema = z.object({
   icpId: z.coerce.number(),
   teamId: z.coerce.number(),
@@ -351,59 +462,59 @@ export const searchLeadsByICP = validatedActionWithUser(
     
     console.log(`📄 Pagination: offset=${currentOffset}, page=${startPage}, total_results=${totalResults}`);
 
-    // Mapper les critères ICP vers les paramètres LinkUp
-    const searchParams: {
-      total_results: number;
-      start_page?: number;
-      title?: string;
-      location?: string;
-      keyword?: string;
-    } = {
-      total_results: totalResults,
-      start_page: startPage,
-    };
+    // Générer la stratégie de recherche intelligente avec GPT
+    console.log('🤖 Génération de la stratégie de recherche avec GPT...');
+    const strategies = await generateSearchStrategy(icp);
+    console.log('📋 Stratégies générées:', strategies);
 
-    // Mapper les métiers (buyerRoles) vers title
-    if (icp.buyerRoles) {
-      const roles = icp.buyerRoles.split(',').map(r => r.trim()).filter(Boolean);
-      if (roles.length > 0) {
-        searchParams.title = roles.join(';');
+    let profiles = [];
+    let usedStrategy = null;
+
+    // Essayer les stratégies progressivement jusqu'à trouver des profils
+    const linkupClient = await getLinkupClient(teamId);
+    
+    for (const strategy of strategies) {
+      // Créer les paramètres de recherche sans le champ "level"
+      const { level, ...searchCriteria } = strategy;
+      
+      const searchParams: {
+        total_results: number;
+        start_page?: number;
+        title?: string;
+        location?: string;
+        keyword?: string;
+      } = {
+        total_results: totalResults,
+        start_page: startPage,
+        ...searchCriteria,
+      };
+
+      // Supprimer les champs undefined
+      Object.keys(searchParams).forEach(key => {
+        if (searchParams[key as keyof typeof searchParams] === undefined) {
+          delete searchParams[key as keyof typeof searchParams];
+        }
+      });
+
+      console.log(`🔍 Tentative ${level}:`, searchParams);
+
+      try {
+        // searchProfiles retourne directement un tableau de profils
+        profiles = await linkupClient.searchProfiles(searchParams);
+        console.log(`✅ ${profiles.length} profils trouvés avec ${level}`);
+        
+        if (profiles.length > 0) {
+          usedStrategy = level;
+          break;
+        }
+      } catch (error) {
+        console.error(`❌ Erreur avec stratégie ${level}:`, error);
       }
     }
 
-    // Mapper la localisation vers location
-    if (icp.locations) {
-      const locs = icp.locations.split(',').map(l => l.trim()).filter(Boolean);
-      if (locs.length > 0) {
-        searchParams.location = locs.join(';');
-      }
-    }
-
-    // Mapper les mots-clés et secteurs vers keyword
-    const keywords = [];
-    if (icp.keywordsInclude) {
-      const kw = icp.keywordsInclude.split(',').map(k => k.trim()).filter(Boolean);
-      keywords.push(...kw);
-    }
-    if (icp.industries) {
-      const ind = icp.industries.split(',').map(i => i.trim()).filter(Boolean);
-      keywords.push(...ind);
-    }
-    if (keywords.length > 0) {
-      searchParams.keyword = keywords.join(' ');
-    }
-
-    console.log('🔍 Recherche Lead Froid - Paramètres mappés:', searchParams);
-
-    let profiles;
-    try {
-      const linkupClient = await getLinkupClient(teamId);
-      profiles = await linkupClient.searchProfiles(searchParams);
-      console.log(`✅ ${profiles.length} profils trouvés via recherche ICP`);
-    } catch (error) {
-      console.error('❌ Erreur lors de la recherche LinkUp:', error);
+    if (profiles.length === 0) {
       return { 
-        error: 'Failed to search profiles. Please check your LinkUp API configuration.', 
+        error: 'Aucun profil trouvé même avec les critères élargis. Essayez de modifier votre ICP.', 
         count: 0, 
         prospects: [] 
       };
@@ -469,12 +580,24 @@ export const searchLeadsByICP = validatedActionWithUser(
     const startRange = currentOffset + 1;
     const endRange = currentOffset + profiles.length;
 
+    // Message sur la stratégie utilisée
+    let strategyMessage = '';
+    if (usedStrategy === '1-ultra-ciblé') {
+      strategyMessage = ' (recherche ultra-ciblée)';
+    } else if (usedStrategy === '2-ciblé') {
+      strategyMessage = ' (critères élargis pour trouver des profils)';
+    } else if (usedStrategy === '3-minimum') {
+      strategyMessage = ' (recherche élargie, profils toujours pertinents ICP)';
+    }
+
     return {
       success: true,
       count: newProspects.length,
       prospects: newProspects,
       range: `${startRange}-${endRange}`,
       totalAvailable: profiles.length > 0 ? '1M+' : '0',
+      strategyUsed: usedStrategy || 'manuel',
+      strategyMessage,
     };
   }
 );
