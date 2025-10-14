@@ -32,7 +32,7 @@ Preferred communication style: Simple, everyday language.
 - Public routes: `/` (landing), `/pricing`
 - Authentication routes: `/sign-in`, `/sign-up`
 - Protected dashboard routes: `/dashboard/*` with nested settings pages
-- Additional features: `/leads`, `/icp`, `/engagement/post`
+- Additional features: `/leads`, `/icp`, `/engagement/post`, `/entreprises`
 
 **State Management**:
 - Server state via React Server Components and Server Actions
@@ -55,6 +55,16 @@ Preferred communication style: Simple, everyday language.
 - Role-based access control (Owner/Member roles)
 - Global middleware protects `/dashboard` routes
 - Session refresh on GET requests (24-hour expiration)
+
+**Multi-Tenant Security Patterns** (Oct 2025):
+- **Critical Rule**: All Server Actions MUST derive team context from authenticated session
+- **Pattern for all mutations**:
+  1. Call `getUser()` to validate authentication
+  2. Call `getTeamForUser()` to get session-derived team
+  3. Validate resource ownership with `eq(table.teamId, team.id)` constraints
+  4. Never trust client-submitted teamId or resource IDs without verification
+- **Applied to**: Target companies (generateCompaniesAction, updateCompanyStatusAction), ICP profiles, leads, prospects
+- **Prevents**: Cross-team data tampering, unauthorized resource access, multi-tenant isolation violations
 
 **Database Layer**:
 - PostgreSQL as primary database
@@ -153,6 +163,7 @@ Preferred communication style: Simple, everyday language.
 - **Status Tracking**: Simple manual workflow to mark companies as contacted/in-progress/closed
 - **No LinkUp Credits Used**: Pure GPT generation, no profile enrichment or search
 - **Page**: `/dashboard/entreprises` with filterable list and generate button
+- **Security**: Multi-tenant isolation enforced via session-derived team scoping (see Security Patterns below)
 
 **Cost Optimization Strategy**:
 - LinkUp API charged 1 credit per profile enrichment
