@@ -541,7 +541,7 @@ function generateManualStrategy(icp: any) {
 const searchLeadsByICPSchema = z.object({
   icpId: z.coerce.number(),
   teamId: z.coerce.number(),
-  totalResults: z.coerce.number().default(20),
+  totalResults: z.coerce.number().default(10), // 10 profils = 1 crédit LinkUp
 });
 
 export const searchLeadsByICP = validatedActionWithUser(
@@ -607,8 +607,8 @@ export const searchLeadsByICP = validatedActionWithUser(
         // searchProfiles retourne directement un tableau de profils
         const allProfiles = await linkupClient.searchProfiles(searchParams);
         
-        // TOUJOURS récupérer 50 profils pour avoir un bon échantillon à filtrer
-        const FILTER_BATCH_SIZE = 50;
+        // Récupérer 10 profils max (= 1 crédit LinkUp)
+        const FILTER_BATCH_SIZE = 10;
         const candidateProfiles = allProfiles.slice(0, FILTER_BATCH_SIZE);
         console.log(`📥 ${candidateProfiles.length} profils récupérés pour filtrage (sur ${allProfiles.length} disponibles)`);
         
