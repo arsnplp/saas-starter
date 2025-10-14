@@ -54,7 +54,7 @@ export default async function GenerateCompaniesPage() {
         </p>
       </div>
 
-      <GenerateCompaniesForm icps={icps} teamId={team.id} />
+      <GenerateCompaniesForm icps={icps} />
     </div>
   );
 }

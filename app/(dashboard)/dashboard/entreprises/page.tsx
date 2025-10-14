@@ -294,16 +294,32 @@ function CompanyActions({ company }: { company: TargetCompany }) {
 
 async function updateCompanyStatusAction(formData: FormData) {
   "use server";
+  
+  const user = await getUser();
+  if (!user) return;
+
+  const team = await getTeamForUser();
+  if (!team) return;
+
   const id = String(formData.get("id") || "");
   const status = String(formData.get("status") || "");
 
   const allowed = new Set(["not_contacted", "contacted", "in_progress", "closed"]);
   if (!id || !allowed.has(status)) return;
 
+  const company = await db.query.targetCompanies.findFirst({
+    where: and(
+      eq(targetCompanies.id, id),
+      eq(targetCompanies.teamId, team.id)
+    ),
+  });
+
+  if (!company) return;
+
   await db.execute(sql`
     update target_companies
     set status = ${status}, updated_at = now()
-    where id = ${id}::uuid
+    where id = ${id}::uuid AND team_id = ${team.id}
   `);
 
   const { revalidatePath } = await import("next/cache");

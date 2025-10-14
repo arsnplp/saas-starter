@@ -4,28 +4,49 @@ import { revalidatePath } from "next/cache";
 import OpenAI from "openai";
 import { db } from "@/lib/db";
 import { targetCompanies, icpProfiles } from "@/lib/db/schema";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
+import { getUser, getTeamForUser } from "@/lib/db/queries";
 
 export async function generateCompaniesAction(formData: FormData) {
-  const icpId = parseInt(String(formData.get("icpId") || "0"));
-  const count = parseInt(String(formData.get("count") || "15"));
-  const teamId = parseInt(String(formData.get("teamId") || "0"));
-
-  if (!icpId || !teamId) {
+  const user = await getUser();
+  if (!user) {
     return {
       success: false,
-      message: "ICP ID ou Team ID manquant",
+      message: "Non authentifié",
     };
   }
 
+  const team = await getTeamForUser();
+  if (!team) {
+    return {
+      success: false,
+      message: "Équipe introuvable",
+    };
+  }
+
+  const icpId = parseInt(String(formData.get("icpId") || "0"));
+  let count = parseInt(String(formData.get("count") || "15"));
+
+  if (!icpId) {
+    return {
+      success: false,
+      message: "ICP ID manquant",
+    };
+  }
+
+  count = Math.max(5, Math.min(30, count));
+
   const icp = await db.query.icpProfiles.findFirst({
-    where: eq(icpProfiles.id, icpId),
+    where: and(
+      eq(icpProfiles.id, icpId),
+      eq(icpProfiles.teamId, team.id)
+    ),
   });
 
   if (!icp) {
     return {
       success: false,
-      message: "ICP introuvable",
+      message: "ICP introuvable ou vous n'y avez pas accès",
     };
   }
 
@@ -84,7 +105,7 @@ export async function generateCompaniesAction(formData: FormData) {
     console.log(`\n✅ ${parsedResponse.companies.length} entreprises générées par GPT`);
 
     const existingCompanies = await db.query.targetCompanies.findMany({
-      where: eq(targetCompanies.teamId, teamId),
+      where: eq(targetCompanies.teamId, team.id),
     });
 
     const existingNames = new Set(existingCompanies.map((c) => c.name.toLowerCase()));
@@ -107,7 +128,7 @@ export async function generateCompaniesAction(formData: FormData) {
 
     for (const company of newCompanies) {
       await db.insert(targetCompanies).values({
-        teamId,
+        teamId: team.id,
         icpId,
         name: company.name,
         industry: company.industry || null,

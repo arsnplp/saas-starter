@@ -6,10 +6,8 @@ import { generateCompaniesAction } from "../actions";
 
 export default function GenerateCompaniesForm({
   icps,
-  teamId,
 }: {
   icps: any[];
-  teamId: number;
 }) {
   const router = useRouter();
   const [selectedIcpId, setSelectedIcpId] = useState<string>("");
@@ -36,7 +34,6 @@ export default function GenerateCompaniesForm({
       const formData = new FormData();
       formData.append("icpId", selectedIcpId);
       formData.append("count", count.toString());
-      formData.append("teamId", teamId.toString());
 
       const response = await generateCompaniesAction(formData);
       setResult(response);
