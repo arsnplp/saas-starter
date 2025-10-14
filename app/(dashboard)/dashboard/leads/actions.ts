@@ -208,10 +208,22 @@ export const searchColdLeads = validatedActionWithUser(
 
     const linkupClient = await getLinkupClient(teamId);
     const result = await linkupClient.searchProfiles(filters);
+    
+    // Normaliser la réponse (peut être un tableau ou un objet {profiles, total})
+    let profiles: any[];
+    let total: number;
+    
+    if (Array.isArray(result)) {
+      profiles = result;
+      total = result.length;
+    } else {
+      profiles = (result as any).profiles || [];
+      total = (result as any).total || 0;
+    }
 
     const newLeads = [];
 
-    for (const profile of result.profiles) {
+    for (const profile of profiles) {
       const existingLead = await db.query.leads.findFirst({
         where: and(
           eq(leads.linkedinUrl, profile.profile_url),
@@ -245,7 +257,7 @@ export const searchColdLeads = validatedActionWithUser(
     return {
       success: true,
       count: newLeads.length,
-      total: result.total,
+      total,
       leads: newLeads,
     };
   }
@@ -721,7 +733,14 @@ export const searchLeadsByICP = validatedActionWithUser(
         };
         
         const result = await linkupClient.searchProfiles(searchParams);
-        const profiles = Array.isArray(result) ? result : (result as any).profiles || [];
+        
+        // Normaliser la réponse (peut être un tableau ou un objet {profiles, total})
+        let profiles: any[];
+        if (Array.isArray(result)) {
+          profiles = result;
+        } else {
+          profiles = (result as any).profiles || [];
+        }
         
         if (profiles.length === 0) {
           console.log(`  ⚠️ Aucun profil trouvé`);
