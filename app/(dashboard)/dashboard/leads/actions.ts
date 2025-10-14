@@ -621,12 +621,24 @@ ${icp.idealCustomerExample || 'Non spécifié'}
 
 📊 CRITÈRES ICP:
 - Secteurs d'activité: ${icp.industries || 'Non spécifié'}
-- Localisation géographique: ${icp.locations || 'Non spécifié'}
+- **LOCALISATION GÉOGRAPHIQUE (STRICT)**: ${icp.locations || 'Non spécifié'}
 - Taille d'entreprise: ${icp.companySizeMin || '0'} - ${icp.companySizeMax || 'illimité'} employés
 - Mots-clés pertinents: ${icp.keywordsInclude || 'Non spécifié'}
 ${icp.keywordsExclude ? `- Mots-clés à EXCLURE: ${icp.keywordsExclude}` : ''}
 
 ${previousCompanies.length > 0 ? `⛔ ENTREPRISES DÉJÀ SUGGÉRÉES (ne PAS les proposer à nouveau): ${previousCompanies.join(', ')}` : ''}
+
+🚨 RÈGLE ABSOLUE - LOCALISATION GÉOGRAPHIQUE:
+${icp.locations ? `
+⛔ TU NE DOIS RETOURNER QUE DES ENTREPRISES DONT LE SIÈGE SOCIAL EST SITUÉ EN: ${icp.locations.toUpperCase()}
+✅ VALIDE: Entreprise basée en ${icp.locations}
+❌ INVALIDE: Entreprise basée dans un autre pays (même si elle a des bureaux en ${icp.locations})
+❌ INVALIDE: Entreprise internationale avec QG hors ${icp.locations}
+
+Exemples concrets:
+- Si localisation = "France" → SEULEMENT des entreprises françaises (Doctolib, BlaBlaCar, Accor, etc.)
+- Si localisation = "France" → PAS d'entreprises américaines, britanniques, allemandes, etc.
+` : 'Aucune restriction géographique spécifiée.'}
 
 🚨 RÈGLES CRITIQUES - CLIENT FINAL vs PARTENAIRE:
 
@@ -657,13 +669,21 @@ Si le produit = "Logiciel RH":
 ✅ OUI: Entreprises avec des RH (grands groupes, PME, administrations)
 ❌ NON: Éditeurs RH concurrents, SSII spécialisées RH
 
-🔍 MÉTHODE DE SÉLECTION:
+🔍 MÉTHODE DE SÉLECTION (À APPLIQUER STRICTEMENT):
 
 1. **Analyse le problème** : Comprends QUI a vraiment ce problème dans la vraie vie
 2. **Identifie le décideur** : Qui va signer le chèque pour acheter ce produit ?
 3. **Pense à l'usage quotidien** : Qui va ouvrir l'application tous les jours ?
 4. **Vérifie l'alignement** : Cette entreprise correspond-elle à l'exemple de client idéal fourni ?
 5. **Double-check** : "Cette entreprise va-t-elle UTILISER ou REVENDRE le produit ?" → Si REVENDRE, EXCLURE !
+6. **Vérification géographique FINALE** : "Le siège social de cette entreprise est-il bien en ${icp.locations || '[LOCALISATION ICP]'} ?" → Si NON, EXCLURE IMMÉDIATEMENT !
+7. **Vérification pertinence produit** : "Cette entreprise a-t-elle vraiment besoin de ce produit/service pour son activité quotidienne ?" → Si NON, EXCLURE !
+
+⚠️ AVANT DE RETOURNER UNE ENTREPRISE, POSE-TOI CES QUESTIONS:
+${icp.locations ? `- ✅ Siège social en ${icp.locations} ? (OUI = garde, NON = supprime)` : ''}
+${icp.problemStatement ? `- ✅ A le problème décrit dans "${icp.problemStatement}" ? (OUI = garde, NON = supprime)` : ''}
+- ✅ Est un CLIENT FINAL (pas un revendeur/partenaire) ? (OUI = garde, NON = supprime)
+${icp.industries ? `- ✅ Fait partie des secteurs "${icp.industries}" ? (OUI = garde, NON = supprime)` : ''}
 
 📋 FORMAT DE RÉPONSE:
 
@@ -827,10 +847,16 @@ export const searchLeadsByICP = validatedActionWithUser(
       try {
         console.log(`\n🏢 Recherche dans: ${company.name}${company.linkedinUrl ? ` (${company.linkedinUrl})` : ''}`);
         
-        // Chercher des profils avec filtrage par entreprise si URL disponible
+        // Chercher des profils avec filtrage par entreprise ET localisation
         const searchParams: any = {
           total_results: 5, // 5 profils par entreprise max
         };
+        
+        // 🌍 CRITIQUE: Appliquer le filtre de localisation ICP
+        if (icp.locations) {
+          searchParams.location = icp.locations;
+          console.log(`  🌍 Filtre géographique: "${icp.locations}"`);
+        }
         
         if (company.linkedinUrl) {
           // ✅ Filtrage précis avec company_url (garantit bonne entreprise)
@@ -859,12 +885,35 @@ export const searchLeadsByICP = validatedActionWithUser(
         }
         
         // Filtrer les URLs invalides
-        const validProfiles = profiles.filter((p: any) => 
+        let validProfiles = profiles.filter((p: any) => 
           p.profile_url && 
           !p.profile_url.includes('/search/results/') && 
           !p.profile_url.includes('headless?') &&
           p.name !== 'Utilisateur LinkedIn'
         );
+        
+        // 🌍 FILTRE POST-RECHERCHE: Vérifier la localisation si spécifiée dans l'ICP
+        if (icp.locations && validProfiles.length > 0) {
+          const locationKeywords = icp.locations.toLowerCase().split(',').map((l: string) => l.trim());
+          const beforeLocationFilter = validProfiles.length;
+          
+          validProfiles = validProfiles.filter((p: any) => {
+            const profileLocation = (p.location || '').toLowerCase();
+            // Accepter si la localisation du profil contient un des mots-clés ICP
+            const isLocationMatch = locationKeywords.some(keyword => profileLocation.includes(keyword));
+            
+            if (!isLocationMatch && profileLocation) {
+              console.log(`    ⚠️ Profil filtré (mauvaise localisation): ${p.name} - ${p.location}`);
+            }
+            
+            return isLocationMatch || !profileLocation; // Garder aussi si location manquante (pour ne pas être trop strict)
+          });
+          
+          const filtered = beforeLocationFilter - validProfiles.length;
+          if (filtered > 0) {
+            console.log(`  🌍 ${filtered} profils filtrés (hors zone géographique "${icp.locations}")`);
+          }
+        }
         
         console.log(`  ✅ ${validProfiles.length} profils valides trouvés`);
         
