@@ -697,15 +697,27 @@ Nexity|linkedin.com/company/nexity
     const companiesData = response
       .split('\n')
       .map(line => line.trim())
-      .filter(line => line && !line.match(/^[0-9\-\*\.\#]/) && line.length > 1) // Retirer les lignes vides et numérotations
+      .filter(line => line.length > 1) // Retirer juste les lignes vides
       .map(line => {
+        // Retirer SEULEMENT les préfixes de liste, PAS les chiffres dans les noms d'entreprises
+        // Couverture complète: -, *, #, •, 1., 1), 1 -, etc.
+        let cleanedLine = line;
+        cleanedLine = cleanedLine.replace(/^-\s+/, '');                  // "- Company" → "Company"
+        cleanedLine = cleanedLine.replace(/^\*\s+/, '');                 // "* Company" → "Company"
+        cleanedLine = cleanedLine.replace(/^#\s+/, '');                  // "# Company" → "Company"
+        cleanedLine = cleanedLine.replace(/^[\u2022\u2023\u25E6]\s+/, ''); // "• Company" → "Company" (Unicode bullets)
+        cleanedLine = cleanedLine.replace(/^\d+[\.)]\s+/, '');           // "1. Company" ou "1) Company" → "Company"
+        cleanedLine = cleanedLine.replace(/^\d+\s*-\s+/, '');            // "1 - Company" ou "1- Company" → "Company"
+        cleanedLine = cleanedLine.trim();
+        
         // Format: "Klepierre|linkedin.com/company/klepierre" OU juste "Klepierre"
-        const parts = line.split('|');
+        const parts = cleanedLine.split('|');
         return {
           name: parts[0].trim(),
           linkedinUrl: parts[1] ? parts[1].trim() : null
         };
       })
+      .filter(c => c.name.length > 0) // Retirer les entrées vides après nettoyage
       .slice(0, 15); // Max 15 entreprises
 
     console.log(`🏢 GPT a généré ${companiesData.length} entreprises CLIENTES FINALES avec URLs:`, companiesData);

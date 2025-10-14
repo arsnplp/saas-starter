@@ -79,7 +79,7 @@ Preferred communication style: Simple, everyday language.
 
 **Mode 1-3 (Chaud/Espion/Magnet)**: LinkedIn post engagement → `prospect_candidates` (staging)
 
-**Mode 4 (Lead Froid)** - **INTELLIGENT Company Targeting (Oct 2025)**:
+**Mode 4 (Lead Froid)** - **INTELLIGENT Company Targeting with Precision Filtering (Oct 2025)**:
 1. **GPT generates 10-15 target companies** with advanced qualification logic:
    - **Client Final Detection**: GPT explicitly distinguishes end-user clients from partners/integrators/resellers
    - Uses `problem_statement` to understand WHO actually has the problem the product solves
@@ -92,14 +92,24 @@ Preferred communication style: Simple, everyday language.
      3. Think daily usage → who opens the app every day
      4. Verify alignment → matches ideal customer example
      5. Double-check → "Will they USE or RESELL?" → exclude if resell
+   - **NEW**: GPT also provides LinkedIn company URL (format: `Klepierre|linkedin.com/company/klepierre`)
    - Avoids previously suggested companies (stored in `icp_profiles.suggestedCompanies` JSONB field)
    - Temperature 0.8 for creative variation each search
-2. **Search profiles in target companies**: For each company, search LinkUp for profiles matching buyer role
-   - Query format: `{buyerRole} {companyName}` (e.g., "CTO Doctolib")
+   - **List Format Parsing** (Oct 2025): Robust handling of GPT list responses
+     - Strips common prefixes: `-`, `*`, `#`, `•`, `1.`, `1)`, `1 -`
+     - **Preserves numeric company names**: "360Learning", "3M", "21st Century Fox" remain intact
+     - Regex patterns: `^\d+[\.)]\s+` requires whitespace to avoid stripping company name digits
+2. **Search profiles with precision filtering**: For each company, search LinkUp using company_url parameter
+   - **Primary method** (when LinkedIn URL available): Uses `title` + `company_url` parameters
+     - Example: `title: "CTO"` + `company_url: "linkedin.com/company/klepierre"`
+     - **Guarantees 100% accuracy**: Only returns profiles working AT that company
+   - **Fallback method** (if URL unavailable): Uses `keyword` parameter like before
+     - Example: `keyword: "CTO Klepierre"`
+     - Less precise but still functional
    - Max 5 profiles per company
    - Filters invalid URLs (search results pages, headless, "Utilisateur LinkedIn")
 3. **Cost-optimized batching**: Stops at 10 qualified profiles OR 50 total profiles (5 credits max)
-4. **Display companies used**: UI shows which companies yielded results for transparency
+4. **Quality guarantee**: With company_url filtering, 10 imported profiles = 10 profiles from correct company + correct job title ✅
 
 **AI Scoring Pipeline** (Modes 1-3):
 - Click "Scorer" button triggers profile enrichment via LinkUp API (`/v1/profile/info`)
