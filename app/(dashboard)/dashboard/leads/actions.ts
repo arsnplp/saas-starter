@@ -629,62 +629,94 @@ export const searchLeadsByICP = validatedActionWithUser(
       // Créer les paramètres de recherche sans le champ "level"
       const { level, ...searchCriteria } = strategy;
       
-      const searchParams: {
-        total_results: number;
-        start_page?: number;
-        title?: string;
-        location?: string;
-        keyword?: string;
-      } = {
-        total_results: totalResults,
-        start_page: startPage,
-        ...searchCriteria,
-      };
-
-      // Supprimer les champs undefined
-      Object.keys(searchParams).forEach(key => {
-        if (searchParams[key as keyof typeof searchParams] === undefined) {
-          delete searchParams[key as keyof typeof searchParams];
-        }
-      });
-
-      console.log(`🔍 Tentative ${level}:`, searchParams);
+      console.log(`🔍 Tentative avec stratégie ${level}`);
 
       try {
-        // searchProfiles retourne directement un tableau de profils
-        const allProfiles = await linkupClient.searchProfiles(searchParams);
+        const collectedProfiles = [];
+        let currentPage = startPage;
+        let totalProfilesTried = 0;
+        let creditsUsed = 0;
+        const MAX_PROFILES = 50; // Limite max = 5 crédits
+        const TARGET_COUNT = 10; // Objectif : 10 profils pertinents
+        const BATCH_SIZE = 10; // 10 profils par batch = 1 crédit
         
-        // Vérification défensive
-        if (!Array.isArray(allProfiles)) {
-          console.error('❌ searchProfiles n\'a pas retourné un tableau:', typeof allProfiles);
-          continue;
+        // Boucle jusqu'à avoir 10 profils OU avoir essayé 50 profils max
+        while (collectedProfiles.length < TARGET_COUNT && totalProfilesTried < MAX_PROFILES) {
+          const searchParams: {
+            total_results: number;
+            start_page?: number;
+            title?: string;
+            location?: string;
+            keyword?: string;
+          } = {
+            total_results: BATCH_SIZE,
+            start_page: currentPage,
+            ...searchCriteria,
+          };
+
+          // Supprimer les champs undefined
+          Object.keys(searchParams).forEach(key => {
+            if (searchParams[key as keyof typeof searchParams] === undefined) {
+              delete searchParams[key as keyof typeof searchParams];
+            }
+          });
+
+          console.log(`📦 Batch ${Math.floor(totalProfilesTried / BATCH_SIZE) + 1}: récupération de ${BATCH_SIZE} profils (page ${currentPage})`);
+
+          // searchProfiles retourne directement un tableau de profils
+          const allProfiles = await linkupClient.searchProfiles(searchParams);
+          
+          // Vérification défensive
+          if (!Array.isArray(allProfiles)) {
+            console.error('❌ searchProfiles n\'a pas retourné un tableau:', typeof allProfiles);
+            break;
+          }
+          
+          if (allProfiles.length === 0) {
+            console.log('⚠️ Plus de profils disponibles dans les résultats de recherche');
+            break;
+          }
+          
+          const candidateProfiles = allProfiles.slice(0, BATCH_SIZE);
+          totalProfilesTried += candidateProfiles.length;
+          creditsUsed = Math.ceil(totalProfilesTried / 10); // 1 crédit par tranche de 10
+          
+          console.log(`📥 ${candidateProfiles.length} profils récupérés (total essayé: ${totalProfilesTried}, crédits: ${creditsUsed})`);
+          
+          // Filtrer par entreprises pertinentes si on a une description produit
+          let filteredProfiles = candidateProfiles;
+          if (icp.problemStatement) {
+            filteredProfiles = await filterRelevantCompanies(candidateProfiles, icp.problemStatement);
+            console.log(`📊 Après filtrage: ${filteredProfiles.length}/${candidateProfiles.length} profils pertinents`);
+          }
+          
+          // Ajouter les profils valides à la collection
+          collectedProfiles.push(...filteredProfiles);
+          
+          // Si on a atteint l'objectif, on arrête
+          if (collectedProfiles.length >= TARGET_COUNT) {
+            console.log(`✅ Objectif atteint : ${collectedProfiles.length} profils pertinents collectés`);
+            break;
+          }
+          
+          // Passer à la page suivante
+          currentPage++;
         }
         
-        // Récupérer 10 profils max (= 1 crédit LinkUp)
-        const FILTER_BATCH_SIZE = 10;
-        const candidateProfiles = allProfiles.slice(0, FILTER_BATCH_SIZE);
-        console.log(`📥 ${candidateProfiles.length} profils récupérés pour filtrage (sur ${allProfiles.length} disponibles)`);
-        
-        // Filtrer par entreprises pertinentes si on a une description produit
-        let filteredProfiles = candidateProfiles;
-        if (icp.problemStatement) {
-          console.log('🔍 Filtrage des entreprises pertinentes avec GPT...');
-          filteredProfiles = await filterRelevantCompanies(candidateProfiles, icp.problemStatement);
-          console.log(`📊 Après filtrage: ${filteredProfiles.length}/${candidateProfiles.length} profils pertinents`);
-        }
-        
-        // Limiter à 10 profils finaux (peu importe totalResults)
-        const FINAL_LIMIT = 10;
-        profiles = filteredProfiles.slice(0, FINAL_LIMIT);
+        // Limiter à 10 profils finaux
+        profiles = collectedProfiles.slice(0, TARGET_COUNT);
         
         // IMPORTANT : Stocker le nombre de profils RAW consommés pour la pagination
-        (profiles as any).rawProfilesConsumed = candidateProfiles.length;
+        (profiles as any).rawProfilesConsumed = totalProfilesTried;
+        (profiles as any).creditsUsed = creditsUsed;
         
-        console.log(`✅ ${profiles.length} profils finaux sélectionnés avec ${level}`);
+        console.log(`💰 Coût total: ${creditsUsed} crédit(s) LinkUp pour ${profiles.length} profils pertinents`);
         
         if (profiles.length > 0) {
           usedStrategy = level;
           break;
+        } else {
+          console.log(`⚠️ Aucun profil pertinent trouvé avec ${level}, passage à la stratégie suivante...`);
         }
       } catch (error) {
         console.error(`❌ Erreur avec stratégie ${level}:`, error);
@@ -770,6 +802,8 @@ export const searchLeadsByICP = validatedActionWithUser(
       strategyMessage = ' (recherche large - vérifiez la pertinence des profils)';
     }
 
+    const creditsUsed = (profiles as any).creditsUsed || 1;
+    
     return {
       success: true,
       count: newProspects.length,
@@ -778,6 +812,7 @@ export const searchLeadsByICP = validatedActionWithUser(
       totalAvailable: profiles.length > 0 ? '1M+' : '0',
       strategyUsed: usedStrategy || 'manuel',
       strategyMessage,
+      creditsUsed, // Nombre de crédits LinkUp utilisés
     };
   }
 );
