@@ -705,6 +705,12 @@ RÈGLES JSON:
 - Privilégie les entreprises de la localisation spécifiée
 - Les noms d'entreprises avec chiffres sont autorisés: "360Learning", "3M", "21st Century Fox"`;
 
+    console.log('\n=== 📝 ÉTAPE 1: GÉNÉRATION GPT DES ENTREPRISES ===');
+    console.log('Prompt envoyé à GPT (extrait):');
+    console.log('- Localisation ICP:', icp.locations || 'Non spécifié');
+    console.log('- Secteurs ICP:', icp.industries || 'Non spécifié');
+    console.log('- Problème produit:', icp.problemStatement ? icp.problemStatement.substring(0, 100) + '...' : 'Non spécifié');
+    
     const completion = await openai.chat.completions.create({
       model: 'gpt-4o',
       messages: [{ role: 'user', content: prompt }],
@@ -714,13 +720,20 @@ RÈGLES JSON:
 
     const response = completion.choices[0].message.content?.trim() || '';
     
+    console.log('\n📥 RÉPONSE BRUTE GPT (premiers 500 caractères):');
+    console.log(response.substring(0, 500) + (response.length > 500 ? '...' : ''));
+    console.log('Longueur totale:', response.length, 'caractères');
+    
     let companiesData: TargetCompany[] = [];
     
     try {
       // 🎯 MÉTHODE PRINCIPALE: Parser le JSON structuré (robuste et fiable)
+      console.log('\n=== 🔍 ÉTAPE 2: PARSING JSON DES ENTREPRISES ===');
       const jsonData = JSON.parse(response);
       
       if (jsonData.companies && Array.isArray(jsonData.companies)) {
+        console.log(`📊 ${jsonData.companies.length} entreprises trouvées dans le JSON GPT`);
+        
         companiesData = jsonData.companies
           .filter((c: any) => c.name && typeof c.name === 'string')
           .map((c: any) => ({
@@ -729,11 +742,18 @@ RÈGLES JSON:
           }))
           .slice(0, 15); // Max 15 entreprises
         
-        console.log(`✅ JSON parsing réussi: ${companiesData.length} entreprises parsées`);
+        console.log(`✅ JSON parsing réussi: ${companiesData.length} entreprises valides`);
+        console.log('\n📋 ENTREPRISES PARSÉES:');
+        companiesData.forEach((c, i) => {
+          console.log(`  ${i + 1}. ${c.name}`);
+          console.log(`     LinkedIn: ${c.linkedinUrl || '❌ AUCUNE URL'}`);
+        });
       } else {
         throw new Error('Format JSON invalide: "companies" array manquant');
       }
     } catch (parseError) {
+      console.log('\n⚠️ ERREUR JSON PARSING:', parseError);
+      console.log('Tentative fallback sur parsing texte...');
       // 🔄 FALLBACK: Si JSON invalide, utiliser l'ancien parsing texte (compatibilité)
       console.warn('⚠️ JSON parsing échoué, fallback sur parsing texte:', parseError);
       
@@ -836,16 +856,21 @@ export const searchLeadsByICP = validatedActionWithUser(
     const MAX_PROFILES = 50; // Limite max = 5 crédits
     const TARGET_COUNT = 10; // Objectif : 10 profils
     
-    console.log(`🔍 Recherche de profils "${mainRole}" dans les entreprises cibles...`);
+    console.log('\n=== 🔍 ÉTAPE 3: RECHERCHE LINKUP PAR ENTREPRISE ===');
+    console.log(`🎯 Recherche de profils "${mainRole}" dans ${targetCompanies.length} entreprises cibles`);
+    console.log(`📊 Objectif: ${TARGET_COUNT} profils | Limite max: ${MAX_PROFILES} profils (${MAX_PROFILES/10} crédits)`);
     
     // Pour chaque entreprise, chercher des profils
     for (const company of targetCompanies) {
       if (collectedProfiles.length >= TARGET_COUNT || totalProfilesTried >= MAX_PROFILES) {
+        console.log(`\n⏹️ ARRÊT: ${collectedProfiles.length}/${TARGET_COUNT} profils collectés, ${totalProfilesTried}/${MAX_PROFILES} tentés`);
         break; // On a atteint l'objectif ou la limite
       }
       
       try {
-        console.log(`\n🏢 Recherche dans: ${company.name}${company.linkedinUrl ? ` (${company.linkedinUrl})` : ''}`);
+        console.log(`\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
+        console.log(`🏢 ENTREPRISE ${targetCompanies.indexOf(company) + 1}/${targetCompanies.length}: ${company.name}`);
+        console.log(`   LinkedIn URL: ${company.linkedinUrl || '❌ AUCUNE URL'}`);
         
         // Chercher des profils avec filtrage par entreprise ET localisation
         const searchParams: any = {
@@ -855,19 +880,22 @@ export const searchLeadsByICP = validatedActionWithUser(
         // 🌍 CRITIQUE: Appliquer le filtre de localisation ICP
         if (icp.locations) {
           searchParams.location = icp.locations;
-          console.log(`  🌍 Filtre géographique: "${icp.locations}"`);
+          console.log(`   🌍 Filtre géo ICP: "${icp.locations}"`);
         }
         
         if (company.linkedinUrl) {
           // ✅ Filtrage précis avec company_url (garantit bonne entreprise)
           searchParams.title = mainRole;
           searchParams.company_url = company.linkedinUrl;
-          console.log(`  🎯 Filtrage précis: title="${mainRole}" + company_url="${company.linkedinUrl}"`);
+          console.log(`   🎯 Mode PRÉCIS: title="${mainRole}" + company_url`);
         } else {
           // ⚠️ Fallback: recherche par keyword (moins précis)
           searchParams.keyword = `${mainRole} ${company.name}`;
-          console.log(`  ⚠️ Fallback keyword: "${searchParams.keyword}" (URL LinkedIn inconnue)`);
+          console.log(`   ⚠️ Mode FALLBACK: keyword="${searchParams.keyword}"`);
         }
+        
+        console.log('\n   📤 PARAMÈTRES ENVOYÉS À LINKUP:');
+        console.log('   ', JSON.stringify(searchParams, null, 2).replace(/\n/g, '\n   '));
         
         const result = await linkupClient.searchProfiles(searchParams);
         
@@ -879,12 +907,24 @@ export const searchLeadsByICP = validatedActionWithUser(
           profiles = (result as any).profiles || [];
         }
         
+        console.log(`\n   📥 LINKUP A RETOURNÉ ${profiles.length} profils`);
+        
         if (profiles.length === 0) {
-          console.log(`  ⚠️ Aucun profil trouvé`);
+          console.log(`   ⚠️ Aucun profil trouvé - passage à l'entreprise suivante`);
           continue;
         }
         
+        // Afficher TOUS les profils retournés par LinkUp (avant filtrage)
+        console.log('\n   📋 PROFILS BRUTS RETOURNÉS PAR LINKUP:');
+        profiles.forEach((p, i) => {
+          console.log(`   ${i + 1}. ${p.name || '❌ SANS NOM'}`);
+          console.log(`      Poste: ${p.job_title || '❌ SANS POSTE'}`);
+          console.log(`      Lieu: ${p.location || '❌ SANS LIEU'}`);
+          console.log(`      URL: ${p.profile_url || '❌ SANS URL'}`);
+        });
+        
         // Filtrer les URLs invalides
+        const beforeInvalidFilter = profiles.length;
         let validProfiles = profiles.filter((p: any) => 
           p.profile_url && 
           !p.profile_url.includes('/search/results/') && 
@@ -892,9 +932,19 @@ export const searchLeadsByICP = validatedActionWithUser(
           p.name !== 'Utilisateur LinkedIn'
         );
         
+        const invalidFiltered = beforeInvalidFilter - validProfiles.length;
+        if (invalidFiltered > 0) {
+          console.log(`\n   🚫 ${invalidFiltered} profils filtrés (URLs invalides ou "Utilisateur LinkedIn")`);
+        }
+        
         // 🌍 FILTRE POST-RECHERCHE: Vérifier la localisation si spécifiée dans l'ICP
         if (icp.locations && validProfiles.length > 0) {
+          console.log(`\n   🌍 APPLICATION FILTRE GÉOGRAPHIQUE POST-RECHERCHE`);
+          console.log(`   Critère ICP: "${icp.locations}"`);
+          
           const locationKeywords = icp.locations.toLowerCase().split(',').map((l: string) => l.trim());
+          console.log(`   Mots-clés recherchés: ${locationKeywords.join(', ')}`);
+          
           const beforeLocationFilter = validProfiles.length;
           
           validProfiles = validProfiles.filter((p: any) => {
@@ -903,7 +953,11 @@ export const searchLeadsByICP = validatedActionWithUser(
             const isLocationMatch = locationKeywords.some(keyword => profileLocation.includes(keyword));
             
             if (!isLocationMatch && profileLocation) {
-              console.log(`    ⚠️ Profil filtré (mauvaise localisation): ${p.name} - ${p.location}`);
+              console.log(`      ❌ FILTRÉ: ${p.name} | Lieu: "${p.location}" (ne contient pas: ${locationKeywords.join('/')})`);
+            } else if (isLocationMatch) {
+              console.log(`      ✅ GARDE: ${p.name} | Lieu: "${p.location}"`);
+            } else {
+              console.log(`      ⚠️ GARDE (pas de lieu): ${p.name} | Lieu: vide`);
             }
             
             return isLocationMatch || !profileLocation; // Garder aussi si location manquante (pour ne pas être trop strict)
@@ -911,11 +965,13 @@ export const searchLeadsByICP = validatedActionWithUser(
           
           const filtered = beforeLocationFilter - validProfiles.length;
           if (filtered > 0) {
-            console.log(`  🌍 ${filtered} profils filtrés (hors zone géographique "${icp.locations}")`);
+            console.log(`\n   🚫 ${filtered}/${beforeLocationFilter} profils filtrés (hors zone "${icp.locations}")`);
+          } else {
+            console.log(`\n   ✅ Tous les profils passent le filtre géographique`);
           }
         }
         
-        console.log(`  ✅ ${validProfiles.length} profils valides trouvés`);
+        console.log(`\n   ✅ FINAL: ${validProfiles.length} profils valides pour cette entreprise`);
         
         totalProfilesTried += profiles.length;
         collectedProfiles.push(...validProfiles);
@@ -934,9 +990,13 @@ export const searchLeadsByICP = validatedActionWithUser(
     const profiles = collectedProfiles.slice(0, TARGET_COUNT);
     const creditsUsed = Math.min(Math.ceil(totalProfilesTried / 10), 5);
     
-    console.log(`\n💰 Coût total: ${creditsUsed} crédit(s) pour ${profiles.length} profils`);
+    console.log('\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    console.log('\n=== 💾 ÉTAPE 4: SAUVEGARDE EN BASE DE DONNÉES ===');
+    console.log(`💰 Coût total LinkUp: ${creditsUsed} crédit(s) utilisé(s)`);
+    console.log(`📊 Profils collectés: ${profiles.length}`);
     
     if (profiles.length === 0) {
+      console.log('⚠️ AUCUN PROFIL À SAUVEGARDER');
       return { 
         error: 'Aucun profil trouvé dans les entreprises cibles. Réessayez pour générer de nouvelles entreprises.', 
         count: 0, 
@@ -947,6 +1007,8 @@ export const searchLeadsByICP = validatedActionWithUser(
 
     // Récupérer tous les prospects existants pour cette équipe en une seule requête
     const profileUrls = profiles.map(p => p.profile_url).filter(Boolean) as string[];
+    console.log(`\n🔍 Vérification des doublons dans la base...`);
+    
     const existingProspects = await db.query.prospectCandidates.findMany({
       where: and(
         eq(prospectCandidates.teamId, teamId),
@@ -956,11 +1018,29 @@ export const searchLeadsByICP = validatedActionWithUser(
     });
     
     const existingUrls = new Set(existingProspects.map(p => p.profileUrl));
+    console.log(`   ${existingUrls.size} prospects déjà en base`);
+    
     const newProspects = [];
 
+    console.log(`\n💾 INSERTION DES NOUVEAUX PROFILS:`);
     // Insérer les profils dans prospect_candidates (seulement les nouveaux)
     for (const profile of profiles) {
-      if (!profile.profile_url || existingUrls.has(profile.profile_url)) continue;
+      if (!profile.profile_url) {
+        console.log(`   ⚠️ IGNORÉ (pas d'URL): ${profile.name || 'Sans nom'}`);
+        continue;
+      }
+      
+      if (existingUrls.has(profile.profile_url)) {
+        console.log(`   ⏭️ DOUBLON IGNORÉ: ${profile.name} (déjà en base)`);
+        continue;
+      }
+
+      console.log(`\n   ➕ SAUVEGARDE #${newProspects.length + 1}:`);
+      console.log(`      Nom: ${profile.name || 'N/A'}`);
+      console.log(`      Poste: ${profile.job_title || 'Non spécifié'}`);
+      console.log(`      Lieu: ${profile.location || 'Non spécifié'}`);
+      console.log(`      URL: ${profile.profile_url}`);
+      console.log(`      Source: linkedin_search (ICP: ${icp.name})`);
 
       const [prospect] = await db.insert(prospectCandidates).values({
         teamId,
@@ -977,6 +1057,8 @@ export const searchLeadsByICP = validatedActionWithUser(
         raw: profile,
       }).returning();
 
+      console.log(`      ✅ Sauvegardé avec ID: ${prospect.id}`);
+
       newProspects.push({
         id: prospect.id,
         name: prospect.name,
@@ -987,7 +1069,13 @@ export const searchLeadsByICP = validatedActionWithUser(
       });
     }
 
-    console.log(`\n📊 Résultat final: ${newProspects.length} nouveaux prospects sur ${profiles.length} trouvés`);
+    console.log('\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    console.log('\n=== 📊 RÉSUMÉ FINAL ===');
+    console.log(`✅ ${newProspects.length} NOUVEAUX prospects sauvegardés`);
+    console.log(`⏭️ ${profiles.length - newProspects.length} doublons ignorés`);
+    console.log(`💰 ${creditsUsed} crédit(s) LinkUp utilisé(s)`);
+    console.log(`🏢 ${targetCompanies.length} entreprises scannées`);
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
     
     return {
       success: true,
