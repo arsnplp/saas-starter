@@ -334,30 +334,31 @@ async function generateSearchStrategy(icp: any): Promise<Array<{
     apiKey: process.env.OPENAI_API_KEY,
   });
 
-  const systemPrompt = `Tu es un expert en optimisation de recherche LinkedIn. Ton rôle est de créer une stratégie de recherche progressive qui TROUVE DES PROFILS tout en maintenant la pertinence ICP.
+  const systemPrompt = `Tu es un expert en optimisation de recherche LinkedIn. Ton rôle est de créer une stratégie de recherche progressive qui TROUVE DES PROFILS CIBLÉS.
 
-RÈGLES ABSOLUES :
-1. Niveau 1 (ultra-ciblé) : Métier + Localisation + Keywords
-2. Niveau 2 (ciblé) : Métier + Localisation (sans keywords)  
-3. Niveau 3 (large mais pertinent) : SEULEMENT Métier principal (garantit de trouver des profils)
+RÈGLES ABSOLUES - UN SEUL CRITÈRE À LA FOIS :
+1. Niveau 1 (ultra-ciblé) : UN métier + UN pays + Keywords
+2. Niveau 2 (ciblé) : UN métier + UN pays (sans keywords)  
+3. Niveau 3 (large) : UN métier seul (garantit de trouver des profils)
 
-IMPORTANT NIVEAU 3 :
-- Choisir UN SEUL métier principal (le plus important)
-- Ne PAS mettre de localisation (trop restrictif)
-- Exemple: "CTO" au lieu de "CTO;Head of Innovation;VP Operations"
+IMPORTANT :
+- Choisir LE métier le plus important (pas de ";" - un seul)
+- Choisir LE pays principal (France en priorité, sinon le premier)
+- Exemple CORRECT niveau 1: "CTO" + "France" + "IoT EnergyTech"
+- Exemple INCORRECT: "CTO;Head of Innovation" (trop de métiers)
 
 FORMAT DE SORTIE (JSON strict) :
 {
   "strategies": [
-    { "level": "1-ultra-ciblé", "title": "...", "location": "...", "keyword": "..." },
-    { "level": "2-ciblé", "title": "...", "location": "..." },
-    { "level": "3-large", "title": "..." }
+    { "level": "1-ultra-ciblé", "title": "CTO", "location": "France", "keyword": "IoT EnergyTech" },
+    { "level": "2-ciblé", "title": "CTO", "location": "France" },
+    { "level": "3-large", "title": "CTO" }
   ]
 }
 
 FORMATS :
-- title: Métiers séparés par ";" (ex: "CTO;VP Engineering") ou UN SEUL métier pour niveau 3
-- location: Pays/régions séparés par ";" (ex: "France;Suisse")
+- title: UN SEUL métier (ex: "CTO" ou "Energy Manager")
+- location: UN SEUL pays (ex: "France" ou "Suisse")
 - keyword: Mots-clés séparés par espaces (ex: "IoT EnergyTech")`;
 
   const userPrompt = `ICP à analyser :
@@ -397,31 +398,39 @@ function generateManualStrategy(icp: any) {
   const industries = icp.industries?.split(',').map((i: string) => i.trim()).filter(Boolean) || [];
   const keywords = icp.keywordsInclude?.split(',').map((k: string) => k.trim()).filter(Boolean) || [];
 
-  // Niveau 1 : Tout
-  if (roles.length > 0) {
-    strategies.push({
+  // Prendre UN SEUL métier et UN SEUL pays
+  const mainRole = roles[0]; // Premier métier = le plus important
+  const mainLocation = locs.find(l => l.toLowerCase().includes('france')) || locs[0]; // France en priorité
+
+  // Niveau 1 : UN métier + UN pays + Keywords
+  if (mainRole) {
+    const level1: any = {
       level: '1-ultra-ciblé',
-      title: roles.join(';'),
-      location: locs.length > 0 ? locs.join(';') : undefined,
-      keyword: [...keywords, ...industries].filter(Boolean).join(' ') || undefined,
-    });
+      title: mainRole,
+    };
+    if (mainLocation) level1.location = mainLocation;
+    const allKeywords = [...keywords, ...industries].filter(Boolean);
+    if (allKeywords.length > 0) level1.keyword = allKeywords.join(' ');
+    
+    strategies.push(level1);
   }
 
-  // Niveau 2 : Métier + Secteur + Localisation
-  if (roles.length > 0) {
-    strategies.push({
+  // Niveau 2 : UN métier + UN pays (sans keywords)
+  if (mainRole) {
+    const level2: any = {
       level: '2-ciblé',
-      title: roles.join(';'),
-      location: locs.length > 0 ? locs.join(';') : undefined,
-      keyword: industries.length > 0 ? industries.join(' ') : undefined,
-    });
+      title: mainRole,
+    };
+    if (mainLocation) level2.location = mainLocation;
+    
+    strategies.push(level2);
   }
 
-  // Niveau 3 : SEULEMENT le métier principal (garantit de trouver des profils)
-  if (roles.length > 0) {
+  // Niveau 3 : SEULEMENT le métier principal
+  if (mainRole) {
     strategies.push({
       level: '3-large',
-      title: roles[0], // Seulement le premier métier (le plus important)
+      title: mainRole,
     });
   }
 
