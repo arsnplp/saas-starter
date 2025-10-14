@@ -395,13 +395,36 @@ Crée 3 niveaux de recherche progressifs.`;
   }
 }
 
-// Fonction pour filtrer les entreprises pertinentes avec GPT
+// Fonction pour filtrer les profils valides et les entreprises pertinentes avec GPT
 async function filterRelevantCompanies(
   profiles: any[],
   productDescription: string
 ): Promise<any[]> {
-  if (!productDescription || profiles.length === 0) {
-    return profiles; // Pas de filtrage si pas de description produit
+  // Étape 1 : Filtrer les profils INVALIDES (URLs de recherche, profils cachés)
+  const validProfiles = profiles.filter(p => {
+    // Vérifier que ce n'est pas un profil caché
+    if (p.name === 'Utilisateur LinkedIn' || p.name?.includes('Utilisateur LinkedIn')) {
+      return false;
+    }
+    // Vérifier que l'URL est valide (pas une URL de recherche)
+    if (p.profile_url?.includes('/search/results/') || p.profile_url?.includes('headless?')) {
+      return false;
+    }
+    // Vérifier qu'il y a un nom d'entreprise
+    if (!p.current_company?.name) {
+      return false;
+    }
+    return true;
+  });
+
+  console.log(`🧹 Filtrage URLs invalides: ${validProfiles.length}/${profiles.length} profils valides`);
+
+  if (validProfiles.length === 0) {
+    return [];
+  }
+
+  if (!productDescription) {
+    return validProfiles; // Pas de filtrage par entreprise si pas de description produit
   }
 
   const OpenAI = (await import('openai')).default;
@@ -410,40 +433,32 @@ async function filterRelevantCompanies(
   });
 
   // Extraire les noms d'entreprises uniques
-  const companies = profiles
-    .map(p => ({
-      name: p.current_company?.name || 'N/A',
-      profileUrl: p.profile_url,
-    }))
-    .filter(c => c.name !== 'N/A');
+  const companies = validProfiles.map(p => p.current_company.name);
+  const uniqueCompanies = [...new Set(companies)];
 
-  if (companies.length === 0) {
-    return profiles; // Pas d'entreprises à filtrer
-  }
+  const systemPrompt = `Tu es un expert en qualification de leads B2B TRÈS STRICT. Ton rôle est d'identifier quelles entreprises peuvent RÉELLEMENT acheter un produit donné.
 
-  const systemPrompt = `Tu es un expert en qualification de leads B2B. Ton rôle est d'identifier quelles entreprises peuvent être intéressées par un produit/service donné.
-
-MISSION : Analyser rapidement une liste d'entreprises et déterminer lesquelles peuvent ACHETER le produit proposé.
-
-CRITÈRES D'ÉVALUATION :
-- Le secteur d'activité de l'entreprise est-il compatible avec le produit ?
-- L'entreprise a-t-elle un besoin potentiel pour ce type de solution ?
-- Est-ce un acheteur probable (pas juste théoriquement possible) ?
+RÈGLES STRICTES :
+1. REJETER toute entreprise dont le secteur n'est PAS directement lié au produit
+2. Exemple : Si le produit est "IoT pour bâtiments" → ACCEPTER uniquement : immobilier, facility management, construction, énergie pour bâtiments
+3. REJETER : fintech, médias, transport, e-commerce, SaaS générique (sauf si très pertinent)
+4. Être SÉLECTIF : mieux vaut 5 entreprises parfaites que 20 moyennes
 
 RÉPONSE STRICTE (JSON) :
 {
-  "relevant_companies": ["nom1", "nom2", ...]
+  "relevant_companies": ["nom_exact_1", "nom_exact_2", ...]
 }
 
-Liste UNIQUEMENT les noms d'entreprises PERTINENTES (celles qui peuvent vraiment acheter).`;
+IMPORTANT : Retourne les noms EXACTS tels qu'ils apparaissent dans la liste.`;
 
   const userPrompt = `PRODUIT/SERVICE :
 ${productDescription}
 
 ENTREPRISES À ANALYSER :
-${companies.map(c => `- ${c.name}`).join('\n')}
+${uniqueCompanies.map(c => `- ${c}`).join('\n')}
 
-Retourne uniquement les entreprises qui peuvent ACHETER ce produit.`;
+MISSION : Retourne UNIQUEMENT les entreprises qui peuvent VRAIMENT acheter ce produit.
+Sois STRICT - rejette tout ce qui n'est pas directement pertinent.`;
 
   try {
     const response = await openai.chat.completions.create({
@@ -452,23 +467,26 @@ Retourne uniquement les entreprises qui peuvent ACHETER ce produit.`;
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt },
       ],
-      temperature: 0.2,
+      temperature: 0.1, // Plus bas = plus strict
       response_format: { type: 'json_object' },
     });
 
     const result = JSON.parse(response.choices[0].message.content || '{"relevant_companies":[]}');
     const relevantNames = new Set(result.relevant_companies || []);
 
-    console.log(`🎯 Filtrage GPT: ${relevantNames.size}/${companies.length} entreprises pertinentes`);
+    console.log(`🎯 Filtrage GPT: ${relevantNames.size}/${uniqueCompanies.length} entreprises pertinentes`);
     console.log(`✅ Entreprises retenues:`, Array.from(relevantNames));
+    console.log(`❌ Entreprises rejetées:`, uniqueCompanies.filter(c => !relevantNames.has(c)));
 
-    // Filtrer les profils pour ne garder que ceux des entreprises pertinentes
-    return profiles.filter(p => 
-      relevantNames.has(p.current_company?.name) || !p.current_company?.name
-    );
+    // Filtrer les profils pour ne garder QUE ceux des entreprises pertinentes
+    const filtered = validProfiles.filter(p => relevantNames.has(p.current_company.name));
+    
+    console.log(`📊 Résultat final: ${filtered.length} profils avec entreprises pertinentes`);
+    
+    return filtered;
   } catch (error) {
     console.error('❌ Erreur filtrage GPT:', error);
-    return profiles; // En cas d'erreur, retourner tous les profils
+    return validProfiles; // En cas d'erreur, retourner les profils valides (sans invalides)
   }
 }
 
