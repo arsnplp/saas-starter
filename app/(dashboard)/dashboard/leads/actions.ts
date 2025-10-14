@@ -395,6 +395,83 @@ Crée 3 niveaux de recherche progressifs.`;
   }
 }
 
+// Fonction pour filtrer les entreprises pertinentes avec GPT
+async function filterRelevantCompanies(
+  profiles: any[],
+  productDescription: string
+): Promise<any[]> {
+  if (!productDescription || profiles.length === 0) {
+    return profiles; // Pas de filtrage si pas de description produit
+  }
+
+  const OpenAI = (await import('openai')).default;
+  const openai = new OpenAI({
+    apiKey: process.env.OPENAI_API_KEY,
+  });
+
+  // Extraire les noms d'entreprises uniques
+  const companies = profiles
+    .map(p => ({
+      name: p.current_company?.name || 'N/A',
+      profileUrl: p.profile_url,
+    }))
+    .filter(c => c.name !== 'N/A');
+
+  if (companies.length === 0) {
+    return profiles; // Pas d'entreprises à filtrer
+  }
+
+  const systemPrompt = `Tu es un expert en qualification de leads B2B. Ton rôle est d'identifier quelles entreprises peuvent être intéressées par un produit/service donné.
+
+MISSION : Analyser rapidement une liste d'entreprises et déterminer lesquelles peuvent ACHETER le produit proposé.
+
+CRITÈRES D'ÉVALUATION :
+- Le secteur d'activité de l'entreprise est-il compatible avec le produit ?
+- L'entreprise a-t-elle un besoin potentiel pour ce type de solution ?
+- Est-ce un acheteur probable (pas juste théoriquement possible) ?
+
+RÉPONSE STRICTE (JSON) :
+{
+  "relevant_companies": ["nom1", "nom2", ...]
+}
+
+Liste UNIQUEMENT les noms d'entreprises PERTINENTES (celles qui peuvent vraiment acheter).`;
+
+  const userPrompt = `PRODUIT/SERVICE :
+${productDescription}
+
+ENTREPRISES À ANALYSER :
+${companies.map(c => `- ${c.name}`).join('\n')}
+
+Retourne uniquement les entreprises qui peuvent ACHETER ce produit.`;
+
+  try {
+    const response = await openai.chat.completions.create({
+      model: 'gpt-4o',
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt },
+      ],
+      temperature: 0.2,
+      response_format: { type: 'json_object' },
+    });
+
+    const result = JSON.parse(response.choices[0].message.content || '{"relevant_companies":[]}');
+    const relevantNames = new Set(result.relevant_companies || []);
+
+    console.log(`🎯 Filtrage GPT: ${relevantNames.size}/${companies.length} entreprises pertinentes`);
+    console.log(`✅ Entreprises retenues:`, Array.from(relevantNames));
+
+    // Filtrer les profils pour ne garder que ceux des entreprises pertinentes
+    return profiles.filter(p => 
+      relevantNames.has(p.current_company?.name) || !p.current_company?.name
+    );
+  } catch (error) {
+    console.error('❌ Erreur filtrage GPT:', error);
+    return profiles; // En cas d'erreur, retourner tous les profils
+  }
+}
+
 // Fallback manuel si GPT échoue
 function generateManualStrategy(icp: any) {
   const strategies = [];
