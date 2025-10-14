@@ -605,24 +605,66 @@ async function generateTargetCompanies(icp: any, previousCompanies: string[] = [
       apiKey: process.env.OPENAI_API_KEY,
     });
 
-    const prompt = `Tu es un expert en génération de leads B2B. Basé sur ce profil d'entreprise cible (ICP), génère une liste de 10-15 noms d'entreprises RÉELLES et SPÉCIFIQUES qui pourraient être intéressées par cette solution.
+    const prompt = `Tu es un expert en génération de leads B2B. Ta mission : identifier des entreprises qui sont des CLIENTS FINAUX (utilisateurs directs du produit), PAS des partenaires, revendeurs ou intégrateurs.
 
-ICP:
-- Secteurs: ${icp.industries || 'Non spécifié'}
-- Localisation: ${icp.locations || 'Non spécifié'}
+🎯 PRODUIT/SERVICE À VENDRE:
+${icp.problemStatement || 'Non spécifié'}
+
+👤 EXEMPLE DE CLIENT IDÉAL (pour calibrer ton ciblage):
+${icp.idealCustomerExample || 'Non spécifié'}
+
+📊 CRITÈRES ICP:
+- Secteurs d'activité: ${icp.industries || 'Non spécifié'}
+- Localisation géographique: ${icp.locations || 'Non spécifié'}
 - Taille d'entreprise: ${icp.companySizeMin || '0'} - ${icp.companySizeMax || 'illimité'} employés
-- Description du produit/problème: ${icp.problemStatement || 'Non spécifié'}
-- Client idéal exemple: ${icp.idealCustomerExample || 'Non spécifié'}
-- Mots-clés: ${icp.keywordsInclude || 'Non spécifié'}
+- Mots-clés pertinents: ${icp.keywordsInclude || 'Non spécifié'}
+${icp.keywordsExclude ? `- Mots-clés à EXCLURE: ${icp.keywordsExclude}` : ''}
 
-${previousCompanies.length > 0 ? `IMPORTANT: Ne PAS suggérer ces entreprises (déjà proposées): ${previousCompanies.join(', ')}` : ''}
+${previousCompanies.length > 0 ? `⛔ ENTREPRISES DÉJÀ SUGGÉRÉES (ne PAS les proposer à nouveau): ${previousCompanies.join(', ')}` : ''}
 
-Règles:
-1. Suggère des entreprises RÉELLES qui existent vraiment
-2. Varie les tailles (startups, PME, grands groupes) selon les critères ICP
-3. Privilégie les entreprises françaises si localisation = France
-4. Pense aux entreprises qui ont vraiment ce problème à résoudre
-5. Retourne UNIQUEMENT les noms d'entreprises, un par ligne, sans numérotation ni explication
+🚨 RÈGLES CRITIQUES - CLIENT FINAL vs PARTENAIRE:
+
+✅ CHERCHE des entreprises qui vont ACHETER et UTILISER ce produit au quotidien:
+   - Elles ont le problème que le produit résout
+   - Elles vont consommer le service/produit en interne
+   - Ce sont les utilisateurs finaux (end-users)
+
+❌ EXCLUS ABSOLUMENT ces types d'entreprises (ce ne sont PAS des clients finaux):
+   - SSII / ESN / Agences de développement / Intégrateurs
+   - Cabinets de conseil / Consultants
+   - Agences digitales / Agences marketing
+   - Éditeurs de logiciels concurrents
+   - Revendeurs / Distributeurs / Partenaires technologiques
+   - Toute entreprise qui VENDRAIT ce produit plutôt que de l'UTILISER
+
+💡 EXEMPLES SELON L'INDUSTRIE (pour t'aider à comprendre):
+
+Si le produit = "Gestion énergétique de bâtiments":
+✅ OUI: Gestionnaires immobiliers (Nexity, Foncia), Hôpitaux (AP-HP), Hôtels (Accor), Universités (Sorbonne)
+❌ NON: Sopra Steria (SSII), Capgemini (conseil), Schneider Electric (concurrent)
+
+Si le produit = "CRM pour commerciaux":
+✅ OUI: Entreprises avec équipes commerciales (PME industrielles, startups SaaS)
+❌ NON: Agences web, consultants Salesforce, intégrateurs
+
+Si le produit = "Logiciel RH":
+✅ OUI: Entreprises avec des RH (grands groupes, PME, administrations)
+❌ NON: Éditeurs RH concurrents, SSII spécialisées RH
+
+🔍 MÉTHODE DE SÉLECTION:
+
+1. **Analyse le problème** : Comprends QUI a vraiment ce problème dans la vraie vie
+2. **Identifie le décideur** : Qui va signer le chèque pour acheter ce produit ?
+3. **Pense à l'usage quotidien** : Qui va ouvrir l'application tous les jours ?
+4. **Vérifie l'alignement** : Cette entreprise correspond-elle à l'exemple de client idéal fourni ?
+5. **Double-check** : "Cette entreprise va-t-elle UTILISER ou REVENDRE le produit ?" → Si REVENDRE, EXCLURE !
+
+📋 FORMAT DE RÉPONSE:
+
+Retourne UNIQUEMENT les noms d'entreprises, un par ligne, sans numérotation, sans explication, sans commentaire.
+Vise 10-15 entreprises RÉELLES qui existent vraiment.
+Varie les tailles (startups, PME, grands groupes) selon les critères ICP.
+Privilégie les entreprises de la localisation spécifiée.
 
 Exemple de format attendu:
 Doctolib
@@ -641,10 +683,10 @@ Swile`;
     const companies = response
       .split('\n')
       .map(line => line.trim())
-      .filter(line => line && !line.match(/^[0-9\-\*\.]/) && line.length > 1) // Retirer les lignes vides et numérotations
+      .filter(line => line && !line.match(/^[0-9\-\*\.\#]/) && line.length > 1) // Retirer les lignes vides et numérotations
       .slice(0, 15); // Max 15 entreprises
 
-    console.log(`🏢 GPT a généré ${companies.length} entreprises cibles:`, companies);
+    console.log(`🏢 GPT a généré ${companies.length} entreprises CLIENTES FINALES:`, companies);
     
     return companies;
   } catch (error) {
