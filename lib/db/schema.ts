@@ -294,6 +294,7 @@ export const icpProfiles = pgTable('icp_profiles', {
     minScore: integer('min_score').notNull().default(50),
     problemStatement: text('problem_statement'),
     idealCustomerExample: text('ideal_customer_example'),
+    suggestedCompanies: jsonb('suggested_companies').$type<string[]>().default([]),
     lastSearchOffset: integer('last_search_offset').notNull().default(0),
     createdAt: timestamp('created_at').notNull().defaultNow(),
     updatedAt: timestamp('updated_at').notNull().defaultNow(),

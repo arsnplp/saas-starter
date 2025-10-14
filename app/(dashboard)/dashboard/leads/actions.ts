@@ -6,6 +6,7 @@ import { leads, prospectCandidates, icpProfiles, messages } from '@/lib/db/schem
 import { getLinkupClient, type LinkupPostEngagement } from '@/lib/integrations/linkup';
 import { validatedActionWithUser } from '@/lib/auth/middleware';
 import { eq, and, desc } from 'drizzle-orm';
+import OpenAI from 'openai';
 
 const importLeadsFromPostSchema = z.object({
   postUrl: z.string().url(),
@@ -585,6 +586,61 @@ function generateManualStrategy(icp: any) {
   return strategies;
 }
 
+// Fonction pour générer des noms d'entreprises cibles avec GPT
+async function generateTargetCompanies(icp: any, previousCompanies: string[] = []): Promise<string[]> {
+  try {
+    const openai = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY,
+    });
+
+    const prompt = `Tu es un expert en génération de leads B2B. Basé sur ce profil d'entreprise cible (ICP), génère une liste de 10-15 noms d'entreprises RÉELLES et SPÉCIFIQUES qui pourraient être intéressées par cette solution.
+
+ICP:
+- Secteurs: ${icp.industries || 'Non spécifié'}
+- Localisation: ${icp.locations || 'Non spécifié'}
+- Taille d'entreprise: ${icp.companySizeMin || '0'} - ${icp.companySizeMax || 'illimité'} employés
+- Description du produit/problème: ${icp.problemStatement || 'Non spécifié'}
+- Client idéal exemple: ${icp.idealCustomerExample || 'Non spécifié'}
+- Mots-clés: ${icp.keywordsInclude || 'Non spécifié'}
+
+${previousCompanies.length > 0 ? `IMPORTANT: Ne PAS suggérer ces entreprises (déjà proposées): ${previousCompanies.join(', ')}` : ''}
+
+Règles:
+1. Suggère des entreprises RÉELLES qui existent vraiment
+2. Varie les tailles (startups, PME, grands groupes) selon les critères ICP
+3. Privilégie les entreprises françaises si localisation = France
+4. Pense aux entreprises qui ont vraiment ce problème à résoudre
+5. Retourne UNIQUEMENT les noms d'entreprises, un par ligne, sans numérotation ni explication
+
+Exemple de format attendu:
+Doctolib
+BlaBlaCar
+Swile`;
+
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4o',
+      messages: [{ role: 'user', content: prompt }],
+      temperature: 0.8, // Un peu de créativité pour varier les suggestions
+    });
+
+    const response = completion.choices[0].message.content?.trim() || '';
+    
+    // Parser la réponse (une entreprise par ligne)
+    const companies = response
+      .split('\n')
+      .map(line => line.trim())
+      .filter(line => line && !line.match(/^[0-9\-\*\.]/) && line.length > 1) // Retirer les lignes vides et numérotations
+      .slice(0, 15); // Max 15 entreprises
+
+    console.log(`🏢 GPT a généré ${companies.length} entreprises cibles:`, companies);
+    
+    return companies;
+  } catch (error) {
+    console.error('❌ Erreur génération entreprises GPT:', error);
+    return []; // Retourner tableau vide en cas d'erreur
+  }
+}
+
 const searchLeadsByICPSchema = z.object({
   icpId: z.coerce.number(),
   teamId: z.coerce.number(),
@@ -608,136 +664,104 @@ export const searchLeadsByICP = validatedActionWithUser(
       return { error: 'ICP not found', count: 0, prospects: [] };
     }
 
-    // Calculer la page de départ en fonction de l'offset actuel
-    const currentOffset = icp.lastSearchOffset || 0;
-    const startPage = Math.floor(currentOffset / totalResults) + 1;
+    console.log('🎯 NOUVELLE APPROCHE: Génération d\'entreprises cibles avec GPT');
     
-    console.log(`📄 Pagination: offset=${currentOffset}, page=${startPage}, total_results=${totalResults}`);
-
-    // Générer la stratégie de recherche intelligente avec GPT
-    console.log('🤖 Génération de la stratégie de recherche avec GPT...');
-    const strategies = await generateSearchStrategy(icp);
-    console.log('📋 Stratégies générées:', strategies);
-
-    let profiles = [];
-    let usedStrategy = null;
-
-    // Essayer les stratégies progressivement jusqu'à trouver des profils
+    // Récupérer les entreprises déjà suggérées
+    const previousCompanies = (icp.suggestedCompanies as string[]) || [];
+    console.log(`📋 Entreprises déjà suggérées (${previousCompanies.length}):`, previousCompanies);
+    
+    // Générer de nouvelles entreprises cibles avec GPT
+    const targetCompanies = await generateTargetCompanies(icp, previousCompanies);
+    
+    if (targetCompanies.length === 0) {
+      return {
+        error: 'Impossible de générer des entreprises cibles. Vérifiez votre ICP.',
+        count: 0,
+        prospects: []
+      };
+    }
+    
+    console.log(`🏢 ${targetCompanies.length} nouvelles entreprises cibles générées`);
+    
+    // Mettre à jour la liste des entreprises suggérées
+    const allSuggestedCompanies = [...previousCompanies, ...targetCompanies];
+    await db
+      .update(icpProfiles)
+      .set({ 
+        suggestedCompanies: allSuggestedCompanies,
+        updatedAt: new Date() 
+      })
+      .where(eq(icpProfiles.id, icpId));
+    
+    // Déterminer le rôle principal à rechercher
+    const roles = icp.buyerRoles?.split(',').map((r: string) => r.trim()).filter(Boolean) || [];
+    const mainRole = roles[0] || 'CTO'; // Par défaut CTO
+    
     const linkupClient = await getLinkupClient(teamId);
+    const collectedProfiles: any[] = [];
+    let totalProfilesTried = 0;
+    const MAX_PROFILES = 50; // Limite max = 5 crédits
+    const TARGET_COUNT = 10; // Objectif : 10 profils
     
-    for (const strategy of strategies) {
-      // Créer les paramètres de recherche sans le champ "level"
-      const { level, ...searchCriteria } = strategy;
+    console.log(`🔍 Recherche de profils "${mainRole}" dans les entreprises cibles...`);
+    
+    // Pour chaque entreprise, chercher des profils
+    for (const company of targetCompanies) {
+      if (collectedProfiles.length >= TARGET_COUNT || totalProfilesTried >= MAX_PROFILES) {
+        break; // On a atteint l'objectif ou la limite
+      }
       
-      console.log(`🔍 Tentative avec stratégie ${level}`);
-
       try {
-        const collectedProfiles = [];
-        let currentPage = startPage;
-        let totalProfilesTried = 0;
-        let creditsUsed = 0;
-        const MAX_PROFILES = 50; // Limite max = 5 crédits
-        const TARGET_COUNT = 10; // Objectif : 10 profils pertinents
-        const BATCH_SIZE = 10; // 10 profils par batch = 1 crédit
+        console.log(`\n🏢 Recherche dans: ${company}`);
         
-        // Boucle jusqu'à avoir 10 profils OU avoir essayé 50 profils max
-        while (collectedProfiles.length < TARGET_COUNT && totalProfilesTried < MAX_PROFILES) {
-          // Calculer combien de profils on peut encore essayer (ne pas dépasser 50)
-          const remainingAllowed = MAX_PROFILES - totalProfilesTried;
-          const batchSize = Math.min(BATCH_SIZE, remainingAllowed);
-          
-          const searchParams: {
-            total_results: number;
-            start_page?: number;
-            title?: string;
-            location?: string;
-            keyword?: string;
-          } = {
-            total_results: batchSize,
-            start_page: currentPage,
-            ...searchCriteria,
-          };
-
-          // Supprimer les champs undefined
-          Object.keys(searchParams).forEach(key => {
-            if (searchParams[key as keyof typeof searchParams] === undefined) {
-              delete searchParams[key as keyof typeof searchParams];
-            }
-          });
-
-          console.log(`📦 Batch ${Math.floor(totalProfilesTried / BATCH_SIZE) + 1}: récupération de ${batchSize} profils (page ${currentPage})`);
-
-          // searchProfiles retourne directement un tableau de profils
-          const allProfiles = await linkupClient.searchProfiles(searchParams);
-          
-          // Vérification défensive
-          if (!Array.isArray(allProfiles)) {
-            console.error('❌ searchProfiles n\'a pas retourné un tableau:', typeof allProfiles);
-            break;
-          }
-          
-          if (allProfiles.length === 0) {
-            console.log('⚠️ Plus de profils disponibles dans les résultats de recherche');
-            break;
-          }
-          
-          const candidateProfiles = allProfiles.slice(0, batchSize);
-          totalProfilesTried += candidateProfiles.length;
-          creditsUsed = Math.ceil(totalProfilesTried / 10); // 1 crédit par tranche de 10
-          
-          // Vérification de sécurité : ne jamais dépasser 5 crédits
-          if (creditsUsed > 5) {
-            console.error('⚠️ ALERTE : creditsUsed > 5, plafonnement à 5');
-            creditsUsed = 5;
-          }
-          
-          console.log(`📥 ${candidateProfiles.length} profils récupérés (total essayé: ${totalProfilesTried}, crédits: ${creditsUsed})`);
-          
-          // Filtrer par entreprises pertinentes si on a une description produit
-          let filteredProfiles = candidateProfiles;
-          if (icp.problemStatement) {
-            filteredProfiles = await filterRelevantCompanies(candidateProfiles, icp.problemStatement);
-            console.log(`📊 Après filtrage: ${filteredProfiles.length}/${candidateProfiles.length} profils pertinents`);
-          }
-          
-          // Ajouter les profils valides à la collection
-          collectedProfiles.push(...filteredProfiles);
-          
-          // Si on a atteint l'objectif, on arrête
-          if (collectedProfiles.length >= TARGET_COUNT) {
-            console.log(`✅ Objectif atteint : ${collectedProfiles.length} profils pertinents collectés`);
-            break;
-          }
-          
-          // Passer à la page suivante
-          currentPage++;
+        // Chercher des profils avec le rôle + nom d'entreprise
+        const searchParams = {
+          total_results: 5, // 5 profils par entreprise max
+          keyword: `${mainRole} ${company}`,
+        };
+        
+        const profiles = await linkupClient.searchProfiles(searchParams);
+        
+        if (!Array.isArray(profiles) || profiles.length === 0) {
+          console.log(`  ⚠️ Aucun profil trouvé`);
+          continue;
         }
         
-        // Limiter à 10 profils finaux
-        profiles = collectedProfiles.slice(0, TARGET_COUNT);
+        // Filtrer les URLs invalides
+        const validProfiles = profiles.filter(p => 
+          p.profile_url && 
+          !p.profile_url.includes('/search/results/') && 
+          !p.profile_url.includes('headless?') &&
+          p.name !== 'Utilisateur LinkedIn'
+        );
         
-        // IMPORTANT : Stocker le nombre de profils RAW consommés pour la pagination
-        (profiles as any).rawProfilesConsumed = totalProfilesTried;
-        (profiles as any).creditsUsed = creditsUsed;
+        console.log(`  ✅ ${validProfiles.length} profils valides trouvés`);
         
-        console.log(`💰 Coût total: ${creditsUsed} crédit(s) LinkUp pour ${profiles.length} profils pertinents`);
+        totalProfilesTried += profiles.length;
+        collectedProfiles.push(...validProfiles);
         
-        if (profiles.length > 0) {
-          usedStrategy = level;
+        // Si on a atteint l'objectif, arrêter
+        if (collectedProfiles.length >= TARGET_COUNT) {
+          console.log(`\n✅ Objectif atteint : ${collectedProfiles.length} profils collectés`);
           break;
-        } else {
-          console.log(`⚠️ Aucun profil pertinent trouvé avec ${level}, passage à la stratégie suivante...`);
         }
       } catch (error) {
-        console.error(`❌ Erreur avec stratégie ${level}:`, error);
+        console.error(`  ❌ Erreur recherche ${company}:`, error);
       }
     }
-
+    
+    // Limiter à 10 profils finaux
+    const profiles = collectedProfiles.slice(0, TARGET_COUNT);
+    const creditsUsed = Math.min(Math.ceil(totalProfilesTried / 10), 5);
+    
+    console.log(`\n💰 Coût total: ${creditsUsed} crédit(s) pour ${profiles.length} profils`);
+    
     if (profiles.length === 0) {
       return { 
-        error: 'Aucun profil trouvé même avec les critères élargis. Essayez de modifier votre ICP.', 
+        error: 'Aucun profil trouvé dans les entreprises cibles. Réessayez pour générer de nouvelles entreprises.', 
         count: 0, 
-        prospects: [] 
+        prospects: [],
+        creditsUsed 
       };
     }
 
@@ -783,45 +807,13 @@ export const searchLeadsByICP = validatedActionWithUser(
       });
     }
 
-    // Incrémenter l'offset pour la prochaine recherche (utiliser le nombre de profils RAW consommés)
-    if (profiles.length > 0) {
-      const rawConsumed = (profiles as any).rawProfilesConsumed || profiles.length;
-      const newOffset = currentOffset + rawConsumed;
-      await db
-        .update(icpProfiles)
-        .set({ 
-          lastSearchOffset: newOffset,
-          updatedAt: new Date() 
-        })
-        .where(eq(icpProfiles.id, icpId));
-      
-      console.log(`📊 Offset mis à jour: ${currentOffset} → ${newOffset} (${rawConsumed} profils raw consommés, ${profiles.length} finaux retenus)`);
-    }
-
-    // Calculer la plage de profils importés
-    const startRange = currentOffset + 1;
-    const endRange = currentOffset + profiles.length;
-
-    // Message sur la stratégie utilisée
-    let strategyMessage = '';
-    if (usedStrategy === '1-ultra-ciblé') {
-      strategyMessage = ' (recherche ultra-ciblée)';
-    } else if (usedStrategy === '2-ciblé') {
-      strategyMessage = ' (critères élargis)';
-    } else if (usedStrategy === '3-large') {
-      strategyMessage = ' (recherche large - vérifiez la pertinence des profils)';
-    }
-
-    const creditsUsed = (profiles as any).creditsUsed || 1;
+    console.log(`\n📊 Résultat final: ${newProspects.length} nouveaux prospects sur ${profiles.length} trouvés`);
     
     return {
       success: true,
       count: newProspects.length,
       prospects: newProspects,
-      range: `${startRange}-${endRange}`,
-      totalAvailable: profiles.length > 0 ? '1M+' : '0',
-      strategyUsed: usedStrategy || 'manuel',
-      strategyMessage,
+      companiesUsed: targetCompanies.join(', '),
       creditsUsed, // Nombre de crédits LinkUp utilisés
     };
   }

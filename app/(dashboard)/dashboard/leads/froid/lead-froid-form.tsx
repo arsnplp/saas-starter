@@ -33,15 +33,13 @@ export default function LeadFroidForm({ teamId, icps }: LeadFroidFormProps) {
   let success = '';
   if (state?.count !== undefined) {
     if (state.count === 0) {
-      const rangeInfo = state.range ? ` (profils ${state.range} déjà importés)` : '';
+      const companiesInfo = state.companiesUsed ? ` (entreprises cibles: ${state.companiesUsed})` : '';
       const creditsInfo = state.creditsUsed ? ` - Coût : ${state.creditsUsed} crédit${state.creditsUsed > 1 ? 's' : ''}` : '';
-      success = `Recherche effectuée : tous les profils trouvés sont déjà dans vos prospects${rangeInfo}${creditsInfo}`;
+      success = `Recherche effectuée : tous les profils trouvés sont déjà dans vos prospects${companiesInfo}${creditsInfo}`;
     } else {
-      const rangeInfo = state.range ? ` - Profils ${state.range}` : '';
-      const totalInfo = state.totalAvailable ? ` sur ${state.totalAvailable} disponibles` : '';
-      const strategyInfo = state.strategyMessage || '';
+      const companiesInfo = state.companiesUsed ? ` dans les entreprises: ${state.companiesUsed}` : '';
       const creditsInfo = state.creditsUsed ? ` - Coût : ${state.creditsUsed} crédit${state.creditsUsed > 1 ? 's' : ''}` : '';
-      success = `${state.count} nouveau${state.count > 1 ? 'x' : ''} prospect${state.count > 1 ? 's' : ''} importé${state.count > 1 ? 's' : ''}${rangeInfo}${totalInfo}${strategyInfo}${creditsInfo} !`;
+      success = `${state.count} nouveau${state.count > 1 ? 'x' : ''} prospect${state.count > 1 ? 's' : ''} importé${state.count > 1 ? 's' : ''}${companiesInfo}${creditsInfo} !`;
     }
   }
 
