@@ -589,9 +589,21 @@ export const searchLeadsByICP = validatedActionWithUser(
         // searchProfiles retourne directement un tableau de profils
         const allProfiles = await linkupClient.searchProfiles(searchParams);
         
-        // IMPORTANT : Limiter au nombre demandé pour ne pas gaspiller les crédits
-        profiles = allProfiles.slice(0, totalResults);
-        console.log(`✅ ${profiles.length} profils trouvés avec ${level} (limité à ${totalResults} sur ${allProfiles.length} reçus)`);
+        // Récupérer 50 profils pour avoir un bon échantillon à filtrer
+        const candidateProfiles = allProfiles.slice(0, 50);
+        console.log(`📥 ${candidateProfiles.length} profils récupérés pour filtrage (sur ${allProfiles.length} disponibles)`);
+        
+        // Filtrer par entreprises pertinentes si on a une description produit
+        let filteredProfiles = candidateProfiles;
+        if (icp.problemStatement) {
+          console.log('🔍 Filtrage des entreprises pertinentes avec GPT...');
+          filteredProfiles = await filterRelevantCompanies(candidateProfiles, icp.problemStatement);
+          console.log(`📊 Après filtrage: ${filteredProfiles.length}/${candidateProfiles.length} profils pertinents`);
+        }
+        
+        // Limiter aux X premiers profils pertinents demandés
+        profiles = filteredProfiles.slice(0, totalResults);
+        console.log(`✅ ${profiles.length} profils finaux sélectionnés avec ${level}`);
         
         if (profiles.length > 0) {
           usedStrategy = level;
