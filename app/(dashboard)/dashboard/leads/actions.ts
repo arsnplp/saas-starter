@@ -667,60 +667,85 @@ Si le produit = "Logiciel RH":
 
 📋 FORMAT DE RÉPONSE:
 
-IMPORTANT: Pour chaque entreprise, tu DOIS retourner le format suivant sur UNE SEULE ligne:
-NomEntreprise|url-linkedin-de-l-entreprise
+IMPORTANT: Tu DOIS retourner un objet JSON valide avec ce format exact:
 
-L'URL LinkedIn doit être au format: linkedin.com/company/nom-entreprise (sans https://)
+{
+  "companies": [
+    {"name": "Doctolib", "linkedin_url": "linkedin.com/company/doctolib"},
+    {"name": "360Learning", "linkedin_url": "linkedin.com/company/360learning"},
+    {"name": "Swile", "linkedin_url": "linkedin.com/company/swile"}
+  ]
+}
 
-Retourne 10-15 entreprises RÉELLES qui existent vraiment.
-Varie les tailles (startups, PME, grands groupes) selon les critères ICP.
-Privilégie les entreprises de la localisation spécifiée.
-
-Exemple de format attendu:
-Doctolib|linkedin.com/company/doctolib
-BlaBlaCar|linkedin.com/company/blablacar
-Swile|linkedin.com/company/swile
-Accor|linkedin.com/company/accor
-Nexity|linkedin.com/company/nexity
-
-⚠️ CRITIQUE: Si tu ne connais PAS l'URL LinkedIn d'une entreprise, retourne juste son nom sans le "|" (fallback).`;
+RÈGLES JSON:
+- L'URL LinkedIn doit être au format: linkedin.com/company/nom-entreprise (sans https://)
+- Si tu ne connais PAS l'URL LinkedIn, mets null: {"name": "Entreprise", "linkedin_url": null}
+- Retourne 10-15 entreprises RÉELLES qui existent vraiment
+- Varie les tailles (startups, PME, grands groupes) selon les critères ICP
+- Privilégie les entreprises de la localisation spécifiée
+- Les noms d'entreprises avec chiffres sont autorisés: "360Learning", "3M", "21st Century Fox"`;
 
     const completion = await openai.chat.completions.create({
       model: 'gpt-4o',
       messages: [{ role: 'user', content: prompt }],
       temperature: 0.8, // Un peu de créativité pour varier les suggestions
+      response_format: { type: "json_object" }, // Force GPT à retourner du JSON valide
     });
 
     const response = completion.choices[0].message.content?.trim() || '';
     
-    // Parser la réponse (format: "NomEntreprise|url-linkedin" ou juste "NomEntreprise")
-    const companiesData = response
-      .split('\n')
-      .map(line => line.trim())
-      .filter(line => line.length > 1) // Retirer juste les lignes vides
-      .map(line => {
-        // Retirer SEULEMENT les préfixes de liste, PAS les chiffres dans les noms d'entreprises
-        // Couverture complète: -, *, #, •, 1., 1), 1 -, etc.
-        let cleanedLine = line;
-        cleanedLine = cleanedLine.replace(/^-\s+/, '');                  // "- Company" → "Company"
-        cleanedLine = cleanedLine.replace(/^\*\s+/, '');                 // "* Company" → "Company"
-        cleanedLine = cleanedLine.replace(/^#\s+/, '');                  // "# Company" → "Company"
-        cleanedLine = cleanedLine.replace(/^[\u2022\u2023\u25E6]\s+/, ''); // "• Company" → "Company" (Unicode bullets)
-        cleanedLine = cleanedLine.replace(/^\d+[\.)]\s+/, '');           // "1. Company" ou "1) Company" → "Company"
-        cleanedLine = cleanedLine.replace(/^\d+\s*-\s+/, '');            // "1 - Company" ou "1- Company" → "Company"
-        cleanedLine = cleanedLine.trim();
+    let companiesData: TargetCompany[] = [];
+    
+    try {
+      // 🎯 MÉTHODE PRINCIPALE: Parser le JSON structuré (robuste et fiable)
+      const jsonData = JSON.parse(response);
+      
+      if (jsonData.companies && Array.isArray(jsonData.companies)) {
+        companiesData = jsonData.companies
+          .filter((c: any) => c.name && typeof c.name === 'string')
+          .map((c: any) => ({
+            name: c.name.trim(),
+            linkedinUrl: c.linkedin_url && typeof c.linkedin_url === 'string' ? c.linkedin_url.trim() : null
+          }))
+          .slice(0, 15); // Max 15 entreprises
         
-        // Format: "Klepierre|linkedin.com/company/klepierre" OU juste "Klepierre"
-        const parts = cleanedLine.split('|');
-        return {
-          name: parts[0].trim(),
-          linkedinUrl: parts[1] ? parts[1].trim() : null
-        };
-      })
-      .filter(c => c.name.length > 0) // Retirer les entrées vides après nettoyage
-      .slice(0, 15); // Max 15 entreprises
+        console.log(`✅ JSON parsing réussi: ${companiesData.length} entreprises parsées`);
+      } else {
+        throw new Error('Format JSON invalide: "companies" array manquant');
+      }
+    } catch (parseError) {
+      // 🔄 FALLBACK: Si JSON invalide, utiliser l'ancien parsing texte (compatibilité)
+      console.warn('⚠️ JSON parsing échoué, fallback sur parsing texte:', parseError);
+      
+      companiesData = response
+        .split('\n')
+        .map(line => line.trim())
+        .filter(line => line.length > 1)
+        .map(line => {
+          // Retirer les préfixes de liste
+          let cleanedLine = line;
+          cleanedLine = cleanedLine.replace(/^-\s+/, '');
+          cleanedLine = cleanedLine.replace(/^\*\s+/, '');
+          cleanedLine = cleanedLine.replace(/^#\s+/, '');
+          cleanedLine = cleanedLine.replace(/^[\u2022\u2023\u25E6]\s+/, '');
+          cleanedLine = cleanedLine.replace(/^\d+[\.)]\s+/, '');
+          cleanedLine = cleanedLine.replace(/^\d+\s*-\s+/, '');
+          cleanedLine = cleanedLine.trim();
+          
+          // Format: "Klepierre|linkedin.com/company/klepierre"
+          const parts = cleanedLine.split('|');
+          return {
+            name: parts[0].trim(),
+            linkedinUrl: parts[1] ? parts[1].trim() : null
+          };
+        })
+        .filter(c => c.name.length > 0)
+        .slice(0, 15);
+      
+      console.log(`🔄 Fallback parsing réussi: ${companiesData.length} entreprises`);
+    }
 
-    console.log(`🏢 GPT a généré ${companiesData.length} entreprises CLIENTES FINALES avec URLs:`, companiesData);
+    console.log(`🏢 GPT a généré ${companiesData.length} entreprises CLIENTES FINALES:`, companiesData);
     
     return companiesData;
   } catch (error) {

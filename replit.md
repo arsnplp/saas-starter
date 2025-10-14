@@ -95,10 +95,11 @@ Preferred communication style: Simple, everyday language.
    - **NEW**: GPT also provides LinkedIn company URL (format: `Klepierre|linkedin.com/company/klepierre`)
    - Avoids previously suggested companies (stored in `icp_profiles.suggestedCompanies` JSONB field)
    - Temperature 0.8 for creative variation each search
-   - **List Format Parsing** (Oct 2025): Robust handling of GPT list responses
-     - Strips common prefixes: `-`, `*`, `#`, `•`, `1.`, `1)`, `1 -`
-     - **Preserves numeric company names**: "360Learning", "3M", "21st Century Fox" remain intact
-     - Regex patterns: `^\d+[\.)]\s+` requires whitespace to avoid stripping company name digits
+   - **JSON Structured Response** (Oct 2025): GPT returns structured JSON for reliable parsing
+     - Primary: JSON format with `response_format: { type: "json_object" }` enforcement
+     - Format: `{"companies": [{"name": "...", "linkedin_url": "..."}]}`
+     - Fallback: Text parsing with prefix stripping if JSON fails (backward compatibility)
+     - Benefits: Eliminates all bullet/formatting issues, preserves numeric company names automatically
 2. **Search profiles with precision filtering**: For each company, search LinkUp using company_url parameter
    - **Primary method** (when LinkedIn URL available): Uses `title` + `company_url` parameters
      - Example: `title: "CTO"` + `company_url: "linkedin.com/company/klepierre"`
