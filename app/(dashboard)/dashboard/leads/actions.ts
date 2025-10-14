@@ -629,6 +629,12 @@ export const searchLeadsByICP = validatedActionWithUser(
         // searchProfiles retourne directement un tableau de profils
         const allProfiles = await linkupClient.searchProfiles(searchParams);
         
+        // Vérification défensive
+        if (!Array.isArray(allProfiles)) {
+          console.error('❌ searchProfiles n\'a pas retourné un tableau:', typeof allProfiles);
+          continue;
+        }
+        
         // Récupérer 10 profils max (= 1 crédit LinkUp)
         const FILTER_BATCH_SIZE = 10;
         const candidateProfiles = allProfiles.slice(0, FILTER_BATCH_SIZE);
