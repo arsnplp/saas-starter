@@ -79,8 +79,19 @@ Preferred communication style: Simple, everyday language.
 
 **Mode 1-3 (Chaud/Espion/Magnet)**: LinkedIn post engagement → `prospect_candidates` (staging)
 
-**Mode 4 (Lead Froid)** - **NEW Approach (Oct 2025)**:
-1. **GPT generates 10-15 target companies** based on ICP criteria (industries, problem_statement, ideal_customer_example)
+**Mode 4 (Lead Froid)** - **INTELLIGENT Company Targeting (Oct 2025)**:
+1. **GPT generates 10-15 target companies** with advanced qualification logic:
+   - **Client Final Detection**: GPT explicitly distinguishes end-user clients from partners/integrators/resellers
+   - Uses `problem_statement` to understand WHO actually has the problem the product solves
+   - Uses `ideal_customer_example` to calibrate targeting (reference model for perfect match)
+   - **Exclusion Logic**: Automatically filters out SSII/ESN, consultants, digital agencies, software competitors
+   - **Industry-Specific Intelligence**: Provides concrete examples (e.g., "energy management" → hotels, hospitals, property managers, NOT tech agencies)
+   - **5-Step Validation Method**: 
+     1. Analyze the problem → identify who really has it
+     2. Identify decision-maker → who signs the check
+     3. Think daily usage → who opens the app every day
+     4. Verify alignment → matches ideal customer example
+     5. Double-check → "Will they USE or RESELL?" → exclude if resell
    - Avoids previously suggested companies (stored in `icp_profiles.suggestedCompanies` JSONB field)
    - Temperature 0.8 for creative variation each search
 2. **Search profiles in target companies**: For each company, search LinkUp for profiles matching buyer role
