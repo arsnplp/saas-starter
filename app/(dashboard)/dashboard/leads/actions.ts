@@ -395,6 +395,27 @@ Crée 3 niveaux de recherche progressifs.`;
   }
 }
 
+// Fonction utilitaire pour extraire le nom d'entreprise depuis le job_title
+function extractCompanyFromJobTitle(jobTitle: string): string | null {
+  if (!jobTitle) return null;
+  
+  // Patterns : "CTO at Alcatel", "CTO chez Vinci", "CTO @ Schneider"
+  const patterns = [
+    / at ([^|,]+)/i,
+    / chez ([^|,]+)/i,
+    / @ ([^|,]+)/i,
+  ];
+  
+  for (const pattern of patterns) {
+    const match = jobTitle.match(pattern);
+    if (match) {
+      return match[1].trim();
+    }
+  }
+  
+  return null;
+}
+
 // Fonction pour filtrer les profils valides et les entreprises pertinentes avec GPT
 async function filterRelevantCompanies(
   profiles: any[],
@@ -410,8 +431,9 @@ async function filterRelevantCompanies(
     if (p.profile_url?.includes('/search/results/') || p.profile_url?.includes('headless?')) {
       return false;
     }
-    // Vérifier qu'il y a un nom d'entreprise
-    if (!p.current_company?.name) {
+    // Vérifier qu'on peut extraire une entreprise du job_title
+    const company = extractCompanyFromJobTitle(p.job_title || '');
+    if (!company) {
       return false;
     }
     return true;
@@ -432,34 +454,36 @@ async function filterRelevantCompanies(
     apiKey: process.env.OPENAI_API_KEY,
   });
 
-  // Extraire les entreprises uniques avec leurs données d'industrie
+  // Extraire les entreprises uniques depuis job_title
   const companiesMap = new Map();
   validProfiles.forEach(p => {
-    const name = p.current_company.name;
-    if (!companiesMap.has(name)) {
-      companiesMap.set(name, {
-        name,
-        industry: p.current_company?.industry || 'Non spécifié',
-        size: p.current_company?.size || 'Non spécifié',
-        domain: p.current_company?.domain || '',
+    const company = extractCompanyFromJobTitle(p.job_title || '');
+    if (company && !companiesMap.has(company)) {
+      companiesMap.set(company, {
+        name: company,
+        // Pas d'info industrie/size pour recherche froide
+        industry: 'À déterminer',
+        size: 'À déterminer',
+        domain: '',
       });
     }
   });
   
   const companies = Array.from(companiesMap.values());
 
-  const systemPrompt = `Tu es un COMMERCIAL B2B EXPERT avec 15 ans d'expérience. Ton rôle : analyser si une entreprise pourrait acheter un produit donné.
+  const systemPrompt = `Tu es un COMMERCIAL B2B EXPERT avec 15 ans d'expérience. Ton rôle : analyser si une entreprise pourrait acheter un produit donné, EN UTILISANT uniquement leur NOM.
 
 MÉTHODOLOGIE (comme un vrai commercial) :
-1. Lire le secteur d'activité (industrie) de l'entreprise
-2. Identifier si ce secteur a BESOIN du produit proposé
-3. Analyser la taille d'entreprise (est-ce un bon fit ?)
+1. Analyser le NOM de l'entreprise pour deviner son secteur d'activité
+2. Utiliser ta connaissance générale des grandes entreprises (Schneider = énergie, Vinci = BTP, etc.)
+3. Identifier si ce secteur a BESOIN du produit proposé
 4. Décider : OUI (prospect chaud) ou NON (pas pertinent)
 
 RÈGLES DE QUALIFICATION :
-✅ ACCEPTER si : Le secteur d'activité utilise directement ce type de produit
-❌ REJETER si : Aucun lien évident entre le secteur et le produit
+✅ ACCEPTER si : Le nom suggère un secteur compatible avec le produit
+❌ REJETER si : Le nom suggère un secteur sans lien avec le produit
 ⚠️ Être SÉLECTIF : Mieux vaut 3 prospects parfaits que 10 moyens
+⚠️ Si tu ne connais pas l'entreprise, ACCEPTE-la (principe de précaution)
 
 RÉPONSE JSON :
 {
@@ -472,14 +496,12 @@ IMPORTANT : Retourne les noms EXACTS (copier-coller).`;
   const userPrompt = `PRODUIT/SERVICE À VENDRE :
 ${productDescription}
 
-ENTREPRISES À QUALIFIER :
-${companies.map(c => 
-  `- ${c.name}\n  Secteur: ${c.industry}\n  Taille: ${c.size}${c.domain ? `\n  Site: ${c.domain}` : ''}`
-).join('\n\n')}
+ENTREPRISES À QUALIFIER (seulement par leur nom) :
+${companies.map(c => `- ${c.name}`).join('\n')}
 
 MISSION : Analyse chaque entreprise comme un commercial.
-Pour chaque une, demande-toi : "Est-ce que cette boîte pourrait acheter mon produit ?"
-Retourne UNIQUEMENT les entreprises qui sont des prospects réels.`;
+Utilise ta connaissance du marché pour identifier leur secteur probable.
+Retourne UNIQUEMENT les entreprises qui pourraient acheter ce produit.`;
 
   try {
     const response = await openai.chat.completions.create({
@@ -501,7 +523,10 @@ Retourne UNIQUEMENT les entreprises qui sont des prospects réels.`;
     console.log(`❌ Entreprises rejetées:`, companies.filter(c => !relevantNames.has(c.name)).map(c => c.name));
 
     // Filtrer les profils pour ne garder QUE ceux des entreprises pertinentes
-    const filtered = validProfiles.filter(p => relevantNames.has(p.current_company.name));
+    const filtered = validProfiles.filter(p => {
+      const company = extractCompanyFromJobTitle(p.job_title || '');
+      return company && relevantNames.has(company);
+    });
     
     console.log(`📊 Résultat final: ${filtered.length} profils avec entreprises qualifiées`);
     
