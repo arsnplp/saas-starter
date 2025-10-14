@@ -495,8 +495,11 @@ export const searchLeadsByICP = validatedActionWithUser(
 
       try {
         // searchProfiles retourne directement un tableau de profils
-        profiles = await linkupClient.searchProfiles(searchParams);
-        console.log(`✅ ${profiles.length} profils trouvés avec ${level}`);
+        const allProfiles = await linkupClient.searchProfiles(searchParams);
+        
+        // IMPORTANT : Limiter au nombre demandé pour ne pas gaspiller les crédits
+        profiles = allProfiles.slice(0, totalResults);
+        console.log(`✅ ${profiles.length} profils trouvés avec ${level} (limité à ${totalResults} sur ${allProfiles.length} reçus)`);
         
         if (profiles.length > 0) {
           usedStrategy = level;
