@@ -334,25 +334,29 @@ async function generateSearchStrategy(icp: any): Promise<Array<{
     apiKey: process.env.OPENAI_API_KEY,
   });
 
-  const systemPrompt = `Tu es un expert en optimisation de recherche LinkedIn. Ton rôle est de créer une stratégie de recherche progressive qui MAINTIENT TOUJOURS LA PERTINENCE avec l'ICP.
+  const systemPrompt = `Tu es un expert en optimisation de recherche LinkedIn. Ton rôle est de créer une stratégie de recherche progressive qui TROUVE DES PROFILS tout en maintenant la pertinence ICP.
 
 RÈGLES ABSOLUES :
-1. Chaque niveau doit inclure AU MINIMUM le métier OU le secteur (jamais de recherche vide)
-2. Niveau 1 (ultra-ciblé) : Métier + Secteur + Mots-clés + Localisation
-3. Niveau 2 (ciblé) : Métier + Secteur + Localisation (retire les mots-clés trop spécifiques)
-4. Niveau 3 (minimum pertinent) : Métier + Localisation OU Métier + Secteur (toujours garder le métier)
+1. Niveau 1 (ultra-ciblé) : Métier + Localisation + Keywords
+2. Niveau 2 (ciblé) : Métier + Localisation (sans keywords)  
+3. Niveau 3 (large mais pertinent) : SEULEMENT Métier principal (garantit de trouver des profils)
+
+IMPORTANT NIVEAU 3 :
+- Choisir UN SEUL métier principal (le plus important)
+- Ne PAS mettre de localisation (trop restrictif)
+- Exemple: "CTO" au lieu de "CTO;Head of Innovation;VP Operations"
 
 FORMAT DE SORTIE (JSON strict) :
 {
   "strategies": [
     { "level": "1-ultra-ciblé", "title": "...", "location": "...", "keyword": "..." },
     { "level": "2-ciblé", "title": "...", "location": "..." },
-    { "level": "3-minimum", "title": "...", "location": "..." }
+    { "level": "3-large", "title": "..." }
   ]
 }
 
 FORMATS :
-- title: Métiers séparés par ";" (ex: "CTO;VP Engineering")
+- title: Métiers séparés par ";" (ex: "CTO;VP Engineering") ou UN SEUL métier pour niveau 3
 - location: Pays/régions séparés par ";" (ex: "France;Suisse")
 - keyword: Mots-clés séparés par espaces (ex: "IoT EnergyTech")`;
 
@@ -413,21 +417,12 @@ function generateManualStrategy(icp: any) {
     });
   }
 
-  // Niveau 3 : Métier + (Localisation OU Secteur) - garantit toujours la pertinence
+  // Niveau 3 : SEULEMENT le métier principal (garantit de trouver des profils)
   if (roles.length > 0) {
-    const level3: any = {
-      level: '3-minimum',
-      title: roles.join(';'),
-    };
-    
-    // Toujours inclure localisation OU secteur pour maintenir la pertinence
-    if (locs.length > 0) {
-      level3.location = locs.join(';');
-    } else if (industries.length > 0) {
-      level3.keyword = industries.join(' ');
-    }
-    
-    strategies.push(level3);
+    strategies.push({
+      level: '3-large',
+      title: roles[0], // Seulement le premier métier (le plus important)
+    });
   }
 
   return strategies;
@@ -585,9 +580,9 @@ export const searchLeadsByICP = validatedActionWithUser(
     if (usedStrategy === '1-ultra-ciblé') {
       strategyMessage = ' (recherche ultra-ciblée)';
     } else if (usedStrategy === '2-ciblé') {
-      strategyMessage = ' (critères élargis pour trouver des profils)';
-    } else if (usedStrategy === '3-minimum') {
-      strategyMessage = ' (recherche élargie, profils toujours pertinents ICP)';
+      strategyMessage = ' (critères élargis)';
+    } else if (usedStrategy === '3-large') {
+      strategyMessage = ' (recherche large - vérifiez la pertinence des profils)';
     }
 
     return {
