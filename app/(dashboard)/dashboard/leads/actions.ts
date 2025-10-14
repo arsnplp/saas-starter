@@ -642,6 +642,10 @@ export const searchLeadsByICP = validatedActionWithUser(
         
         // Boucle jusqu'à avoir 10 profils OU avoir essayé 50 profils max
         while (collectedProfiles.length < TARGET_COUNT && totalProfilesTried < MAX_PROFILES) {
+          // Calculer combien de profils on peut encore essayer (ne pas dépasser 50)
+          const remainingAllowed = MAX_PROFILES - totalProfilesTried;
+          const batchSize = Math.min(BATCH_SIZE, remainingAllowed);
+          
           const searchParams: {
             total_results: number;
             start_page?: number;
@@ -649,7 +653,7 @@ export const searchLeadsByICP = validatedActionWithUser(
             location?: string;
             keyword?: string;
           } = {
-            total_results: BATCH_SIZE,
+            total_results: batchSize,
             start_page: currentPage,
             ...searchCriteria,
           };
@@ -661,7 +665,7 @@ export const searchLeadsByICP = validatedActionWithUser(
             }
           });
 
-          console.log(`📦 Batch ${Math.floor(totalProfilesTried / BATCH_SIZE) + 1}: récupération de ${BATCH_SIZE} profils (page ${currentPage})`);
+          console.log(`📦 Batch ${Math.floor(totalProfilesTried / BATCH_SIZE) + 1}: récupération de ${batchSize} profils (page ${currentPage})`);
 
           // searchProfiles retourne directement un tableau de profils
           const allProfiles = await linkupClient.searchProfiles(searchParams);
@@ -677,9 +681,15 @@ export const searchLeadsByICP = validatedActionWithUser(
             break;
           }
           
-          const candidateProfiles = allProfiles.slice(0, BATCH_SIZE);
+          const candidateProfiles = allProfiles.slice(0, batchSize);
           totalProfilesTried += candidateProfiles.length;
           creditsUsed = Math.ceil(totalProfilesTried / 10); // 1 crédit par tranche de 10
+          
+          // Vérification de sécurité : ne jamais dépasser 5 crédits
+          if (creditsUsed > 5) {
+            console.error('⚠️ ALERTE : creditsUsed > 5, plafonnement à 5');
+            creditsUsed = 5;
+          }
           
           console.log(`📥 ${candidateProfiles.length} profils récupérés (total essayé: ${totalProfilesTried}, crédits: ${creditsUsed})`);
           
