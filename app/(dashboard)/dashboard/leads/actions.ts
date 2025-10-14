@@ -432,33 +432,54 @@ async function filterRelevantCompanies(
     apiKey: process.env.OPENAI_API_KEY,
   });
 
-  // Extraire les noms d'entreprises uniques
-  const companies = validProfiles.map(p => p.current_company.name);
-  const uniqueCompanies = [...new Set(companies)];
+  // Extraire les entreprises uniques avec leurs données d'industrie
+  const companiesMap = new Map();
+  validProfiles.forEach(p => {
+    const name = p.current_company.name;
+    if (!companiesMap.has(name)) {
+      companiesMap.set(name, {
+        name,
+        industry: p.current_company?.industry || 'Non spécifié',
+        size: p.current_company?.size || 'Non spécifié',
+        domain: p.current_company?.domain || '',
+      });
+    }
+  });
+  
+  const companies = Array.from(companiesMap.values());
 
-  const systemPrompt = `Tu es un expert en qualification de leads B2B TRÈS STRICT. Ton rôle est d'identifier quelles entreprises peuvent RÉELLEMENT acheter un produit donné.
+  const systemPrompt = `Tu es un COMMERCIAL B2B EXPERT avec 15 ans d'expérience. Ton rôle : analyser si une entreprise pourrait acheter un produit donné.
 
-RÈGLES STRICTES :
-1. REJETER toute entreprise dont le secteur n'est PAS directement lié au produit
-2. Exemple : Si le produit est "IoT pour bâtiments" → ACCEPTER uniquement : immobilier, facility management, construction, énergie pour bâtiments
-3. REJETER : fintech, médias, transport, e-commerce, SaaS générique (sauf si très pertinent)
-4. Être SÉLECTIF : mieux vaut 5 entreprises parfaites que 20 moyennes
+MÉTHODOLOGIE (comme un vrai commercial) :
+1. Lire le secteur d'activité (industrie) de l'entreprise
+2. Identifier si ce secteur a BESOIN du produit proposé
+3. Analyser la taille d'entreprise (est-ce un bon fit ?)
+4. Décider : OUI (prospect chaud) ou NON (pas pertinent)
 
-RÉPONSE STRICTE (JSON) :
+RÈGLES DE QUALIFICATION :
+✅ ACCEPTER si : Le secteur d'activité utilise directement ce type de produit
+❌ REJETER si : Aucun lien évident entre le secteur et le produit
+⚠️ Être SÉLECTIF : Mieux vaut 3 prospects parfaits que 10 moyens
+
+RÉPONSE JSON :
 {
-  "relevant_companies": ["nom_exact_1", "nom_exact_2", ...]
+  "relevant_companies": ["nom_exact_1", "nom_exact_2", ...],
+  "reasoning": "Explication rapide des choix"
 }
 
-IMPORTANT : Retourne les noms EXACTS tels qu'ils apparaissent dans la liste.`;
+IMPORTANT : Retourne les noms EXACTS (copier-coller).`;
 
-  const userPrompt = `PRODUIT/SERVICE :
+  const userPrompt = `PRODUIT/SERVICE À VENDRE :
 ${productDescription}
 
-ENTREPRISES À ANALYSER :
-${uniqueCompanies.map(c => `- ${c}`).join('\n')}
+ENTREPRISES À QUALIFIER :
+${companies.map(c => 
+  `- ${c.name}\n  Secteur: ${c.industry}\n  Taille: ${c.size}${c.domain ? `\n  Site: ${c.domain}` : ''}`
+).join('\n\n')}
 
-MISSION : Retourne UNIQUEMENT les entreprises qui peuvent VRAIMENT acheter ce produit.
-Sois STRICT - rejette tout ce qui n'est pas directement pertinent.`;
+MISSION : Analyse chaque entreprise comme un commercial.
+Pour chaque une, demande-toi : "Est-ce que cette boîte pourrait acheter mon produit ?"
+Retourne UNIQUEMENT les entreprises qui sont des prospects réels.`;
 
   try {
     const response = await openai.chat.completions.create({
@@ -467,25 +488,26 @@ Sois STRICT - rejette tout ce qui n'est pas directement pertinent.`;
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt },
       ],
-      temperature: 0.1, // Plus bas = plus strict
+      temperature: 0.1,
       response_format: { type: 'json_object' },
     });
 
-    const result = JSON.parse(response.choices[0].message.content || '{"relevant_companies":[]}');
+    const result = JSON.parse(response.choices[0].message.content || '{"relevant_companies":[], "reasoning":""}');
     const relevantNames = new Set(result.relevant_companies || []);
 
-    console.log(`🎯 Filtrage GPT: ${relevantNames.size}/${uniqueCompanies.length} entreprises pertinentes`);
+    console.log(`🎯 Analyse commerciale GPT: ${relevantNames.size}/${companies.length} entreprises qualifiées`);
+    console.log(`💡 Raisonnement GPT: ${result.reasoning}`);
     console.log(`✅ Entreprises retenues:`, Array.from(relevantNames));
-    console.log(`❌ Entreprises rejetées:`, uniqueCompanies.filter(c => !relevantNames.has(c)));
+    console.log(`❌ Entreprises rejetées:`, companies.filter(c => !relevantNames.has(c.name)).map(c => c.name));
 
     // Filtrer les profils pour ne garder QUE ceux des entreprises pertinentes
     const filtered = validProfiles.filter(p => relevantNames.has(p.current_company.name));
     
-    console.log(`📊 Résultat final: ${filtered.length} profils avec entreprises pertinentes`);
+    console.log(`📊 Résultat final: ${filtered.length} profils avec entreprises qualifiées`);
     
     return filtered;
   } catch (error) {
-    console.error('❌ Erreur filtrage GPT:', error);
+    console.error('❌ Erreur analyse GPT:', error);
     return validProfiles; // En cas d'erreur, retourner les profils valides (sans invalides)
   }
 }
