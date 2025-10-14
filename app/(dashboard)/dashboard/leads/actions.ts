@@ -598,8 +598,14 @@ function generateManualStrategy(icp: any) {
   return strategies;
 }
 
+// Interface pour les entreprises avec URL LinkedIn
+interface TargetCompany {
+  name: string;
+  linkedinUrl: string | null;
+}
+
 // Fonction pour générer des noms d'entreprises cibles avec GPT
-async function generateTargetCompanies(icp: any, previousCompanies: string[] = []): Promise<string[]> {
+async function generateTargetCompanies(icp: any, previousCompanies: string[] = []): Promise<TargetCompany[]> {
   try {
     const openai = new OpenAI({
       apiKey: process.env.OPENAI_API_KEY,
@@ -661,15 +667,23 @@ Si le produit = "Logiciel RH":
 
 📋 FORMAT DE RÉPONSE:
 
-Retourne UNIQUEMENT les noms d'entreprises, un par ligne, sans numérotation, sans explication, sans commentaire.
-Vise 10-15 entreprises RÉELLES qui existent vraiment.
+IMPORTANT: Pour chaque entreprise, tu DOIS retourner le format suivant sur UNE SEULE ligne:
+NomEntreprise|url-linkedin-de-l-entreprise
+
+L'URL LinkedIn doit être au format: linkedin.com/company/nom-entreprise (sans https://)
+
+Retourne 10-15 entreprises RÉELLES qui existent vraiment.
 Varie les tailles (startups, PME, grands groupes) selon les critères ICP.
 Privilégie les entreprises de la localisation spécifiée.
 
 Exemple de format attendu:
-Doctolib
-BlaBlaCar
-Swile`;
+Doctolib|linkedin.com/company/doctolib
+BlaBlaCar|linkedin.com/company/blablacar
+Swile|linkedin.com/company/swile
+Accor|linkedin.com/company/accor
+Nexity|linkedin.com/company/nexity
+
+⚠️ CRITIQUE: Si tu ne connais PAS l'URL LinkedIn d'une entreprise, retourne juste son nom sans le "|" (fallback).`;
 
     const completion = await openai.chat.completions.create({
       model: 'gpt-4o',
@@ -679,16 +693,24 @@ Swile`;
 
     const response = completion.choices[0].message.content?.trim() || '';
     
-    // Parser la réponse (une entreprise par ligne)
-    const companies = response
+    // Parser la réponse (format: "NomEntreprise|url-linkedin" ou juste "NomEntreprise")
+    const companiesData = response
       .split('\n')
       .map(line => line.trim())
       .filter(line => line && !line.match(/^[0-9\-\*\.\#]/) && line.length > 1) // Retirer les lignes vides et numérotations
+      .map(line => {
+        // Format: "Klepierre|linkedin.com/company/klepierre" OU juste "Klepierre"
+        const parts = line.split('|');
+        return {
+          name: parts[0].trim(),
+          linkedinUrl: parts[1] ? parts[1].trim() : null
+        };
+      })
       .slice(0, 15); // Max 15 entreprises
 
-    console.log(`🏢 GPT a généré ${companies.length} entreprises CLIENTES FINALES:`, companies);
+    console.log(`🏢 GPT a généré ${companiesData.length} entreprises CLIENTES FINALES avec URLs:`, companiesData);
     
-    return companies;
+    return companiesData;
   } catch (error) {
     console.error('❌ Erreur génération entreprises GPT:', error);
     return []; // Retourner tableau vide en cas d'erreur
@@ -737,8 +759,8 @@ export const searchLeadsByICP = validatedActionWithUser(
     
     console.log(`🏢 ${targetCompanies.length} nouvelles entreprises cibles générées`);
     
-    // Mettre à jour la liste des entreprises suggérées
-    const allSuggestedCompanies = [...previousCompanies, ...targetCompanies];
+    // Mettre à jour la liste des entreprises suggérées (stocker juste les noms)
+    const allSuggestedCompanies = [...previousCompanies, ...targetCompanies.map(c => c.name)];
     await db
       .update(icpProfiles)
       .set({ 
@@ -766,13 +788,23 @@ export const searchLeadsByICP = validatedActionWithUser(
       }
       
       try {
-        console.log(`\n🏢 Recherche dans: ${company}`);
+        console.log(`\n🏢 Recherche dans: ${company.name}${company.linkedinUrl ? ` (${company.linkedinUrl})` : ''}`);
         
-        // Chercher des profils avec le rôle + nom d'entreprise
-        const searchParams = {
+        // Chercher des profils avec filtrage par entreprise si URL disponible
+        const searchParams: any = {
           total_results: 5, // 5 profils par entreprise max
-          keyword: `${mainRole} ${company}`,
         };
+        
+        if (company.linkedinUrl) {
+          // ✅ Filtrage précis avec company_url (garantit bonne entreprise)
+          searchParams.title = mainRole;
+          searchParams.company_url = company.linkedinUrl;
+          console.log(`  🎯 Filtrage précis: title="${mainRole}" + company_url="${company.linkedinUrl}"`);
+        } else {
+          // ⚠️ Fallback: recherche par keyword (moins précis)
+          searchParams.keyword = `${mainRole} ${company.name}`;
+          console.log(`  ⚠️ Fallback keyword: "${searchParams.keyword}" (URL LinkedIn inconnue)`);
+        }
         
         const result = await linkupClient.searchProfiles(searchParams);
         
