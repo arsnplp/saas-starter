@@ -6,6 +6,7 @@ import Link from "next/link";
 import { db } from "@/lib/db";
 import { targetCompanies, icpProfiles } from "@/lib/db/schema";
 import { getUser, getTeamForUser } from "@/lib/db/queries";
+import { CompanyContact } from "./company-contact";
 
 export const dynamic = "force-dynamic";
 
@@ -180,6 +181,9 @@ export default async function EntreprisesPage({
                   Raison
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Contact
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Statut
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -218,6 +222,9 @@ export default async function EntreprisesPage({
                     <span className="text-sm text-gray-600 line-clamp-2">
                       {company.reason || "—"}
                     </span>
+                  </td>
+                  <td className="px-6 py-4">
+                    <CompanyContact company={company} />
                   </td>
                   <td className="px-6 py-4">
                     <CompanyStatusBadge status={company.status} />
