@@ -1,12 +1,15 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { findContactAction } from "./actions";
 import type { TargetCompany } from "@/lib/db/schema";
 
 export function CompanyContact({ company }: { company: TargetCompany }) {
+  const router = useRouter();
   const [isSearching, setIsSearching] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   const contactProfile = company.contactProfile as {
     name: string;
@@ -19,6 +22,7 @@ export function CompanyContact({ company }: { company: TargetCompany }) {
   async function handleFindContact() {
     setIsSearching(true);
     setError(null);
+    setSuccessMessage(null);
 
     try {
       const formData = new FormData();
@@ -26,7 +30,10 @@ export function CompanyContact({ company }: { company: TargetCompany }) {
 
       const result = await findContactAction(formData);
 
-      if (!result.success) {
+      if (result.success) {
+        setSuccessMessage(result.message);
+        router.refresh();
+      } else {
         setError(result.message);
       }
     } catch (err) {
@@ -71,6 +78,7 @@ export function CompanyContact({ company }: { company: TargetCompany }) {
   return (
     <div className="text-sm">
       {error && <div className="text-xs text-red-600 mb-1">{error}</div>}
+      {successMessage && <div className="text-xs text-green-600 mb-1">{successMessage}</div>}
       <button
         onClick={handleFindContact}
         disabled={isSearching}
