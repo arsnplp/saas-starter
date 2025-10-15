@@ -447,6 +447,13 @@ export const targetCompanies = pgTable(
         website: varchar('website', { length: 512 }),
         status: varchar('status', { length: 50 }).notNull().default('not_contacted'),
         notes: text('notes'),
+        contactProfile: jsonb('contact_profile').$type<{
+            name: string;
+            title: string;
+            linkedinUrl: string;
+            searchLevel: 'precise' | 'broad' | 'fallback';
+            foundWithQuery: string;
+        }>(),
         contactedAt: timestamp('contacted_at'),
         createdAt: timestamp('created_at').notNull().defaultNow(),
         updatedAt: timestamp('updated_at').notNull().defaultNow(),
