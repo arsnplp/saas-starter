@@ -452,6 +452,7 @@ async function searchLinkedInProfiles(
     };
 
     console.log(`   Recherche: ${contact.firstName} ${contact.lastName} @ ${company.name}`);
+    console.log(`   Params: ${JSON.stringify(searchParams)}`);
 
     try {
       const response = await fetch(`${linkupApiBase}/v1/profile/search`, {
@@ -463,9 +464,11 @@ async function searchLinkedInProfiles(
         body: JSON.stringify(searchParams),
       });
 
+      console.log(`   📡 Statut LinkUp: ${response.status} ${response.statusText}`);
+
       if (response.ok) {
         const data = await response.json();
-        console.log(`   📦 Réponse LinkUp:`, JSON.stringify(data).slice(0, 200));
+        console.log(`   📦 Réponse LinkUp:`, JSON.stringify(data).slice(0, 300));
         
         // LinkUp returns data in: { status: "success", data: { results: [...] } }
         const results = data?.data?.results || data?.results || [];
