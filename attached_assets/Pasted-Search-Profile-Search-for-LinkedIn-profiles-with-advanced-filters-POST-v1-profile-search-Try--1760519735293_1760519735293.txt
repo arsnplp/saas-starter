@@ -1,0 +1,128 @@
+Search Profile
+Search for LinkedIn profiles with advanced filters
+POST
+/
+v1
+/
+profile
+/
+search
+
+Try it
+Search for LinkedIn profiles using multiple filters including company, location, school, network, and keywords.
+Credit Usage: 1 credit per 10 results (or fraction thereof). For example:
+1-10 results = 1 credit
+11-20 results = 2 credits
+300 results = 30 credits
+​
+Header Parameters
+
+​
+x-api-key
+stringrequired
+Your API key
+​
+Body Parameters
+
+​
+company_url
+string
+LinkedIn company URL or identifier to filter by current company. Use semicolon (;) as separator for multiple companies (e.g., “google;microsoft;apple”).
+​
+location
+string
+Geographic location to filter profiles. Use semicolon (;) as separator for multiple locations (e.g., “Paris;London;New York”).
+​
+school_url
+string
+LinkedIn school URL or identifier to filter by education. Use semicolon (;) as separator for multiple schools (e.g., “harvard;stanford;mit”).
+​
+network
+string
+Network connection level to filter by:
+“F” = First-degree connections (1st)
+“S” = Second-degree connections (2nd)
+“O” = Out-of-network connections (3rd+) Use (,) as separator for multiple, eg: F,S,O
+​
+keyword
+string
+Search keyword to find relevant profiles
+​
+total_results
+integerdefault:"10"
+Number of profiles to retrieve (used when not in pagination mode)
+​
+start_page
+integer
+First page to fetch when using pagination mode (default: 1)
+​
+end_page
+integer
+Last page to fetch when using pagination mode (default: same as start_page)
+​
+country
+stringdefault:"FR"
+Country code for proxy selection. Available: (US,UK,FR)
+​
+first_name
+stringdefault:""
+First name parameter in advanced keyword
+​
+last_name
+stringdefault:""
+Last name parameter in advanced keyword
+​
+title
+stringdefault:""
+Title text parameter in advanced keyword
+​
+login_token
+stringrequired
+LinkedIn authentication cookie obtained from the login/verify process
+​
+fetch_invitation_state
+booleandefault:"true"
+Whether to fetch the invitation state for each profile. When set to true, the response will include the current invitation/connection status for each profile.
+​
+Response
+
+​
+status
+string
+Request status (success/error)
+​
+data
+object
+Show Properties
+​
+Notes
+
+Company and school identifiers can be either:
+Full LinkedIn URLs (https://www.linkedin.com/company/…)
+Company/school names or identifiers
+Location search supports:
+Cities
+Regions
+Countries
+Market areas
+Profile pictures are direct links to LinkedIn’s media servers
+Missing information is marked as ‘N/A’
+Profile pictures may be null if not available or restricted
+The total_available_results field shows the total number of profiles that match your search criteria on LinkedIn
+Results are paginated with a maximum of 50 profiles per page
+Pagination Mode vs. Total Results Mode:
+Total Results Mode: Use the total_results parameter to specify how many profiles you want (default)
+Pagination Mode: Use start_page and end_page parameters to fetch specific pages of results
+Credit usage in pagination mode is based on the number of pages fetched (1 credit per page)
+When using pagination mode, total_results parameter is ignored
+Invitation State Feature:
+When fetch_invitation_state is enabled (default), the API makes additional requests to determine the current invitation/connection status
+This feature helps you understand whether you can send connection requests to specific profiles
+Setting fetch_invitation_state to false will improve response time but won’t include invitation status information
+Invitation states are determined in real-time and reflect the current LinkedIn relationship status
+Search results may be limited by:
+LinkedIn’s visibility settings
+Your network connection level
+Profile privacy settings
+Search restrictions:
+Rate limits apply
