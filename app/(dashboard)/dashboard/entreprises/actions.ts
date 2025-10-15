@@ -443,16 +443,24 @@ async function searchLinkedInProfiles(
     return { found: false };
   }
 
+  const loginToken = process.env.LINKUP_LOGIN_TOKEN;
+  
+  if (!loginToken) {
+    console.log(`   ⚠️ LINKUP_LOGIN_TOKEN non disponible, impossible d'utiliser LinkUp`);
+    return { found: false };
+  }
+
   // Try each extracted contact
   for (const contact of extractedContacts) {
     const searchParams = {
       first_name: contact.firstName,
       last_name: contact.lastName,
       company_url: companyUrl,
+      login_token: loginToken,
+      total_results: 5,
     };
 
     console.log(`   Recherche: ${contact.firstName} ${contact.lastName} @ ${company.name}`);
-    console.log(`   Params: ${JSON.stringify(searchParams)}`);
 
     try {
       const response = await fetch(`${linkupApiBase}/v1/profile/search`, {
@@ -468,26 +476,29 @@ async function searchLinkedInProfiles(
 
       if (response.ok) {
         const data = await response.json();
-        console.log(`   📦 Réponse LinkUp:`, JSON.stringify(data).slice(0, 300));
+        console.log(`   📦 Réponse LinkUp:`, JSON.stringify(data).slice(0, 400));
         
-        // LinkUp returns data in: { status: "success", data: { results: [...] } }
-        const results = data?.data?.results || data?.results || [];
+        // LinkUp returns data in: { status: "success", data: { profiles: [...] } }
+        const profiles = data?.data?.profiles || [];
         
-        if (results.length > 0) {
-          const profile = results[0];
-          console.log(`   ✅ Profil LinkedIn trouvé: ${profile.name || `${contact.firstName} ${contact.lastName}`}`);
+        if (profiles.length > 0) {
+          const profile = profiles[0];
+          console.log(`   ✅ Profil LinkedIn trouvé: ${profile.name}`);
           return {
             found: true,
             contact: {
               name: profile.name || `${contact.firstName} ${contact.lastName}`,
-              title: contact.title,
-              linkedinUrl: profile.linkedin_url || profile.link || "",
+              title: profile.job_title || contact.title,
+              linkedinUrl: profile.profile_url || "",
             },
-            foundWithQuery: JSON.stringify(searchParams),
+            foundWithQuery: JSON.stringify({ firstName: contact.firstName, lastName: contact.lastName }),
           };
         } else {
-          console.log(`   ⚠️ Aucun résultat dans la réponse LinkUp`);
+          console.log(`   ⚠️ Aucun profil dans la réponse LinkUp`);
         }
+      } else {
+        const errorText = await response.text();
+        console.log(`   ❌ Erreur LinkUp: ${errorText.slice(0, 200)}`);
       }
     } catch (error) {
       console.error(`   ❌ Erreur LinkUp: ${error}`);
