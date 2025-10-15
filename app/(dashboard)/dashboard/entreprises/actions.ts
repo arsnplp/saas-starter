@@ -54,11 +54,22 @@ export async function generateCompaniesAction(formData: FormData) {
   console.log(`ICP: ${icp.name}`);
   console.log(`Nombre demandé: ${count}`);
 
+  // Get existing companies to avoid duplicates
+  const existingCompanies = await db.query.targetCompanies.findMany({
+    where: and(
+      eq(targetCompanies.teamId, team.id),
+      eq(targetCompanies.icpId, icpId)
+    ),
+  });
+
+  const alreadySuggested = existingCompanies.map((c) => c.name);
+  console.log(`\n📋 Entreprises déjà suggérées pour cet ICP: ${alreadySuggested.length}`);
+
   const openai = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY,
   });
 
-  const prompt = buildPrompt(icp, count);
+  const prompt = buildPrompt(icp, count, alreadySuggested);
   console.log(`\n📝 PROMPT ENVOYÉ À GPT:\n${prompt}\n`);
 
   try {
@@ -118,14 +129,6 @@ export async function generateCompaniesAction(formData: FormData) {
     console.log(`   Doublons ignorés: ${parsedResponse.companies.length - newCompanies.length}`);
     console.log(`   Nouvelles à insérer: ${newCompanies.length}`);
 
-    if (newCompanies.length === 0) {
-      return {
-        success: false,
-        message: "Toutes les entreprises générées existent déjà dans votre base",
-        companiesCount: 0,
-      };
-    }
-
     for (const company of newCompanies) {
       await db.insert(targetCompanies).values({
         teamId: team.id,
@@ -155,7 +158,7 @@ export async function generateCompaniesAction(formData: FormData) {
   }
 }
 
-function buildPrompt(icp: any, count: number): string {
+function buildPrompt(icp: any, count: number, alreadySuggested: string[]): string {
   const industries = icp.industries || "tous secteurs";
   const locations = icp.locations || "toutes régions";
   const problem = icp.problemStatement || "optimisation et efficacité";
@@ -174,6 +177,8 @@ ${example ? `- Exemple de client idéal: ${example}` : ""}
 2. Focus sur les entreprises qui UTILISENT des solutions, pas celles qui les VENDENT
 3. Varie la taille des entreprises (PME, ETI, Grandes entreprises)
 4. Trouve l'URL LinkedIn de l'entreprise si possible
+5. **IMPORTANT: NE SUGGÈRE PAS ces entreprises déjà proposées:**
+${alreadySuggested.length > 0 ? alreadySuggested.map(name => `   - ${name}`).join('\n') : '   (Aucune entreprise à éviter pour l\'instant)'}
 
 **FORMAT DE RÉPONSE (JSON STRICT):**
 \`\`\`json
