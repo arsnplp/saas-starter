@@ -274,37 +274,52 @@ export async function findContactAction(formData: FormData) {
     console.log(`\n🔍 ÉTAPE 3: Recherche LinkUp avec infos précises...`);
     const result = await searchLinkedInProfiles(company, extractedContacts);
 
+    let contactData;
+    let successMessage;
+
     if (result.found) {
-      // Update company with contact info
-      await db.update(targetCompanies)
-        .set({
-          contactProfile: {
-            name: result.contact!.name,
-            title: result.contact!.title,
-            linkedinUrl: result.contact!.linkedinUrl,
-            searchMethod: 'web_research',
-            foundWithQuery: result.foundWithQuery!,
-          },
-          updatedAt: new Date(),
-        })
-        .where(and(
-          eq(targetCompanies.id, companyId),
-          eq(targetCompanies.teamId, team.id)
-        ));
-
-      revalidatePath("/dashboard/entreprises");
-
-      return {
-        success: true,
-        message: `Contact trouvé : ${result.contact!.name} (${result.contact!.title})`,
-        contact: result.contact,
+      // Contact found via LinkUp - full profile with LinkedIn URL
+      contactData = {
+        name: result.contact!.name,
+        title: result.contact!.title,
+        linkedinUrl: result.contact!.linkedinUrl,
+        searchMethod: 'web_linkup',
+        foundWithQuery: result.foundWithQuery!,
       };
+      successMessage = `Contact trouvé : ${result.contact!.name} (${result.contact!.title})`;
+      console.log(`   ✅ Contact enrichi via LinkUp`);
     } else {
-      return {
-        success: false,
-        message: "Contact identifié sur le web mais profil LinkedIn introuvable",
+      // Fallback: Save contact from web research (without LinkedIn profile URL)
+      const firstContact = extractedContacts[0];
+      contactData = {
+        name: `${firstContact.firstName} ${firstContact.lastName}`,
+        title: firstContact.title,
+        linkedinUrl: null,
+        searchMethod: 'web_only',
+        source: 'Trouvé via recherche web (Tavily + GPT)',
       };
+      successMessage = `Contact identifié : ${firstContact.firstName} ${firstContact.lastName} (${firstContact.title}) - Recherchez-le manuellement sur LinkedIn`;
+      console.log(`   ℹ️ Contact sauvegardé depuis le web (LinkUp n'a pas trouvé le profil)`);
     }
+
+    // Update company with contact info
+    await db.update(targetCompanies)
+      .set({
+        contactProfile: contactData,
+        updatedAt: new Date(),
+      })
+      .where(and(
+        eq(targetCompanies.id, companyId),
+        eq(targetCompanies.teamId, team.id)
+      ));
+
+    revalidatePath("/dashboard/entreprises");
+
+    return {
+      success: true,
+      message: successMessage,
+      contact: contactData,
+    };
   } catch (error) {
     console.error("❌ Erreur recherche contact:", error);
     return {
