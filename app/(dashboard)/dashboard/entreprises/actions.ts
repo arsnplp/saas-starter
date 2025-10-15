@@ -465,8 +465,13 @@ async function searchLinkedInProfiles(
 
       if (response.ok) {
         const data = await response.json();
-        if (data.results && data.results.length > 0) {
-          const profile = data.results[0];
+        console.log(`   📦 Réponse LinkUp:`, JSON.stringify(data).slice(0, 200));
+        
+        // LinkUp returns data in: { status: "success", data: { results: [...] } }
+        const results = data?.data?.results || data?.results || [];
+        
+        if (results.length > 0) {
+          const profile = results[0];
           console.log(`   ✅ Profil LinkedIn trouvé: ${profile.name || `${contact.firstName} ${contact.lastName}`}`);
           return {
             found: true,
@@ -477,6 +482,8 @@ async function searchLinkedInProfiles(
             },
             foundWithQuery: JSON.stringify(searchParams),
           };
+        } else {
+          console.log(`   ⚠️ Aucun résultat dans la réponse LinkUp`);
         }
       }
     } catch (error) {
