@@ -247,18 +247,32 @@ export async function findContactAction(formData: FormData) {
     return { success: false, message: "Aucun poste défini dans l'ICP" };
   }
 
-  console.log(`\n=== 🔍 RECHERCHE DE CONTACT ===`);
+  console.log(`\n=== 🔍 RECHERCHE DE CONTACT INTELLIGENTE ===`);
   console.log(`Entreprise: ${company.name}`);
   console.log(`URL LinkedIn: ${company.linkedinUrl || "Non disponible"}`);
-  console.log(`Postes à chercher: ${roles.join(', ')}`);
+  console.log(`Postes cibles: ${roles.join(', ')}`);
 
   try {
-    // Step 1: Generate title variations with GPT
-    const variations = await generateTitleVariations(roles[0]);
-    console.log(`\n📝 Variations générées pour "${roles[0]}": ${variations.precise.join(', ')}`);
+    // Step 1: Web research to find decision makers
+    console.log(`\n📡 ÉTAPE 1: Recherche web approfondie...`);
+    const webResults = await searchDecisionMakers(company.name, roles);
+    console.log(`   Résultats web récupérés: ${webResults.length > 0 ? 'Oui' : 'Non'}`);
 
-    // Step 2: Cascade search (precise → broad → fallback)
-    const result = await cascadeSearch(company, variations, roles);
+    // Step 2: GPT analyzes web results to extract names and titles
+    console.log(`\n🤖 ÉTAPE 2: Analyse GPT des résultats...`);
+    const extractedContacts = await extractContactsFromWeb(webResults, company.name, roles);
+    console.log(`   Contacts identifiés: ${extractedContacts.length}`);
+
+    if (extractedContacts.length === 0) {
+      return {
+        success: false,
+        message: "Aucun décideur identifié via la recherche web",
+      };
+    }
+
+    // Step 3: Use LinkUp to find LinkedIn profiles
+    console.log(`\n🔍 ÉTAPE 3: Recherche LinkUp avec infos précises...`);
+    const result = await searchLinkedInProfiles(company, extractedContacts);
 
     if (result.found) {
       // Update company with contact info
@@ -268,7 +282,7 @@ export async function findContactAction(formData: FormData) {
             name: result.contact!.name,
             title: result.contact!.title,
             linkedinUrl: result.contact!.linkedinUrl,
-            searchLevel: result.searchLevel!,
+            searchMethod: 'web_research',
             foundWithQuery: result.foundWithQuery!,
           },
           updatedAt: new Date(),
@@ -284,12 +298,11 @@ export async function findContactAction(formData: FormData) {
         success: true,
         message: `Contact trouvé : ${result.contact!.name} (${result.contact!.title})`,
         contact: result.contact,
-        searchLevel: result.searchLevel,
       };
     } else {
       return {
         success: false,
-        message: "Aucun contact trouvé pour les postes recherchés",
+        message: "Contact identifié sur le web mais profil LinkedIn introuvable",
       };
     }
   } catch (error) {
@@ -301,27 +314,81 @@ export async function findContactAction(formData: FormData) {
   }
 }
 
-async function generateTitleVariations(role: string): Promise<{
-  precise: string[];
-  broad: string[];
-  keywords: string[];
-}> {
+// Step 1: Web search to find decision makers
+async function searchDecisionMakers(companyName: string, roles: string[]): Promise<string> {
+  try {
+    const searchQuery = `${companyName} ${roles.join(' OR ')} directeur responsable décideur`;
+    console.log(`   Recherche: "${searchQuery}"`);
+    
+    const response = await fetch('https://api.tavily.com/search', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        api_key: process.env.TAVILY_API_KEY || '',
+        query: searchQuery,
+        search_depth: 'advanced',
+        max_results: 5,
+      }),
+    });
+
+    if (!response.ok) {
+      console.error(`   ❌ Erreur API Tavily: ${response.status}`);
+      return '';
+    }
+
+    const data = await response.json();
+    const combinedResults = data.results
+      ?.map((r: any) => `${r.title}\n${r.content}`)
+      .join('\n\n') || '';
+    
+    console.log(`   Résultats obtenus: ${combinedResults.length} caractères`);
+    return combinedResults;
+  } catch (error) {
+    console.error(`   ❌ Erreur recherche web:`, error);
+    return '';
+  }
+}
+
+// Step 2: GPT extracts contact info from web results
+async function extractContactsFromWeb(
+  webResults: string,
+  companyName: string,
+  roles: string[]
+): Promise<Array<{ firstName: string; lastName: string; title: string }>> {
+  if (!webResults) {
+    return [];
+  }
+
   const openai = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY,
   });
 
-  const prompt = `Pour le poste "${role}", génère des variations de titres pour trouver la bonne personne sur LinkedIn.
+  const prompt = `Analyse ces résultats web sur l'entreprise "${companyName}" et identifie les décideurs pertinents.
+
+**RÉSULTATS WEB:**
+${webResults.slice(0, 3000)}
+
+**POSTES RECHERCHÉS:**
+${roles.join(', ')}
+
+**INSTRUCTIONS:**
+1. Trouve les noms complets (prénom + nom) des personnes mentionnées
+2. Identifie leur titre/poste exact
+3. Ne retiens que les personnes ayant un poste de décision pertinent
+4. Si tu trouves plusieurs personnes, priorise par pertinence
 
 **FORMAT DE RÉPONSE (JSON STRICT):**
 {
-  "precise": ["variation exacte 1", "variation exacte 2", "variation exacte 3"],
-  "broad": ["mot-clé large 1", "mot-clé large 2"],
-  "keywords": ["département", "domaine d'expertise"]
+  "contacts": [
+    {
+      "firstName": "Prénom",
+      "lastName": "Nom",
+      "title": "Titre exact"
+    }
+  ]
 }
-
-Exemples:
-- Pour "CTO": precise: ["CTO", "Chief Technology Officer", "Directeur Technique"], broad: ["directeur technologie", "responsable IT"], keywords: ["technology", "IT", "digital"]
-- Pour "Directeur Marketing": precise: ["Directeur Marketing", "CMO", "Chief Marketing Officer"], broad: ["responsable marketing", "head of marketing"], keywords: ["marketing", "digital marketing"]
 
 Réponds UNIQUEMENT avec le JSON, sans texte avant ou après.`;
 
@@ -329,7 +396,7 @@ Réponds UNIQUEMENT avec le JSON, sans texte avant ou après.`;
     const completion = await openai.chat.completions.create({
       model: "gpt-4o",
       messages: [
-        { role: "system", content: "Tu es un expert en titres professionnels et LinkedIn." },
+        { role: "system", content: "Tu es un expert en identification de décideurs B2B." },
         { role: "user", content: prompt },
       ],
       response_format: { type: "json_object" },
@@ -337,29 +404,30 @@ Réponds UNIQUEMENT avec le JSON, sans texte avant ou après.`;
     });
 
     const response = JSON.parse(completion.choices[0].message.content || "{}");
-    return {
-      precise: response.precise || [role],
-      broad: response.broad || [],
-      keywords: response.keywords || [],
-    };
+    const contacts = response.contacts || [];
+    
+    contacts.forEach((c: any) => {
+      console.log(`   → ${c.firstName} ${c.lastName} - ${c.title}`);
+    });
+
+    return contacts;
   } catch (error) {
-    console.error("❌ Erreur génération variations:", error);
-    return { precise: [role], broad: [], keywords: [] };
+    console.error("❌ Erreur extraction GPT:", error);
+    return [];
   }
 }
 
-async function cascadeSearch(
+// Step 3: Search LinkedIn profiles with LinkUp using precise names
+async function searchLinkedInProfiles(
   company: any,
-  variations: { precise: string[]; broad: string[]; keywords: string[] },
-  allRoles: string[]
+  extractedContacts: Array<{ firstName: string; lastName: string; title: string }>
 ): Promise<{
   found: boolean;
   contact?: { name: string; title: string; linkedinUrl: string };
-  searchLevel?: 'precise' | 'broad' | 'fallback';
   foundWithQuery?: string;
 }> {
   const linkupApiKey = process.env.LINKUP_API_KEY;
-  const linkupBase = process.env.LINKUP_API_BASE || "https://api.linkup.so";
+  const linkupApiBase = process.env.LINKUP_API_BASE || "https://api.linkupapi.com";
 
   if (!linkupApiKey) {
     throw new Error("LINKUP_API_KEY non configurée");
@@ -370,21 +438,26 @@ async function cascadeSearch(
     ? company.linkedinUrl.replace('https://', '').replace('http://', '')
     : null;
 
-  console.log(`\n🔍 NIVEAU 1: Recherche précise (variations exactes)`);
-  
-  // Level 1: Precise search with exact title variations
-  for (const title of variations.precise) {
-    const searchParams = companyUrl
-      ? { title, company_url: companyUrl, depth: "1" }
-      : { keyword: `${title} ${company.name}`, depth: "1" };
+  if (!companyUrl) {
+    console.log(`   ⚠️ Pas d'URL LinkedIn pour l'entreprise, recherche impossible`);
+    return { found: false };
+  }
 
-    console.log(`   Essai: ${JSON.stringify(searchParams)}`);
+  // Try each extracted contact
+  for (const contact of extractedContacts) {
+    const searchParams = {
+      first_name: contact.firstName,
+      last_name: contact.lastName,
+      company_url: companyUrl,
+    };
+
+    console.log(`   Recherche: ${contact.firstName} ${contact.lastName} @ ${company.name}`);
 
     try {
-      const response = await fetch(`${linkupBase}/v1/people/search`, {
+      const response = await fetch(`${linkupApiBase}/v1/profile/search`, {
         method: "POST",
         headers: {
-          "Authorization": `Bearer ${linkupApiKey}`,
+          "x-api-key": linkupApiKey,
           "Content-Type": "application/json",
         },
         body: JSON.stringify(searchParams),
@@ -394,109 +467,23 @@ async function cascadeSearch(
         const data = await response.json();
         if (data.results && data.results.length > 0) {
           const profile = data.results[0];
-          console.log(`   ✅ Trouvé: ${profile.name} (${profile.title})`);
+          console.log(`   ✅ Profil LinkedIn trouvé: ${profile.name || `${contact.firstName} ${contact.lastName}`}`);
           return {
             found: true,
             contact: {
-              name: profile.name || "Nom inconnu",
-              title: profile.title || title,
-              linkedinUrl: profile.link || "",
+              name: profile.name || `${contact.firstName} ${contact.lastName}`,
+              title: contact.title,
+              linkedinUrl: profile.linkedin_url || profile.link || "",
             },
-            searchLevel: 'precise',
             foundWithQuery: JSON.stringify(searchParams),
           };
         }
       }
     } catch (error) {
-      console.error(`   ❌ Erreur recherche: ${error}`);
+      console.error(`   ❌ Erreur LinkUp: ${error}`);
     }
   }
 
-  console.log(`\n🔍 NIVEAU 2: Recherche large (mots-clés)`);
-
-  // Level 2: Broad search with keywords
-  for (const keyword of variations.broad) {
-    const searchParams = companyUrl
-      ? { keyword: `${keyword} ${companyUrl}`, depth: "1" }
-      : { keyword: `${keyword} ${company.name}`, depth: "1" };
-
-    console.log(`   Essai: ${JSON.stringify(searchParams)}`);
-
-    try {
-      const response = await fetch(`${linkupBase}/v1/people/search`, {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${linkupApiKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(searchParams),
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        if (data.results && data.results.length > 0) {
-          const profile = data.results[0];
-          console.log(`   ✅ Trouvé: ${profile.name} (${profile.title})`);
-          return {
-            found: true,
-            contact: {
-              name: profile.name || "Nom inconnu",
-              title: profile.title || keyword,
-              linkedinUrl: profile.link || "",
-            },
-            searchLevel: 'broad',
-            foundWithQuery: JSON.stringify(searchParams),
-          };
-        }
-      }
-    } catch (error) {
-      console.error(`   ❌ Erreur recherche: ${error}`);
-    }
-  }
-
-  console.log(`\n🔍 NIVEAU 3: Recherche fallback (autres postes ICP)`);
-
-  // Level 3: Try other roles from ICP
-  for (let i = 1; i < allRoles.length; i++) {
-    const role = allRoles[i];
-    const searchParams = companyUrl
-      ? { title: role, company_url: companyUrl, depth: "1" }
-      : { keyword: `${role} ${company.name}`, depth: "1" };
-
-    console.log(`   Essai: ${JSON.stringify(searchParams)}`);
-
-    try {
-      const response = await fetch(`${linkupBase}/v1/people/search`, {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${linkupApiKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(searchParams),
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        if (data.results && data.results.length > 0) {
-          const profile = data.results[0];
-          console.log(`   ✅ Trouvé: ${profile.name} (${profile.title})`);
-          return {
-            found: true,
-            contact: {
-              name: profile.name || "Nom inconnu",
-              title: profile.title || role,
-              linkedinUrl: profile.link || "",
-            },
-            searchLevel: 'fallback',
-            foundWithQuery: JSON.stringify(searchParams),
-          };
-        }
-      }
-    } catch (error) {
-      console.error(`   ❌ Erreur recherche: ${error}`);
-    }
-  }
-
-  console.log(`\n❌ Aucun contact trouvé après tous les niveaux de recherche`);
+  console.log(`\n❌ Aucun profil LinkedIn trouvé pour les contacts identifiés`);
   return { found: false };
 }
