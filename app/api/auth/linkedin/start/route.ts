@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const redirectUri = `${process.env.REPLIT_DEV_DOMAIN || 'https://dcbf23d9-46ed-499d-9a94-c2fd5826b035-00-2vo8j2e80ihth.spock.replit.dev'}/api/auth/linkedin/callback`;
+    const redirectUri = `${process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : 'https://dcbf23d9-46ed-499d-9a94-c2fd5826b035-00-2vo8j2e80ihth.spock.replit.dev'}/api/auth/linkedin/callback`;
     
     const state = crypto.randomUUID();
     const scope = 'openid profile email w_member_social';
@@ -36,10 +36,19 @@ export async function POST(req: NextRequest) {
     authUrl.searchParams.append('scope', scope);
     authUrl.searchParams.append('state', state);
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       authUrl: authUrl.toString(),
-      state,
     });
+
+    response.cookies.set('linkedin_oauth_state', state, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 600,
+      path: '/',
+    });
+
+    return response;
 
   } catch (error) {
     console.error('LinkedIn OAuth start error:', error);

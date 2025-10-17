@@ -31,6 +31,17 @@ export async function GET(req: NextRequest) {
     });
   }
 
+  const savedState = req.cookies.get('linkedin_oauth_state')?.value;
+  
+  if (!savedState || savedState !== state) {
+    return renderHtml({
+      error: true,
+      title: "🔒 Erreur de sécurité",
+      message: "La validation du state a échoué. Veuillez réessayer.",
+      details: "Protection CSRF - le state OAuth ne correspond pas.",
+    });
+  }
+
   try {
     const user = await getUser();
     
