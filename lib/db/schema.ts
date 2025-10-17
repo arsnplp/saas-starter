@@ -511,3 +511,68 @@ export const targetCompaniesRelations = relations(targetCompanies, ({ one }) => 
         references: [icpProfiles.id],
     }),
 }));
+
+export const linkedinPostSettings = pgTable('linkedin_post_settings', {
+    id: serial('id').primaryKey(),
+    teamId: integer('team_id')
+        .notNull()
+        .references(() => teams.id)
+        .unique(),
+    postsPerWeek: integer('posts_per_week').notNull().default(2),
+    autoValidationMode: boolean('auto_validation_mode').notNull().default(false),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+    updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+export const linkedinPosts = pgTable(
+    'linkedin_posts',
+    {
+        id: serial('id').primaryKey(),
+        teamId: integer('team_id')
+            .notNull()
+            .references(() => teams.id),
+        type: varchar('type', { length: 50 }).notNull(),
+        status: varchar('status', { length: 50 }).notNull().default('draft'),
+        scheduledFor: timestamp('scheduled_for'),
+        publishedAt: timestamp('published_at'),
+        userContext: text('user_context'),
+        generatedContent: text('generated_content'),
+        finalContent: text('final_content'),
+        imageUrl: text('image_url'),
+        linkedinPostId: varchar('linkedin_post_id', { length: 255 }),
+        createdBy: integer('created_by')
+            .notNull()
+            .references(() => users.id),
+        validatedBy: integer('validated_by').references(() => users.id),
+        validatedAt: timestamp('validated_at'),
+        createdAt: timestamp('created_at').notNull().defaultNow(),
+        updatedAt: timestamp('updated_at').notNull().defaultNow(),
+    },
+    (t) => ({
+        teamIdx: index('linkedin_posts_team_idx').on(t.teamId),
+        statusIdx: index('linkedin_posts_status_idx').on(t.status),
+        scheduledIdx: index('linkedin_posts_scheduled_idx').on(t.scheduledFor),
+    })
+);
+
+export const linkedinPostSettingsRelations = relations(linkedinPostSettings, ({ one }) => ({
+    team: one(teams, {
+        fields: [linkedinPostSettings.teamId],
+        references: [teams.id],
+    }),
+}));
+
+export const linkedinPostsRelations = relations(linkedinPosts, ({ one }) => ({
+    team: one(teams, {
+        fields: [linkedinPosts.teamId],
+        references: [teams.id],
+    }),
+    creator: one(users, {
+        fields: [linkedinPosts.createdBy],
+        references: [users.id],
+    }),
+    validator: one(users, {
+        fields: [linkedinPosts.validatedBy],
+        references: [users.id],
+    }),
+}));
