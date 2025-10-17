@@ -134,13 +134,17 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    return renderHtml({
+    const successResponse = renderHtml({
       success: true,
       title: "✅ Connexion LinkedIn réussie !",
       message: "Votre compte LinkedIn a été connecté avec succès.",
       details: "Vous pouvez maintenant fermer cette fenêtre et retourner à votre dashboard.",
       redirectUrl: '/dashboard/integrations',
     });
+
+    successResponse.cookies.delete('linkedin_oauth_state');
+
+    return successResponse;
 
   } catch (error) {
     console.error('LinkedIn OAuth callback error:', error);

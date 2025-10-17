@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Loader2, CheckCircle, ExternalLink } from 'lucide-react';
-import { LinkedInOAuthService } from '@/lib/services/linkedin-oauth';
 
 interface OAuthConnectionInfo {
   isConnected: boolean;
