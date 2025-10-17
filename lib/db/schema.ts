@@ -89,6 +89,26 @@ export const linkedinConnections = pgTable('linkedin_connections', {
     isActive: boolean('is_active').notNull().default(true),
 });
 
+export const linkedinOAuthCredentials = pgTable('linkedin_oauth_credentials', {
+    id: serial('id').primaryKey(),
+    teamId: integer('team_id')
+        .notNull()
+        .references(() => teams.id)
+        .unique(),
+    accessToken: text('access_token').notNull(),
+    refreshToken: text('refresh_token'),
+    expiresAt: timestamp('expires_at').notNull(),
+    scope: text('scope').notNull(),
+    tokenType: varchar('token_type', { length: 50 }).default('Bearer'),
+    linkedinMemberUrn: varchar('linkedin_member_urn', { length: 255 }),
+    connectedBy: integer('connected_by')
+        .notNull()
+        .references(() => users.id),
+    connectedAt: timestamp('connected_at').notNull().defaultNow(),
+    lastRefreshedAt: timestamp('last_refreshed_at'),
+    isActive: boolean('is_active').notNull().default(true),
+});
+
 export const linkedinConnectionsRelations = relations(linkedinConnections, ({ one }) => ({
     team: one(teams, {
         fields: [linkedinConnections.teamId],
@@ -96,6 +116,17 @@ export const linkedinConnectionsRelations = relations(linkedinConnections, ({ on
     }),
     connectedByUser: one(users, {
         fields: [linkedinConnections.connectedBy],
+        references: [users.id],
+    }),
+}));
+
+export const linkedinOAuthCredentialsRelations = relations(linkedinOAuthCredentials, ({ one }) => ({
+    team: one(teams, {
+        fields: [linkedinOAuthCredentials.teamId],
+        references: [teams.id],
+    }),
+    connectedByUser: one(users, {
+        fields: [linkedinOAuthCredentials.connectedBy],
         references: [users.id],
     }),
 }));
@@ -171,6 +202,10 @@ export type ActivityLog = typeof activityLogs.$inferSelect;
 export type NewActivityLog = typeof activityLogs.$inferInsert;
 export type Invitation = typeof invitations.$inferSelect;
 export type NewInvitation = typeof invitations.$inferInsert;
+export type LinkedinConnection = typeof linkedinConnections.$inferSelect;
+export type NewLinkedinConnection = typeof linkedinConnections.$inferInsert;
+export type LinkedinOAuthCredential = typeof linkedinOAuthCredentials.$inferSelect;
+export type NewLinkedinOAuthCredential = typeof linkedinOAuthCredentials.$inferInsert;
 export type ProspectCandidate = typeof prospectCandidates.$inferSelect;
 export type NewProspectCandidate = typeof prospectCandidates.$inferInsert;
 export type Lead = typeof leads.$inferSelect;
