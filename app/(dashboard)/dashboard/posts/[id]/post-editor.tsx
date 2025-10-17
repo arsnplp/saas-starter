@@ -145,6 +145,40 @@ export function PostEditor({ post, autoValidationMode }: PostEditorProps) {
     }
   };
 
+  const handlePublishNow = async () => {
+    if (!finalContent.trim()) {
+      toast.error('Le post ne peut pas être vide');
+      return;
+    }
+
+    if (!confirm('Publier ce post immédiatement sur LinkedIn ?')) {
+      return;
+    }
+
+    setIsSaving(true);
+
+    try {
+      await updatePost(post.id, { finalContent });
+
+      const response = await fetch(`/api/posts/${post.id}/publish`, {
+        method: 'POST',
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        toast.success('Post publié sur LinkedIn avec succès !');
+        router.push('/dashboard/posts');
+      } else {
+        toast.error(data.error || 'Erreur lors de la publication');
+      }
+    } catch (error) {
+      toast.error('Une erreur est survenue');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const currentContent = finalContent || generatedContent;
 
   return (
@@ -290,6 +324,15 @@ export function PostEditor({ post, autoValidationMode }: PostEditorProps) {
               >
                 <Trash2 className="w-4 h-4 mr-2" />
                 Supprimer
+              </Button>
+              <Button
+                onClick={handlePublishNow}
+                disabled={isSaving}
+                variant="outline"
+                className="bg-[#0A66C2] text-white hover:bg-[#004182]"
+              >
+                <Check className="w-4 h-4 mr-2" />
+                {isSaving ? 'Publication...' : 'Publier maintenant'}
               </Button>
               {!autoValidationMode && (
                 <Button
