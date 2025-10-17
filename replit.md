@@ -35,6 +35,21 @@ The backend leverages Next.js API routes and Server Actions for data operations 
         - Tokens currently stored in plaintext - **TODO: Implement encryption** using KMS or env-based encryption key before production
         - **Required secrets**: `LINKEDIN_CLIENT_ID` (configured), `LINKEDIN_CLIENT_SECRET` (⚠️ missing - required for OAuth token exchange)
 
+*   **LinkedIn Post Automation (NEW - October 2025):**
+    *   **Automated Content Publishing:** GPT-4o powered LinkedIn post creation with professional copywriting, scheduled publication via LinkedIn OAuth API.
+    *   **4 Post Types:** Call-to-action (📣), Publicité (📢), Annonce (🎉), Classique (💬) - each with optimized GPT prompt.
+    *   **Workflow:**
+        1. User configures recurrence (posts/week) in `/dashboard/posts/settings`
+        2. Empty post slots auto-created weekly
+        3. User selects post type, adds context/images
+        4. GPT generates engaging content using custom LinkedIn copywriting prompt
+        5. Manual validation OR auto-publish mode (configurable)
+        6. Scheduled publishing via `/api/posts/publish` (CRON-compatible, secured with INGEST_API_TOKEN)
+        7. Manual "Publish Now" option available per post
+    *   **Tables:** `linkedin_post_settings` (team recurrence config, auto-mode), `linkedin_posts` (post content, schedule, status)
+    *   **Services:** `LinkedInPublisher` (OAuth-based publishing with image upload), `LinkedInPostGenerator` (GPT content creation)
+    *   **Security:** Team-scoped data isolation, OAuth token auto-refresh, scheduler API secured with bearer token
+
 *   **Database Schema Highlights:**
     *   `users`, `teams`, `team_members`, `activity_logs`, `invitations`.
     *   `prospect_candidates`: Staging table for LinkedIn engagements.
