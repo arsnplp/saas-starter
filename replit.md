@@ -27,15 +27,25 @@ The backend leverages Next.js API routes and Server Actions for data operations 
     *   **Target Companies Feature:** A simplified, GPT-powered discovery tool for generating lists of relevant companies based on ICP, storing them in `target_companies` for manual prospecting. No LinkUp credits are used for this feature.
     *   **Intelligent Contact Search:** A manual, on-demand feature that uses a 3-level cascade search strategy (Precise, Broad, Fallback) with GPT-generated title variations and LinkUp API to find the right contact person at target companies. It stores contact profiles in the `target_companies` table.
 
+*   **LinkedIn Integration (Dual Authentication):**
+    *   **LinkUp login_token** (table: `linkedinConnections`): For profile enrichment via LinkUp API. Users authenticate via email/password, token stored per team.
+    *   **LinkedIn OAuth** (table: `linkedin_oauth_credentials`): For official LinkedIn API access. Full OAuth 2.0 flow with state validation (CSRF protection), access/refresh tokens, automatic refresh before expiration.
+    *   **Security considerations**: 
+        - OAuth state validated via HTTP-only cookies (10min TTL)
+        - Tokens currently stored in plaintext - **TODO: Implement encryption** using KMS or env-based encryption key before production
+        - **Required secrets**: `LINKEDIN_CLIENT_ID` (configured), `LINKEDIN_CLIENT_SECRET` (⚠️ missing - required for OAuth token exchange)
+
 *   **Database Schema Highlights:**
     *   `users`, `teams`, `team_members`, `activity_logs`, `invitations`.
     *   `prospect_candidates`: Staging table for LinkedIn engagements.
     *   `leads`: Qualified contacts.
+    *   `linkedinConnections`: LinkUp authentication (login_token per team).
+    *   `linkedin_oauth_credentials`: OAuth tokens (access_token, refresh_token, expiry) with auto-refresh logic.
     *   `target_companies`: GPT-generated target companies with status tracking and `contactProfile` JSONB for found contacts.
     *   `messages`: Outbound communications.
     *   `icp_profiles`: Ideal Customer Profile definitions, including `problem_statement` and `ideal_customer_example` for enhanced AI scoring.
 
-*   **Security:** JWT-based authentication, HTTP-only cookies, bcrypt hashing, Role-Based Access Control (RBAC), and strict multi-tenant data isolation.
+*   **Security:** JWT-based authentication, HTTP-only cookies, bcrypt hashing, Role-Based Access Control (RBAC), strict multi-tenant data isolation, OAuth state validation (CSRF protection).
 
 *   **Cost Optimization:** LinkUp API profile enrichment is performed only once per prospect and cached, avoiding redundant API calls.
 
