@@ -37,17 +37,32 @@ export async function GET() {
       }),
     });
 
+    const responseText = await testResponse.text();
+    console.log('🔍 Token validation test:', {
+      status: testResponse.status,
+      response: responseText,
+    });
+
     if (testResponse.status === 403) {
-      // Token expiré
-      return NextResponse.json({ valid: false, reason: 'expired' });
+      // Vérifier si c'est vraiment un token expiré
+      const errorData = JSON.parse(responseText);
+      if (errorData.message?.includes('cookie invalid') || errorData.message?.includes('expired')) {
+        console.log('❌ Token LinkedIn expiré');
+        return NextResponse.json({ valid: false, reason: 'expired' });
+      }
+      // Autre erreur 403 (crédits, etc.)
+      console.log('⚠️ Erreur 403 mais pas token expiré:', errorData.message);
+      return NextResponse.json({ valid: true }); // Considérer comme valide
     }
 
     if (!testResponse.ok) {
-      // Autre erreur API
-      return NextResponse.json({ valid: false, reason: 'api_error' });
+      // Autre erreur API (400, 500, etc.)
+      console.log('⚠️ Erreur API LinkUp:', testResponse.status);
+      return NextResponse.json({ valid: true }); // Considérer comme valide pour éviter les faux positifs
     }
 
     // Token valide ✅
+    console.log('✅ Token LinkedIn valide');
     return NextResponse.json({ valid: true });
   } catch (error) {
     console.error('Error checking LinkedIn token:', error);
