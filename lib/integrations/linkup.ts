@@ -457,6 +457,22 @@ const linkupProfileResponseSchema = z.object({
 
 export type LinkupProfile = z.infer<typeof linkupProfileSchema>;
 
+function cleanLinkedInUrl(url: string): string {
+  try {
+    const urlObj = new URL(url);
+    const pathname = urlObj.pathname;
+    
+    const match = pathname.match(/\/in\/([^\/\?]+)/);
+    if (match) {
+      return `https://www.linkedin.com/in/${match[1]}`;
+    }
+    
+    return url.split('?')[0];
+  } catch {
+    return url.split('?')[0];
+  }
+}
+
 export async function fetchLinkedInProfile(profileUrl: string, teamId?: number): Promise<LinkupProfile> {
   const mockMode = process.env.LINKUP_MOCK === '1' || !process.env.LINKUP_API_KEY;
   
@@ -514,8 +530,10 @@ export async function fetchLinkedInProfile(profileUrl: string, teamId?: number):
     }
   }
 
+  const cleanedUrl = cleanLinkedInUrl(profileUrl);
+  
   const requestBody: any = {
-    linkedin_url: profileUrl,
+    linkedin_url: cleanedUrl,
   };
 
   if (loginToken) {
@@ -526,7 +544,8 @@ export async function fetchLinkedInProfile(profileUrl: string, teamId?: number):
     url: `${LINKUP_API_BASE_URL}/profile/info`,
     hasApiKey: !!apiKey,
     hasLoginToken: !!loginToken,
-    profileUrl,
+    originalUrl: profileUrl,
+    cleanedUrl: cleanedUrl,
   });
 
   const response = await fetch(`${LINKUP_API_BASE_URL}/profile/info`, {
