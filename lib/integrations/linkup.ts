@@ -498,6 +498,13 @@ export async function fetchLinkedInProfile(profileUrl: string, teamId?: number):
       where: eq(linkedinConnections.teamId, teamId),
     });
     
+    console.log('🔍 fetchLinkedInProfile - Connection lookup:', {
+      teamId,
+      connectionFound: !!connection,
+      isActive: connection?.isActive,
+      hasLoginToken: !!connection?.loginToken,
+    });
+    
     if (connection && connection.isActive) {
       loginToken = connection.loginToken;
       await db
@@ -514,6 +521,13 @@ export async function fetchLinkedInProfile(profileUrl: string, teamId?: number):
   if (loginToken) {
     requestBody.login_token = loginToken;
   }
+
+  console.log('🔍 fetchLinkedInProfile - Request:', {
+    url: `${LINKUP_API_BASE_URL}/profile/info`,
+    hasApiKey: !!apiKey,
+    hasLoginToken: !!loginToken,
+    profileUrl,
+  });
 
   const response = await fetch(`${LINKUP_API_BASE_URL}/profile/info`, {
     method: 'POST',
