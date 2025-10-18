@@ -5,6 +5,52 @@ import { eq } from 'drizzle-orm';
 
 const LINKUP_API_BASE_URL = 'https://api.linkupapi.com/v1';
 
+/**
+ * Nettoie automatiquement les URLs LinkedIn pour éviter les erreurs API
+ * - Enlève les paramètres de tracking (utm_source, utm_medium, rcm, etc.)
+ * - Décode les caractères HTML (&amp; -> &)
+ * - Décode les caractères URL (%XX)
+ * - Garde uniquement l'URL de base propre
+ */
+function cleanLinkedInUrl(url: string): string {
+  if (!url) return url;
+  
+  try {
+    // Décoder les entités HTML (&amp; -> &)
+    let cleanUrl = url.replace(/&amp;/g, '&');
+    
+    // Décoder les caractères encodés URL
+    cleanUrl = decodeURIComponent(cleanUrl);
+    
+    // Parser l'URL
+    const urlObj = new URL(cleanUrl);
+    
+    // Pour les profils: garder uniquement /in/username
+    const profileMatch = urlObj.pathname.match(/\/in\/([^\/\?]+)/);
+    if (profileMatch) {
+      return `https://www.linkedin.com/in/${profileMatch[1]}`;
+    }
+    
+    // Pour les posts: garder uniquement le pathname sans query params
+    if (urlObj.pathname.includes('/posts/') || urlObj.pathname.includes('/feed/update/')) {
+      return `https://www.linkedin.com${urlObj.pathname}`;
+    }
+    
+    // Pour les company: garder uniquement /company/name
+    const companyMatch = urlObj.pathname.match(/\/company\/([^\/\?]+)/);
+    if (companyMatch) {
+      return `https://www.linkedin.com/company/${companyMatch[1]}`;
+    }
+    
+    // Fallback: enlever juste les query params
+    return `${urlObj.origin}${urlObj.pathname}`;
+  } catch (error) {
+    // Si le parsing échoue, au moins enlever les query params
+    console.warn('URL parsing failed, basic cleanup:', error);
+    return url.split('?')[0].replace(/&amp;/g, '&');
+  }
+}
+
 const linkupReactionSchema = z.object({
   type: z.string().optional(),
   name: z.string().optional(),
@@ -304,14 +350,16 @@ export class LinkupClient {
   }
 
   async getPostEngagement(postUrl: string, totalResults: number = 50): Promise<LinkupPostEngagement> {
+    const cleanedUrl = cleanLinkedInUrl(postUrl);
+    
     const reactionsResponse = await this.makeRequest('/posts/reactions', {
-      post_url: postUrl,
+      post_url: cleanedUrl,
       total_results: totalResults,
       country: 'FR',
     });
 
     const commentsResponse = await this.makeRequest('/posts/extract-comments', {
-      post_url: postUrl,
+      post_url: cleanedUrl,
       total_results: totalResults,
       country: 'FR',
     });
@@ -366,8 +414,16 @@ export class LinkupClient {
   }
 
   async getPostComments(postUrl: string, totalResults: number = 50): Promise<LinkupComment[]> {
+    const cleanedUrl = cleanLinkedInUrl(postUrl);
+    
+    console.log('🧹 URL Cleaning for getPostComments:', {
+      original: postUrl,
+      cleaned: cleanedUrl,
+      changed: postUrl !== cleanedUrl
+    });
+    
     const commentsResponse = await this.makeRequest('/posts/extract-comments', {
-      post_url: postUrl,
+      post_url: cleanedUrl,
       total_results: totalResults,
       country: 'FR',
     });
@@ -456,22 +512,6 @@ const linkupProfileResponseSchema = z.object({
 });
 
 export type LinkupProfile = z.infer<typeof linkupProfileSchema>;
-
-function cleanLinkedInUrl(url: string): string {
-  try {
-    const urlObj = new URL(url);
-    const pathname = urlObj.pathname;
-    
-    const match = pathname.match(/\/in\/([^\/\?]+)/);
-    if (match) {
-      return `https://www.linkedin.com/in/${match[1]}`;
-    }
-    
-    return url.split('?')[0];
-  } catch {
-    return url.split('?')[0];
-  }
-}
 
 export async function fetchLinkedInProfile(profileUrl: string, teamId?: number): Promise<LinkupProfile> {
   const mockMode = process.env.LINKUP_MOCK === '1' || !process.env.LINKUP_API_KEY;
