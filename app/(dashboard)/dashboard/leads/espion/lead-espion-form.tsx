@@ -136,6 +136,9 @@ export default function LeadEspionForm({ teamId }: { teamId: number }) {
             <option value={20}>20 résultats (2 crédits)</option>
             <option value={50}>50 résultats (5 crédits)</option>
             <option value={100}>100 résultats (10 crédits)</option>
+            <option value={200}>200 résultats (20 crédits)</option>
+            <option value={300}>300 résultats (30 crédits)</option>
+            <option value={500}>500 résultats (50 crédits)</option>
           </select>
           <p className="text-xs text-gray-500 mt-1">
             💰 Coût par endpoint : 1 crédit = 10 résultats. 
