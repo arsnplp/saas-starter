@@ -233,7 +233,7 @@ export class LinkupClient {
   }
 
   private getMockResponse(endpoint: string) {
-    if (endpoint.includes('/posts/reactions')) {
+    if (endpoint.includes('/posts/reactions') || endpoint.includes('/data/signals/posts/reactions')) {
       return {
         status: 'success',
         data: {
@@ -385,16 +385,18 @@ export class LinkupClient {
   async getPostEngagement(postUrl: string, totalResults: number = 50): Promise<LinkupPostEngagement> {
     const cleanedUrl = cleanLinkedInUrl(postUrl);
     
-    const reactionsResponse = await this.makeRequest('/posts/reactions', {
+    // ✅ Utiliser le Signal API pour les réactions (accepte ugcPost-)
+    const reactionsResponse = await this.makeSignalRequest('/data/signals/posts/reactions', {
       post_url: cleanedUrl,
       total_results: totalResults,
-      country: 'FR',
+      use_pagination: false,
     });
 
-    const commentsResponse = await this.makeRequest('/posts/extract-comments', {
+    // ✅ Utiliser le Signal API pour les commentaires (accepte ugcPost-)
+    const commentsResponse = await this.makeSignalRequest('/data/signals/posts/comments', {
       post_url: cleanedUrl,
       total_results: totalResults,
-      country: 'FR',
+      use_pagination: false,
     });
 
     const reactionsData = linkupReactionsResponseSchema.parse(reactionsResponse);
