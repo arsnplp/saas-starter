@@ -45,23 +45,33 @@ export const scoreProspect = validatedActionWithUser(
     let enrichedProfile: EnrichedProfile | null = null;
 
     if (!prospect.enrichedProfile) {
-      const profileData = await fetchLinkedInProfile(prospect.profileUrl, team.id);
-      
-      enrichedProfile = {
-        name: profileData.name || prospect.name || undefined,
-        headline: profileData.headline || prospect.title || undefined,
-        location: profileData.location || prospect.location || undefined,
-        industry: profileData.industry || undefined,
-        experience: profileData.experience || [],
-        education: profileData.education || [],
-        skills: profileData.skills || [],
-        summary: profileData.summary || undefined,
-      };
+      try {
+        const profileData = await fetchLinkedInProfile(prospect.profileUrl, team.id);
+        
+        enrichedProfile = {
+          name: profileData.name || prospect.name || undefined,
+          headline: profileData.headline || prospect.title || undefined,
+          location: profileData.location || prospect.location || undefined,
+          industry: profileData.industry || undefined,
+          experience: profileData.experience || [],
+          education: profileData.education || [],
+          skills: profileData.skills || [],
+          summary: profileData.summary || undefined,
+        };
 
-      await db
-        .update(prospectCandidates)
-        .set({ enrichedProfile: enrichedProfile as any })
-        .where(eq(prospectCandidates.id, data.prospectId));
+        await db
+          .update(prospectCandidates)
+          .set({ enrichedProfile: enrichedProfile as any })
+          .where(eq(prospectCandidates.id, data.prospectId));
+      } catch (error) {
+        console.error('Enrichissement échoué:', error);
+        throw new Error(
+          '❌ Impossible d\'enrichir ce profil LinkedIn. ' +
+          'Vérifiez que votre connexion LinkUp est active dans les Intégrations. ' +
+          'Si le problème persiste, vos crédits LinkUp sont peut-être épuisés ou votre session LinkedIn a expiré. ' +
+          'Reconnectez-vous dans Intégrations > Connexion LinkedIn (LinkUp).'
+        );
+      }
     } else {
       enrichedProfile = prospect.enrichedProfile as EnrichedProfile;
     }
