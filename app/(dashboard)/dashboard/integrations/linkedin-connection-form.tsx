@@ -21,6 +21,8 @@ interface ConnectionInfo {
   connectedAt: string | null;
   lastUsedAt: string | null;
   connectedBy: string | null;
+  isProbablyExpired?: boolean;
+  daysSinceLastUse?: number;
 }
 
 export default function LinkedinConnectionForm() {
@@ -74,15 +76,29 @@ export default function LinkedinConnectionForm() {
       });
     };
 
+    const isExpired = connectionInfo.isProbablyExpired;
+
     return (
       <div className="space-y-4">
-        <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+        <div className={`rounded-lg p-4 ${isExpired ? 'bg-yellow-50 border border-yellow-200' : 'bg-green-50 border border-green-200'}`}>
           <div className="flex items-start gap-3">
-            <CheckCircle className="w-5 h-5 text-green-600 mt-0.5" />
+            {isExpired ? (
+              <XCircle className="w-5 h-5 text-yellow-600 mt-0.5" />
+            ) : (
+              <CheckCircle className="w-5 h-5 text-green-600 mt-0.5" />
+            )}
             <div className="flex-1">
-              <p className="text-sm font-medium text-green-900 mb-2">
-                ✅ LinkedIn connecté
+              <p className={`text-sm font-medium mb-2 ${isExpired ? 'text-yellow-900' : 'text-green-900'}`}>
+                {isExpired ? '⚠️ Session LinkedIn probablement expirée' : '✅ LinkedIn connecté'}
               </p>
+              
+              {isExpired && (
+                <p className="text-xs text-yellow-800 mb-3 bg-yellow-100 p-2 rounded">
+                  📅 Dernière utilisation il y a {connectionInfo.daysSinceLastUse} jours. 
+                  Les sessions LinkedIn expirent généralement après 30 jours d'inactivité. 
+                  <strong> Reconnectez-vous pour continuer à enrichir vos prospects.</strong>
+                </p>
+              )}
               
               <div className="space-y-1.5 text-xs text-green-800">
                 {connectionInfo.linkedinEmail && (

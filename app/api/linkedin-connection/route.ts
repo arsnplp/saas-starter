@@ -35,12 +35,23 @@ export async function GET(request: NextRequest) {
       });
     }
 
+    // Vérifier si le token est probablement expiré
+    // LinkedIn tokens expirent après ~30 jours d'inactivité
+    const lastUsed = connection.lastUsedAt || connection.connectedAt;
+    const daysSinceLastUse = lastUsed 
+      ? (Date.now() - lastUsed.getTime()) / (1000 * 60 * 60 * 24)
+      : 999;
+    
+    const isProbablyExpired = daysSinceLastUse > 30;
+
     return NextResponse.json({
       isConnected: connection.isActive,
       linkedinEmail: connection.linkedinEmail || null,
       connectedAt: connection.connectedAt?.toISOString() || null,
       lastUsedAt: connection.lastUsedAt?.toISOString() || null,
       connectedBy: connection.connectedByUser?.name || connection.connectedByUser?.email || null,
+      isProbablyExpired: isProbablyExpired,
+      daysSinceLastUse: Math.round(daysSinceLastUse),
     });
   } catch (error) {
     console.error('LinkedIn connection check error:', error);
