@@ -252,6 +252,7 @@ export default async function LeadsPage({
                     <thead>
                     <tr className="bg-gray-50 text-left">
                         <th className="p-3">Email</th>
+                        <th className="p-3">Téléphone</th>
                         <th className="p-3">Nom</th>
                         <th className="p-3">Entreprise</th>
                         <th className="p-3">Titre</th>
@@ -276,6 +277,16 @@ export default async function LeadsPage({
                                 </td>
 
                                 <td className="p-3">
+                                    {l.phone ? (
+                                        <a href={`tel:${l.phone}`} className="underline hover:no-underline">
+                                            {l.phone}
+                                        </a>
+                                    ) : (
+                                        <span className="text-gray-500 italic">—</span>
+                                    )}
+                                </td>
+
+                                <td className="p-3">
                                     {[l.firstName, l.lastName].filter(Boolean).join(" ") || l.email || "—"}
                                 </td>
 
@@ -293,7 +304,7 @@ export default async function LeadsPage({
 
                             {/* Ligne détails : message + actions + notes */}
                             <tr className="bg-gray-50/60">
-                                <td colSpan={7} className="p-3">
+                                <td colSpan={8} className="p-3">
                                     <details className="group">
                                         <summary className="cursor-pointer select-none text-sm text-gray-700">
                                             Afficher message & actions
@@ -344,7 +355,7 @@ export default async function LeadsPage({
 
                     {items.length === 0 && (
                         <tr>
-                            <td colSpan={7} className="p-6 text-center text-gray-500">
+                            <td colSpan={8} className="p-6 text-center text-gray-500">
                                 Aucun lead pour l’instant. Ajoute ton premier lead ci-dessus.
                             </td>
                         </tr>
