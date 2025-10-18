@@ -23,47 +23,63 @@ export async function GET() {
     }
 
     const loginToken = connection[0].loginToken;
+    const lastUsed = connection[0].connectedAt || new Date(0);
+    const daysSinceLastUse = (Date.now() - lastUsed.getTime()) / (1000 * 60 * 60 * 24);
 
-    // Tester le token avec un appel LinkUp simple
-    const testResponse = await fetch('https://api.linkupapi.com/v1/profile/info', {
-      method: 'POST',
-      headers: {
-        'x-api-key': process.env.LINKUP_API_KEY || '',
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        profile_url: 'https://www.linkedin.com/in/williamhgates', // Profil test public
-        login_token: loginToken,
-      }),
+    console.log('🔍 Token check:', {
+      hasToken: !!loginToken,
+      lastUsed: lastUsed.toISOString(),
+      daysSinceLastUse: Math.round(daysSinceLastUse),
     });
 
-    const responseText = await testResponse.text();
-    console.log('🔍 Token validation test:', {
-      status: testResponse.status,
-      response: responseText,
-    });
+    // LinkedIn tokens expirent généralement après 30 jours d'inactivité
+    // ou après quelques jours si LinkedIn détecte une activité suspecte
+    // On va vérifier avec un vrai appel API simple
+    
+    try {
+      // Test avec un profil LinkedIn public très connu (Bill Gates)
+      const testResponse = await fetch('https://api.linkupapi.com/v1/profile/info', {
+        method: 'POST',
+        headers: {
+          'x-api-key': process.env.LINKUP_API_KEY || '',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          profile_url: 'https://www.linkedin.com/in/williamhgates/',
+          login_token: loginToken,
+        }),
+      });
 
-    if (testResponse.status === 403) {
-      // Vérifier si c'est vraiment un token expiré
-      const errorData = JSON.parse(responseText);
-      if (errorData.message?.includes('cookie invalid') || errorData.message?.includes('expired')) {
-        console.log('❌ Token LinkedIn expiré');
-        return NextResponse.json({ valid: false, reason: 'expired' });
+      const responseText = await testResponse.text();
+      console.log('🔍 LinkUp API test response:', {
+        status: testResponse.status,
+        body: responseText.substring(0, 200),
+      });
+
+      if (testResponse.status === 403) {
+        const errorData = JSON.parse(responseText);
+        if (errorData.message?.toLowerCase().includes('cookie invalid') || 
+            errorData.message?.toLowerCase().includes('expired')) {
+          console.log('❌ Token LinkedIn EXPIRÉ');
+          return NextResponse.json({ valid: false, reason: 'expired' });
+        }
       }
-      // Autre erreur 403 (crédits, etc.)
-      console.log('⚠️ Erreur 403 mais pas token expiré:', errorData.message);
-      return NextResponse.json({ valid: true }); // Considérer comme valide
-    }
 
-    if (!testResponse.ok) {
-      // Autre erreur API (400, 500, etc.)
-      console.log('⚠️ Erreur API LinkUp:', testResponse.status);
-      return NextResponse.json({ valid: true }); // Considérer comme valide pour éviter les faux positifs
-    }
+      // Si succès ou autre erreur (pas 403 cookie invalid), considérer comme valide
+      if (testResponse.ok) {
+        console.log('✅ Token LinkedIn VALIDE');
+        return NextResponse.json({ valid: true });
+      }
 
-    // Token valide ✅
-    console.log('✅ Token LinkedIn valide');
-    return NextResponse.json({ valid: true });
+      // Pour les autres erreurs, on considère le token comme valide
+      // pour éviter les faux positifs (rate limit, crédits épuisés, etc.)
+      console.log('⚠️ API error but token probably valid:', testResponse.status);
+      return NextResponse.json({ valid: true });
+    } catch (testError) {
+      console.error('Erreur lors du test du token:', testError);
+      // En cas d'erreur réseau, on considère le token comme valide
+      return NextResponse.json({ valid: true });
+    }
   } catch (error) {
     console.error('Error checking LinkedIn token:', error);
     return NextResponse.json({ valid: false, reason: 'error' });
