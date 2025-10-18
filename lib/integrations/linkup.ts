@@ -19,40 +19,38 @@ function cleanLinkedInUrl(url: string): string {
     // Décoder les entités HTML (&amp; -> &)
     let cleanUrl = url.replace(/&amp;/g, '&');
     
-    // Parser l'URL (sans décoder d'abord pour éviter les doubles encodages)
+    // Parser l'URL
     const urlObj = new URL(cleanUrl);
     
-    // Décoder le pathname pour obtenir les vrais caractères
-    const decodedPathname = decodeURIComponent(urlObj.pathname);
+    // Garder le pathname ENCODÉ (ne pas décoder) pour LinkUp
+    // Juste enlever les query params
+    const pathname = urlObj.pathname;
     
-    // Pour les profils: garder uniquement /in/username
-    const profileMatch = decodedPathname.match(/\/in\/([^\/\?]+)/);
-    if (profileMatch) {
-      return `https://www.linkedin.com/in/${profileMatch[1]}`;
+    // Pour les posts: retourner juste origin + pathname (SANS query params)
+    if (pathname.includes('/posts/') || pathname.includes('/feed/update/')) {
+      return `https://www.linkedin.com${pathname}`;
     }
     
-    // Pour les posts: retourner le pathname décodé
-    if (decodedPathname.includes('/posts/') || decodedPathname.includes('/feed/update/')) {
-      return `https://www.linkedin.com${decodedPathname}`;
+    // Pour les profils: garder uniquement /in/username (décodé pour les profils)
+    const profileMatch = pathname.match(/\/in\/([^\/\?]+)/);
+    if (profileMatch) {
+      // Pour les profils, on peut décoder
+      const username = decodeURIComponent(profileMatch[1]);
+      return `https://www.linkedin.com/in/${username}`;
     }
     
     // Pour les company: garder uniquement /company/name
-    const companyMatch = decodedPathname.match(/\/company\/([^\/\?]+)/);
+    const companyMatch = pathname.match(/\/company\/([^\/\?]+)/);
     if (companyMatch) {
       return `https://www.linkedin.com/company/${companyMatch[1]}`;
     }
     
-    // Fallback: enlever juste les query params et décoder
-    return `${urlObj.origin}${decodedPathname}`;
+    // Fallback: origin + pathname (sans query)
+    return `${urlObj.origin}${pathname}`;
   } catch (error) {
     // Si le parsing échoue, au moins enlever les query params
     console.warn('URL parsing failed, basic cleanup:', error);
-    const cleaned = url.split('?')[0].replace(/&amp;/g, '&');
-    try {
-      return decodeURIComponent(cleaned);
-    } catch {
-      return cleaned;
-    }
+    return url.split('?')[0].replace(/&amp;/g, '&');
   }
 }
 
