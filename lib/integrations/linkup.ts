@@ -457,7 +457,7 @@ const linkupProfileResponseSchema = z.object({
 
 export type LinkupProfile = z.infer<typeof linkupProfileSchema>;
 
-export async function fetchLinkedInProfile(profileUrl: string): Promise<LinkupProfile> {
+export async function fetchLinkedInProfile(profileUrl: string, teamId?: number): Promise<LinkupProfile> {
   const mockMode = process.env.LINKUP_MOCK === '1' || !process.env.LINKUP_API_KEY;
   
   if (mockMode) {
@@ -492,15 +492,36 @@ export async function fetchLinkedInProfile(profileUrl: string): Promise<LinkupPr
     throw new Error('LINKUP_API_KEY is required');
   }
 
+  let loginToken: string | undefined;
+  if (teamId) {
+    const connection = await db.query.linkedinConnections.findFirst({
+      where: eq(linkedinConnections.teamId, teamId),
+    });
+    
+    if (connection && connection.isActive) {
+      loginToken = connection.loginToken;
+      await db
+        .update(linkedinConnections)
+        .set({ lastUsedAt: new Date() })
+        .where(eq(linkedinConnections.teamId, teamId));
+    }
+  }
+
+  const requestBody: any = {
+    linkedin_url: profileUrl,
+  };
+
+  if (loginToken) {
+    requestBody.login_token = loginToken;
+  }
+
   const response = await fetch(`${LINKUP_API_BASE_URL}/profile/info`, {
     method: 'POST',
     headers: {
       'x-api-key': apiKey,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({
-      linkedin_url: profileUrl,
-    }),
+    body: JSON.stringify(requestBody),
   });
 
   if (!response.ok) {

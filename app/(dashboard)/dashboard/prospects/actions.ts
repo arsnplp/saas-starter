@@ -45,7 +45,7 @@ export const scoreProspect = validatedActionWithUser(
     let enrichedProfile: EnrichedProfile | null = null;
 
     if (!prospect.enrichedProfile) {
-      const profileData = await fetchLinkedInProfile(prospect.profileUrl);
+      const profileData = await fetchLinkedInProfile(prospect.profileUrl, team.id);
       
       enrichedProfile = {
         name: profileData.name || prospect.name || undefined,
