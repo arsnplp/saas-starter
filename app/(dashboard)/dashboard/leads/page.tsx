@@ -21,6 +21,7 @@ type Lead = typeof leadsTable.$inferSelect;
 
 const LeadSchema = z.object({
     email: z.string().email(),
+    phone: z.string().optional(),
     firstName: z.string().optional(),
     lastName: z.string().optional(),
     company: z.string().optional(),
@@ -47,6 +48,7 @@ export async function createLead(formData: FormData) {
 
     const raw = {
         email: String(formData.get("email") || ""),
+        phone: (formData.get("phone") as string) || undefined,
         firstName: (formData.get("firstName") as string) || undefined,
         lastName: (formData.get("lastName") as string) || undefined,
         company: (formData.get("company") as string) || undefined,
@@ -197,6 +199,7 @@ export default async function LeadsPage({
             <form action={createLead} className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 rounded-xl border">
                 <input type="hidden" name="teamId" value={team.id} />
                 <input className="border rounded-lg p-2" name="email" placeholder="Email *" required />
+                <input className="border rounded-lg p-2" name="phone" placeholder="Téléphone" />
                 <input className="border rounded-lg p-2" name="company" placeholder="Entreprise" />
                 <input className="border rounded-lg p-2" name="firstName" placeholder="Prénom" />
                 <input className="border rounded-lg p-2" name="lastName" placeholder="Nom" />
