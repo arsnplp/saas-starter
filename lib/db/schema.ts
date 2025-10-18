@@ -279,6 +279,7 @@ export const leads = pgTable(
         id: uuid('id').defaultRandom().primaryKey(),
         teamId: integer('team_id').references(() => teams.id).notNull(),
         email: varchar('email', { length: 255 }),
+        phone: varchar('phone', { length: 50 }),
         firstName: varchar('first_name', { length: 120 }),
         lastName: varchar('last_name', { length: 120 }),
         company: varchar('company', { length: 255 }),
