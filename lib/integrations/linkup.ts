@@ -28,6 +28,17 @@ function cleanLinkedInUrl(url: string): string {
     
     // Pour les posts: retourner juste origin + pathname (SANS query params)
     if (pathname.includes('/posts/') || pathname.includes('/feed/update/')) {
+      // Extraire juste l'URN du post (le ugcPost-XXXXX)
+      const urnMatch = pathname.match(/(ugcPost-\d+|activity:\d+)/);
+      if (urnMatch) {
+        // Retourner uniquement l'URL avec l'URN, sans les slugs supplémentaires
+        const urn = urnMatch[1];
+        if (pathname.includes('/posts/')) {
+          // Format: /posts/username_ugcPost-123456789
+          return `https://www.linkedin.com/feed/update/urn:li:${urn}`;
+        }
+      }
+      // Fallback: garder l'URL complète
       return `https://www.linkedin.com${pathname}`;
     }
     
