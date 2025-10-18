@@ -12,13 +12,14 @@ const importLeadsFromPostSchema = z.object({
   postUrl: z.string().url(),
   sourceMode: z.enum(['chaud', 'espion']),
   importMode: z.enum(['all', 'comments_only']).default('all'),
+  maxResults: z.string().transform(Number).default('10'),
   teamId: z.string().transform(Number),
 });
 
 export const importLeadsFromPost = validatedActionWithUser(
   importLeadsFromPostSchema,
   async (data, _, user) => {
-    const { postUrl, sourceMode, importMode, teamId } = data;
+    const { postUrl, sourceMode, importMode, maxResults, teamId } = data;
 
     // Décoder les entités HTML dans l'URL (ex: &amp; → &)
     const decodedPostUrl = postUrl
@@ -28,8 +29,13 @@ export const importLeadsFromPost = validatedActionWithUser(
       .replace(/&quot;/g, '"')
       .replace(/&#39;/g, "'");
 
+    const creditsPerEndpoint = Math.ceil(maxResults / 10);
+    const totalCredits = importMode === 'all' ? creditsPerEndpoint * 2 : creditsPerEndpoint;
+
     console.log('🔧 Import Configuration:');
     console.log('  Mode:', importMode);
+    console.log('  Max results:', maxResults);
+    console.log('  💰 Coût estimé:', totalCredits, 'crédit(s)');
     console.log('  URL:', decodedPostUrl);
 
     const linkupClient = await getLinkupClient(teamId);
@@ -39,14 +45,14 @@ export const importLeadsFromPost = validatedActionWithUser(
 
     // Mode "Tous" : appeler les 2 endpoints (réactions + commentaires)
     if (importMode === 'all') {
-      const engagement = await linkupClient.getPostEngagement(decodedPostUrl);
+      const engagement = await linkupClient.getPostEngagement(decodedPostUrl, maxResults);
       reactions = engagement.reactions;
       comments = engagement.comments;
       console.log(`✅ Mode ALL: ${reactions.length} réactions + ${comments.length} commentaires récupérés`);
     } 
     // Mode "Commentateurs uniquement" : appeler seulement l'endpoint des commentaires
     else if (importMode === 'comments_only') {
-      const commentsData = await linkupClient.getPostComments(decodedPostUrl);
+      const commentsData = await linkupClient.getPostComments(decodedPostUrl, maxResults);
       comments = commentsData;
       console.log(`✅ Mode COMMENTS_ONLY: ${comments.length} commentaires récupérés (économie de 1 appel API)`);
     }

@@ -21,6 +21,7 @@ type Engagement = {
 export default function LeadEspionForm({ teamId }: { teamId: number }) {
   const [postUrl, setPostUrl] = useState('');
   const [importMode, setImportMode] = useState<'all' | 'comments_only'>('all');
+  const [maxResults, setMaxResults] = useState<number>(10);
   const [engagements, setEngagements] = useState<Engagement[]>([]);
   const [state, formAction, isPending] = useActionState(importLeadsFromPost, null);
 
@@ -53,6 +54,7 @@ export default function LeadEspionForm({ teamId }: { teamId: number }) {
         <input type="hidden" name="teamId" value={teamId} />
         <input type="hidden" name="sourceMode" value="espion" />
         <input type="hidden" name="importMode" value={importMode} />
+        <input type="hidden" name="maxResults" value={maxResults} />
         
         <div>
           <Label htmlFor="postUrl">Lien du post LinkedIn</Label>
@@ -118,6 +120,31 @@ export default function LeadEspionForm({ teamId }: { teamId: number }) {
               </div>
             </label>
           </div>
+        </div>
+
+        <div>
+          <Label htmlFor="maxResults">Nombre de résultats maximum</Label>
+          <select
+            id="maxResults"
+            name="maxResults"
+            value={maxResults}
+            onChange={(e) => setMaxResults(Number(e.target.value))}
+            disabled={isPending}
+            className="mt-2 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500"
+          >
+            <option value={10}>10 résultats (1 crédit)</option>
+            <option value={20}>20 résultats (2 crédits)</option>
+            <option value={50}>50 résultats (5 crédits)</option>
+            <option value={100}>100 résultats (10 crédits)</option>
+          </select>
+          <p className="text-xs text-gray-500 mt-1">
+            💰 Coût par endpoint : 1 crédit = 10 résultats. 
+            {importMode === 'all' ? (
+              <span className="font-medium text-orange-600"> Mode "Tous" = {Math.ceil(maxResults / 10) * 2} crédits (réactions + commentaires)</span>
+            ) : (
+              <span className="font-medium text-green-600"> Mode "Commentaires uniquement" = {Math.ceil(maxResults / 10)} crédit(s)</span>
+            )}
+          </p>
         </div>
 
         {error && (
