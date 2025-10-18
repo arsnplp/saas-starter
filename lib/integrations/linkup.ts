@@ -203,6 +203,35 @@ export class LinkupClient {
     return data;
   }
 
+  private async makeSignalRequest(endpoint: string, body: any) {
+    if (this.mockMode) {
+      return this.getMockResponse(endpoint);
+    }
+
+    console.log(`\n🔍 LinkUp Signal API Request (${endpoint}):`);
+    console.log('  Body:', JSON.stringify(body, null, 2));
+    console.log('  Has API key:', !!this.apiKey);
+
+    const response = await fetch(`${LINKUP_API_BASE_URL}${endpoint}`, {
+      method: 'POST',
+      headers: {
+        'x-api-key': this.apiKey,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`LinkUp Signal API error (${endpoint}):`, response.status, errorText);
+      throw new Error(`LinkUp Signal API error: ${response.status} ${response.statusText} - ${errorText}`);
+    }
+
+    const data = await response.json();
+    console.log(`✅ LinkUp Signal API response (${endpoint}):`, JSON.stringify(data, null, 2));
+    return data;
+  }
+
   private getMockResponse(endpoint: string) {
     if (endpoint.includes('/posts/reactions')) {
       return {
@@ -261,7 +290,7 @@ export class LinkupClient {
       };
     }
 
-    if (endpoint.includes('/posts/extract-comments')) {
+    if (endpoint.includes('/posts/extract-comments') || endpoint.includes('/data/signals/posts/comments')) {
       return {
         status: 'success',
         data: {
@@ -426,10 +455,11 @@ export class LinkupClient {
       changed: postUrl !== cleanedUrl
     });
     
-    const commentsResponse = await this.makeRequest('/posts/extract-comments', {
+    // ✅ Utiliser le Signal API qui accepte les URLs avec ugcPost-
+    const commentsResponse = await this.makeSignalRequest('/data/signals/posts/comments', {
       post_url: cleanedUrl,
       total_results: totalResults,
-      country: 'FR',
+      use_pagination: false,
     });
 
     const commentsData = linkupCommentsResponseSchema.parse(commentsResponse);
