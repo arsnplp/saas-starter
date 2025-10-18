@@ -19,35 +19,40 @@ function cleanLinkedInUrl(url: string): string {
     // Décoder les entités HTML (&amp; -> &)
     let cleanUrl = url.replace(/&amp;/g, '&');
     
-    // Décoder les caractères encodés URL
-    cleanUrl = decodeURIComponent(cleanUrl);
-    
-    // Parser l'URL
+    // Parser l'URL (sans décoder d'abord pour éviter les doubles encodages)
     const urlObj = new URL(cleanUrl);
     
+    // Décoder le pathname pour obtenir les vrais caractères
+    const decodedPathname = decodeURIComponent(urlObj.pathname);
+    
     // Pour les profils: garder uniquement /in/username
-    const profileMatch = urlObj.pathname.match(/\/in\/([^\/\?]+)/);
+    const profileMatch = decodedPathname.match(/\/in\/([^\/\?]+)/);
     if (profileMatch) {
       return `https://www.linkedin.com/in/${profileMatch[1]}`;
     }
     
-    // Pour les posts: garder uniquement le pathname sans query params
-    if (urlObj.pathname.includes('/posts/') || urlObj.pathname.includes('/feed/update/')) {
-      return `https://www.linkedin.com${urlObj.pathname}`;
+    // Pour les posts: retourner le pathname décodé
+    if (decodedPathname.includes('/posts/') || decodedPathname.includes('/feed/update/')) {
+      return `https://www.linkedin.com${decodedPathname}`;
     }
     
     // Pour les company: garder uniquement /company/name
-    const companyMatch = urlObj.pathname.match(/\/company\/([^\/\?]+)/);
+    const companyMatch = decodedPathname.match(/\/company\/([^\/\?]+)/);
     if (companyMatch) {
       return `https://www.linkedin.com/company/${companyMatch[1]}`;
     }
     
-    // Fallback: enlever juste les query params
-    return `${urlObj.origin}${urlObj.pathname}`;
+    // Fallback: enlever juste les query params et décoder
+    return `${urlObj.origin}${decodedPathname}`;
   } catch (error) {
     // Si le parsing échoue, au moins enlever les query params
     console.warn('URL parsing failed, basic cleanup:', error);
-    return url.split('?')[0].replace(/&amp;/g, '&');
+    const cleaned = url.split('?')[0].replace(/&amp;/g, '&');
+    try {
+      return decodeURIComponent(cleaned);
+    } catch {
+      return cleaned;
+    }
   }
 }
 
