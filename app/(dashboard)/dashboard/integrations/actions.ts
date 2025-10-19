@@ -48,6 +48,7 @@ export const connectLinkedin = validatedActionWithUser(
         };
       }
 
+      console.log('🔐 Tentative de connexion LinkedIn via LinkUp API...');
       const response = await fetch(`${LINKUP_API_BASE_URL}/auth/login`, {
         method: 'POST',
         headers: {
@@ -61,19 +62,37 @@ export const connectLinkedin = validatedActionWithUser(
         }),
       });
 
-      const result = await response.json().catch(() => null);
+      const responseText = await response.text();
+      
+      let result;
+      try {
+        result = responseText ? JSON.parse(responseText) : null;
+        // Log response status without exposing the token
+        console.log(`📡 Réponse API login (${response.status}):`, {
+          status: result?.status,
+          requiresVerification: result?.requires_verification,
+          hasToken: !!result?.login_token,
+          message: result?.message
+        });
+      } catch {
+        console.error('❌ Réponse API invalide (JSON parse error)');
+        result = null;
+      }
 
-      if (!result) {
+      if (!response.ok || !result) {
+        const errorMsg = result?.message || result?.error || responseText || `HTTP ${response.status}`;
+        console.error('❌ Erreur login:', errorMsg);
         return { 
           error: '', 
           success: '',
           needsVerification: true,
           linkedinEmail: data.email,
-          message: `Réponse invalide de LinkedIn (${response.status}). Veuillez essayer avec le code de vérification.`
+          message: `Erreur LinkedIn: ${errorMsg}. Vérifiez vos identifiants ou vos crédits LinkUp.`
         };
       }
 
       if (result.login_token) {
+        console.log('✅ Token d\'authentification reçu, enregistrement sécurisé...');
         const existing = await db.query.linkedinConnections.findFirst({
           where: eq(linkedinConnections.teamId, team.id),
         });
@@ -87,6 +106,7 @@ export const connectLinkedin = validatedActionWithUser(
               connectedBy: user.id,
               connectedAt: new Date(),
               isActive: true,
+              lastUsedAt: null, // Reset pour tracking
             })
             .where(eq(linkedinConnections.teamId, team.id));
         } else {
@@ -100,14 +120,17 @@ export const connectLinkedin = validatedActionWithUser(
         }
 
         revalidatePath('/dashboard/integrations');
+        console.log('✅ LinkedIn connecté avec succès !');
         
         return { 
           error: '', 
           success: 'LinkedIn connecté avec succès ! Vous pouvez maintenant importer des leads.',
-          needsVerification: false
+          needsVerification: false,
+          message: ''
         };
       }
 
+      console.log('📧 Vérification requise - code envoyé par email');
       return { 
         error: '', 
         success: '', 

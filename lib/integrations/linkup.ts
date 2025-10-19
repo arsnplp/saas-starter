@@ -900,8 +900,18 @@ export async function fetchLinkedInProfile(profileUrl: string, teamId?: number):
 
   if (!response.ok) {
     const errorText = await response.text();
-    console.error('LinkUp profile API error:', response.status, errorText);
-    throw new Error(`LinkUp profile API error: ${response.status} ${response.statusText}`);
+    console.error('❌ LinkUp profile API error:', response.status, errorText);
+    
+    // Parse l'erreur pour afficher un message détaillé
+    let errorDetails = errorText;
+    try {
+      const errorJson = JSON.parse(errorText);
+      errorDetails = errorJson.message || errorJson.error || errorText;
+    } catch {
+      // Garder le texte brut si pas JSON
+    }
+    
+    throw new Error(`LinkUp API ${response.status}: ${errorDetails}`);
   }
 
   const data = await response.json();

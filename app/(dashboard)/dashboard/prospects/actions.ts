@@ -65,11 +65,14 @@ export const scoreProspect = validatedActionWithUser(
           .where(eq(prospectCandidates.id, data.prospectId));
       } catch (error) {
         console.error('Enrichissement échoué:', error);
+        const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue';
         throw new Error(
-          '❌ Impossible d\'enrichir ce profil LinkedIn. ' +
-          'Vérifiez que votre connexion LinkUp est active dans les Intégrations. ' +
-          'Si le problème persiste, vos crédits LinkUp sont peut-être épuisés ou votre session LinkedIn a expiré. ' +
-          'Reconnectez-vous dans Intégrations > Connexion LinkedIn (LinkUp).'
+          `❌ Impossible d'enrichir ce profil LinkedIn.\n\n` +
+          `Détail: ${errorMessage}\n\n` +
+          `Solutions possibles:\n` +
+          `• Vérifiez votre connexion LinkUp dans Intégrations\n` +
+          `• Vérifiez vos crédits LinkUp restants\n` +
+          `• Reconnectez-vous si votre session est expirée`
         );
       }
     } else {

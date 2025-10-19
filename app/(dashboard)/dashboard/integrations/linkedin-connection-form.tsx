@@ -4,7 +4,7 @@ import { useActionState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Loader2, CheckCircle, XCircle, Shield } from 'lucide-react';
+import { Loader2, CheckCircle, XCircle, Shield, TestTube2 } from 'lucide-react';
 import { connectLinkedin, disconnectLinkedin, verifyLinkedinCode } from './actions';
 import { useEffect, useState } from 'react';
 import {
@@ -133,25 +133,29 @@ export default function LinkedinConnectionForm() {
           </div>
         </div>
 
-        <form action={disconnectAction}>
-          {disconnectState.error && (
-            <p className="text-red-500 text-sm mb-2">{disconnectState.error}</p>
-          )}
-          <Button
-            type="submit"
-            variant="destructive"
-            disabled={isDisconnectPending}
-          >
-            {isDisconnectPending ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Déconnexion...
-              </>
-            ) : (
-              'Déconnecter LinkedIn'
+        <div className="flex gap-2">
+          <TestConnectionButton />
+          <form action={disconnectAction} className="flex-1">
+            {disconnectState.error && (
+              <p className="text-red-500 text-sm mb-2">{disconnectState.error}</p>
             )}
-          </Button>
-        </form>
+            <Button
+              type="submit"
+              variant="destructive"
+              disabled={isDisconnectPending}
+              className="w-full"
+            >
+              {isDisconnectPending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Déconnexion...
+                </>
+              ) : (
+                'Déconnecter LinkedIn'
+              )}
+            </Button>
+          </form>
+        </div>
       </div>
     );
   }
@@ -289,5 +293,119 @@ export default function LinkedinConnectionForm() {
         </DialogContent>
       </Dialog>
     </form>
+  );
+}
+
+function TestConnectionButton() {
+  const [isTesting, setIsTesting] = useState(false);
+  const [testResult, setTestResult] = useState<{
+    success: boolean;
+    message: string;
+    details?: any;
+  } | null>(null);
+
+  const handleTest = async () => {
+    setIsTesting(true);
+    setTestResult(null);
+
+    try {
+      const response = await fetch('/api/linkedin-connection/test', {
+        method: 'POST',
+      });
+
+      const data = await response.json();
+      
+      // Ensure we always have a message (defensive programming)
+      if (!data.message) {
+        data.message = data.error || (data.success ? '✅ Test réussi' : '❌ Test échoué');
+      }
+      
+      setTestResult(data);
+    } catch (error) {
+      setTestResult({
+        success: false,
+        message: error instanceof Error ? error.message : 'Erreur de test',
+      });
+    } finally {
+      setIsTesting(false);
+    }
+  };
+
+  return (
+    <div className="flex-1">
+      <Button
+        type="button"
+        variant="outline"
+        onClick={handleTest}
+        disabled={isTesting}
+        className="w-full border-blue-200 text-blue-700 hover:bg-blue-50"
+      >
+        {isTesting ? (
+          <>
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            Test en cours...
+          </>
+        ) : (
+          <>
+            <TestTube2 className="mr-2 h-4 w-4" />
+            Tester la connexion
+          </>
+        )}
+      </Button>
+
+      {testResult && (
+        <div className={`mt-2 rounded-lg p-3 text-sm ${
+          testResult.success 
+            ? 'bg-green-50 border border-green-200 text-green-800'
+            : 'bg-red-50 border border-red-200 text-red-800'
+        }`}>
+          <div className="flex items-start gap-2">
+            {testResult.success ? (
+              <CheckCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+            ) : (
+              <XCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+            )}
+            <div className="flex-1">
+              <p className="font-medium mb-1">{testResult.message}</p>
+              {testResult.details && (
+                <div className="mt-2 space-y-1 text-xs bg-white/50 rounded p-2">
+                  {testResult.success ? (
+                    <>
+                      <p><strong>Status API:</strong> {testResult.details.apiStatus}</p>
+                      <p><strong>HTTP Status:</strong> {testResult.details.httpStatus}</p>
+                      <p><strong>Profil test:</strong> {testResult.details.profileFetched}</p>
+                      <p><strong>Crédits restants:</strong> {testResult.details.creditsRemaining}</p>
+                      <p><strong>Rate limit:</strong> {testResult.details.rateLimit}</p>
+                      <p><strong>Email LinkedIn:</strong> {testResult.details.linkedinEmail}</p>
+                      <p><strong>Dernière utilisation:</strong> {
+                        testResult.details.lastUsedAt 
+                          ? new Date(testResult.details.lastUsedAt).toLocaleString('fr-FR')
+                          : 'Jamais'
+                      }</p>
+                    </>
+                  ) : (
+                    <>
+                      <p><strong>Status HTTP:</strong> {testResult.details.httpStatus} - {testResult.details.httpStatusText}</p>
+                      <p><strong>Erreur:</strong> {testResult.details.errorMessage}</p>
+                      <p><strong>Email LinkedIn:</strong> {testResult.details.linkedinEmail}</p>
+                      {testResult.details.possibleCauses && (
+                        <div className="mt-2">
+                          <strong>Causes possibles:</strong>
+                          <ul className="list-disc list-inside ml-2 mt-1">
+                            {testResult.details.possibleCauses.map((cause: string, i: number) => (
+                              <li key={i}>{cause}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
