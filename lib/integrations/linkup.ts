@@ -497,6 +497,58 @@ export class LinkupClient {
     
     return searchData.data.profiles;
   }
+
+  /**
+   * Nouvelle API: Extraire les commentaires d'un post LinkedIn
+   * Endpoint: POST /v1/posts/extract-comments
+   * Coût: 1 crédit = 10 résultats
+   */
+  async extractComments(postUrl: string, totalResults: number = 10): Promise<LinkupComment[]> {
+    const cleanedUrl = cleanLinkedInUrl(postUrl);
+    
+    console.log('💬 Extraction des commentaires:', {
+      url: cleanedUrl,
+      total_results: totalResults,
+      credits: Math.ceil(totalResults / 10)
+    });
+
+    const response = await this.makeRequest('/posts/extract-comments', {
+      post_url: cleanedUrl,
+      total_results: totalResults,
+      country: 'FR',
+    });
+
+    const data = linkupCommentsResponseSchema.parse(response);
+    console.log(`✅ ${data.data.comments.length} commentaires récupérés (${data.data.total_available_results} disponibles)`);
+    
+    return data.data.comments;
+  }
+
+  /**
+   * Nouvelle API: Extraire les réactions d'un post LinkedIn
+   * Endpoint: POST /v1/posts/reactions
+   * Coût: 1 crédit = 10 résultats
+   */
+  async extractReactions(postUrl: string, totalResults: number = 10): Promise<LinkupReaction[]> {
+    const cleanedUrl = cleanLinkedInUrl(postUrl);
+    
+    console.log('👍 Extraction des réactions:', {
+      url: cleanedUrl,
+      total_results: totalResults,
+      credits: Math.ceil(totalResults / 10)
+    });
+
+    const response = await this.makeRequest('/posts/reactions', {
+      post_url: cleanedUrl,
+      total_results: totalResults,
+      country: 'FR',
+    });
+
+    const data = linkupReactionsResponseSchema.parse(response);
+    console.log(`✅ ${data.data.reactions.length} réactions récupérées (${data.data.total_available_results} disponibles)`);
+    
+    return data.data.reactions;
+  }
 }
 
 export async function getLinkupClient(teamId: number): Promise<LinkupClient> {
