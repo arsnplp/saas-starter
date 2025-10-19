@@ -11,7 +11,7 @@ import OpenAI from 'openai';
 const importLeadsFromPostSchema = z.object({
   postUrl: z.string().url(),
   sourceMode: z.enum(['chaud', 'espion']),
-  importMode: z.enum(['all', 'comments_only']).default('all'),
+  importMode: z.enum(['comments', 'comments_and_reactions']).default('comments'),
   maxResults: z.string().transform(Number).default('10'),
   teamId: z.string().transform(Number),
 });
@@ -21,46 +21,46 @@ export const importLeadsFromPost = validatedActionWithUser(
   async (data, _, user) => {
     const { postUrl, sourceMode, importMode, maxResults, teamId } = data;
 
-    // Décoder les entités HTML dans l'URL (ex: &amp; → &)
-    const decodedPostUrl = postUrl
-      .replace(/&amp;/g, '&')
-      .replace(/&lt;/g, '<')
-      .replace(/&gt;/g, '>')
-      .replace(/&quot;/g, '"')
-      .replace(/&#39;/g, "'");
-
     const creditsPerEndpoint = Math.ceil(maxResults / 10);
-    const totalCredits = importMode === 'all' ? creditsPerEndpoint * 2 : creditsPerEndpoint;
+    const totalCredits = importMode === 'comments_and_reactions' ? creditsPerEndpoint * 2 : creditsPerEndpoint;
 
-    console.log('🔧 Import Configuration:');
+    console.log('🎯 Lead Espion - Configuration:');
     console.log('  Mode:', importMode);
-    console.log('  Max results:', maxResults);
-    console.log('  💰 Coût estimé:', totalCredits, 'crédit(s)');
-    console.log('  URL:', decodedPostUrl);
+    console.log('  Max results:', maxResults, 'par type');
+    console.log('  💰 Coût total:', totalCredits, 'crédit(s) LinkUp');
+    console.log('  URL:', postUrl);
 
     const linkupClient = await getLinkupClient(teamId);
     
     let reactions: any[] = [];
     let comments: any[] = [];
 
-    // Mode "Tous" : appeler les 2 endpoints (réactions + commentaires)
-    if (importMode === 'all') {
-      const engagement = await linkupClient.getPostEngagement(decodedPostUrl, maxResults);
-      reactions = engagement.reactions;
-      comments = engagement.comments;
-      console.log(`✅ Mode ALL: ${reactions.length} réactions + ${comments.length} commentaires récupérés`);
-    } 
-    // Mode "Commentateurs uniquement" : appeler seulement l'endpoint des commentaires
-    else if (importMode === 'comments_only') {
-      const commentsData = await linkupClient.getPostComments(decodedPostUrl, maxResults);
-      comments = commentsData;
-      console.log(`✅ Mode COMMENTS_ONLY: ${comments.length} commentaires récupérés (économie de 1 appel API)`);
+    try {
+      if (importMode === 'comments_and_reactions') {
+        console.log('📥 Mode COMPLET: extraction commentaires + réactions...');
+        [comments, reactions] = await Promise.all([
+          linkupClient.extractComments(postUrl, maxResults),
+          linkupClient.extractReactions(postUrl, maxResults),
+        ]);
+        console.log(`✅ ${comments.length} commentaires + ${reactions.length} réactions récupérés`);
+      } else {
+        console.log('📥 Mode ÉCONOMIQUE: extraction commentaires uniquement...');
+        comments = await linkupClient.extractComments(postUrl, maxResults);
+        console.log(`✅ ${comments.length} commentaires récupérés (${creditsPerEndpoint} crédit${creditsPerEndpoint > 1 ? 's' : ''})`);
+      }
+    } catch (error: any) {
+      console.error('❌ Erreur LinkUp API:', error.message);
+      return { 
+        error: `Erreur LinkUp: ${error.message}. Vérifiez que votre token LinkedIn est valide dans Intégrations.`,
+        count: 0,
+        duplicatesSkipped: 0,
+        prospects: []
+      };
     }
 
     const newProspects = [];
     let duplicatesSkipped = 0;
 
-    // Traiter les réactions (seulement si mode "all")
     for (const reaction of reactions) {
       if (!reaction.profile_url) continue;
 
@@ -81,9 +81,9 @@ export const importLeadsFromPost = validatedActionWithUser(
       const [prospect] = await db.insert(prospectCandidates).values({
         teamId,
         source: 'linkedin_post',
-        sourceRef: decodedPostUrl,
+        sourceRef: postUrl,
         action: 'reaction',
-        postUrl: decodedPostUrl,
+        postUrl: postUrl,
         reactionType: reaction.type,
         profileUrl: reaction.profile_url,
         actorUrn: reaction.actor_urn,
@@ -96,7 +96,6 @@ export const importLeadsFromPost = validatedActionWithUser(
       newProspects.push(prospect);
     }
 
-    // Traiter les commentaires
     for (const comment of comments) {
       const profileUrl = comment.commenter?.linkedin_url || comment.commenter_profile_url;
       const commenterName = comment.commenter?.name || comment.commenter_name || '';
@@ -125,9 +124,9 @@ export const importLeadsFromPost = validatedActionWithUser(
       const [prospect] = await db.insert(prospectCandidates).values({
         teamId,
         source: 'linkedin_post',
-        sourceRef: decodedPostUrl,
+        sourceRef: postUrl,
         action: 'comment',
-        postUrl: decodedPostUrl,
+        postUrl: postUrl,
         commentId: comment.comment_urn,
         commentText: comment.comment_text,
         profileUrl,
@@ -140,7 +139,7 @@ export const importLeadsFromPost = validatedActionWithUser(
       newProspects.push(prospect);
     }
 
-    console.log(`✅ Import terminé: ${newProspects.length} nouveaux prospects, ${duplicatesSkipped} doublons évités`);
+    console.log(`🎉 Import terminé: ${newProspects.length} nouveaux prospects, ${duplicatesSkipped} doublons évités`);
 
     return {
       success: true,
