@@ -55,6 +55,61 @@ function cleanLinkedInUrl(url: string): string {
   }
 }
 
+/**
+ * Convertit les URLs de posts LinkedIn vers le format accepté par LinkUp API
+ * 
+ * Formats d'entrée possibles:
+ * - https://www.linkedin.com/posts/username-ugcPost-XXXXX-XXXX
+ * - https://www.linkedin.com/posts/username_activity-XXXXX-XXXX
+ * - https://www.linkedin.com/feed/update/urn:li:activity:XXXXX
+ * 
+ * Formats de sortie testés:
+ * 1. Remplacement ugcPost → activity
+ * 2. Format URN (urn:li:activity:...)
+ * 3. URL originale (fallback)
+ */
+function convertLinkedInPostUrl(url: string): string[] {
+  console.log('\n🔄 ========== CONVERSION URL LINKEDIN ==========');
+  console.log('📥 URL originale:', url);
+  
+  const formats: string[] = [];
+  
+  try {
+    const urlObj = new URL(url);
+    const pathname = urlObj.pathname;
+    
+    // Format 1: Remplacer ugcPost- par activity-
+    if (pathname.includes('ugcPost-')) {
+      const convertedPath = pathname.replace('ugcPost-', 'activity-');
+      const format1 = `https://www.linkedin.com${convertedPath}`;
+      formats.push(format1);
+      console.log('✅ Format 1 (ugcPost→activity):', format1);
+    }
+    
+    // Format 2: Essayer d'extraire l'ID et créer un URN
+    const idMatch = pathname.match(/(\d{19})/); // LinkedIn activity IDs ont 19 chiffres
+    if (idMatch) {
+      const activityId = idMatch[1];
+      const format2 = `https://www.linkedin.com/feed/update/urn:li:activity:${activityId}`;
+      formats.push(format2);
+      console.log('✅ Format 2 (URN):', format2);
+    }
+    
+    // Format 3: URL originale (fallback)
+    formats.push(url);
+    console.log('✅ Format 3 (original):', url);
+    
+  } catch (error) {
+    console.error('⚠️ Erreur parsing URL:', error);
+    formats.push(url);
+  }
+  
+  console.log(`📊 Total: ${formats.length} format(s) à tester`);
+  console.log('==========================================\n');
+  
+  return formats;
+}
+
 const linkupReactionSchema = z.object({
   type: z.string().optional(),
   name: z.string().optional(),
@@ -540,52 +595,62 @@ export class LinkupClient {
     console.log('📊 Paramètres:', { totalResults, credits: Math.ceil(totalResults / 10) });
     
     const cleanedUrl = cleanLinkedInUrl(postUrl);
-    
     console.log('🧹 URL après nettoyage:', cleanedUrl);
-    console.log('🔄 URL modifiée?', postUrl !== cleanedUrl);
     
-    if (postUrl !== cleanedUrl) {
-      console.log('📝 Changements effectués:');
-      console.log('  - Avant:', postUrl);
-      console.log('  - Après:', cleanedUrl);
-    }
+    // Générer plusieurs formats d'URL à tester
+    const urlFormats = convertLinkedInPostUrl(cleanedUrl);
+    
+    console.log('🌐 Endpoint: /posts/extract-comments (SANS login_token)');
+    console.log(`🔄 ${urlFormats.length} format(s) d'URL à tester séquentiellement...`);
 
-    console.log('🌐 Endpoint qui sera appelé: /posts/extract-comments (SANS login_token)');
-    console.log('📦 Body qui sera envoyé:', {
-      post_url: cleanedUrl,
-      total_results: totalResults,
-      country: 'FR',
-    });
-
-    // ⚠️ Utiliser l'appel direct sans login_token (nouvelle API)
     const fullUrl = `${LINKUP_API_BASE_URL}/posts/extract-comments`;
-    const response = await fetch(fullUrl, {
-      method: 'POST',
-      headers: {
-        'x-api-key': this.apiKey,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        post_url: cleanedUrl,
-        total_results: totalResults,
-        country: 'FR',
-      }),
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('❌ ERREUR API:', errorText);
-      throw new Error(`LinkUp API error: ${response.status} ${response.statusText} - ${errorText}`);
-    }
-
-    const responseData = await response.json();
-    console.log('✅ Réponse API:', JSON.stringify(responseData, null, 2));
-
-    const data = linkupCommentsResponseSchema.parse(responseData);
-    console.log(`✅ ${data.data.comments.length} commentaires récupérés (${data.data.total_available_results} disponibles)`);
-    console.log('========== EXTRACT COMMENTS - FIN ==========\n');
+    let lastError: any = null;
     
-    return data.data.comments;
+    // Tester chaque format jusqu'à ce que l'un fonctionne
+    for (let i = 0; i < urlFormats.length; i++) {
+      const testUrl = urlFormats[i];
+      console.log(`\n🧪 Test ${i + 1}/${urlFormats.length}:`);
+      console.log('  URL testée:', testUrl);
+      
+      try {
+        const response = await fetch(fullUrl, {
+          method: 'POST',
+          headers: {
+            'x-api-key': this.apiKey,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            post_url: testUrl,
+            total_results: totalResults,
+            country: 'FR',
+          }),
+        });
+
+        if (response.ok) {
+          const responseData = await response.json();
+          console.log(`✅ SUCCÈS avec format ${i + 1}!`);
+          console.log('📦 Réponse:', JSON.stringify(responseData, null, 2));
+
+          const data = linkupCommentsResponseSchema.parse(responseData);
+          console.log(`✅ ${data.data.comments.length} commentaires récupérés (${data.data.total_available_results} disponibles)`);
+          console.log('========== EXTRACT COMMENTS - FIN ==========\n');
+          
+          return data.data.comments;
+        } else {
+          const errorText = await response.text();
+          console.warn(`❌ Échec format ${i + 1}:`, response.status, errorText);
+          lastError = new Error(`${response.status} ${response.statusText} - ${errorText}`);
+        }
+      } catch (error: any) {
+        console.warn(`❌ Erreur format ${i + 1}:`, error.message);
+        lastError = error;
+      }
+    }
+    
+    // Aucun format n'a fonctionné
+    console.error('❌ TOUS LES FORMATS ONT ÉCHOUÉ');
+    console.error('Formats testés:', urlFormats);
+    throw new Error(`LinkUp API error: Aucun format d'URL accepté - ${lastError?.message || 'Unknown error'}`);
   }
 
   /**
@@ -600,52 +665,62 @@ export class LinkupClient {
     console.log('📊 Paramètres:', { totalResults, credits: Math.ceil(totalResults / 10) });
     
     const cleanedUrl = cleanLinkedInUrl(postUrl);
-    
     console.log('🧹 URL après nettoyage:', cleanedUrl);
-    console.log('🔄 URL modifiée?', postUrl !== cleanedUrl);
     
-    if (postUrl !== cleanedUrl) {
-      console.log('📝 Changements effectués:');
-      console.log('  - Avant:', postUrl);
-      console.log('  - Après:', cleanedUrl);
-    }
+    // Générer plusieurs formats d'URL à tester
+    const urlFormats = convertLinkedInPostUrl(cleanedUrl);
+    
+    console.log('🌐 Endpoint: /posts/reactions (SANS login_token)');
+    console.log(`🔄 ${urlFormats.length} format(s) d'URL à tester séquentiellement...`);
 
-    console.log('🌐 Endpoint qui sera appelé: /posts/reactions (SANS login_token)');
-    console.log('📦 Body qui sera envoyé:', {
-      post_url: cleanedUrl,
-      total_results: totalResults,
-      country: 'FR',
-    });
-
-    // ⚠️ Utiliser l'appel direct sans login_token (nouvelle API)
     const fullUrl = `${LINKUP_API_BASE_URL}/posts/reactions`;
-    const response = await fetch(fullUrl, {
-      method: 'POST',
-      headers: {
-        'x-api-key': this.apiKey,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        post_url: cleanedUrl,
-        total_results: totalResults,
-        country: 'FR',
-      }),
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('❌ ERREUR API:', errorText);
-      throw new Error(`LinkUp API error: ${response.status} ${response.statusText} - ${errorText}`);
-    }
-
-    const responseData = await response.json();
-    console.log('✅ Réponse API:', JSON.stringify(responseData, null, 2));
-
-    const data = linkupReactionsResponseSchema.parse(responseData);
-    console.log(`✅ ${data.data.reactions.length} réactions récupérées (${data.data.total_available_results} disponibles)`);
-    console.log('========== EXTRACT REACTIONS - FIN ==========\n');
+    let lastError: any = null;
     
-    return data.data.reactions;
+    // Tester chaque format jusqu'à ce que l'un fonctionne
+    for (let i = 0; i < urlFormats.length; i++) {
+      const testUrl = urlFormats[i];
+      console.log(`\n🧪 Test ${i + 1}/${urlFormats.length}:`);
+      console.log('  URL testée:', testUrl);
+      
+      try {
+        const response = await fetch(fullUrl, {
+          method: 'POST',
+          headers: {
+            'x-api-key': this.apiKey,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            post_url: testUrl,
+            total_results: totalResults,
+            country: 'FR',
+          }),
+        });
+
+        if (response.ok) {
+          const responseData = await response.json();
+          console.log(`✅ SUCCÈS avec format ${i + 1}!`);
+          console.log('📦 Réponse:', JSON.stringify(responseData, null, 2));
+
+          const data = linkupReactionsResponseSchema.parse(responseData);
+          console.log(`✅ ${data.data.reactions.length} réactions récupérées (${data.data.total_available_results} disponibles)`);
+          console.log('========== EXTRACT REACTIONS - FIN ==========\n');
+          
+          return data.data.reactions;
+        } else {
+          const errorText = await response.text();
+          console.warn(`❌ Échec format ${i + 1}:`, response.status, errorText);
+          lastError = new Error(`${response.status} ${response.statusText} - ${errorText}`);
+        }
+      } catch (error: any) {
+        console.warn(`❌ Erreur format ${i + 1}:`, error.message);
+        lastError = error;
+      }
+    }
+    
+    // Aucun format n'a fonctionné
+    console.error('❌ TOUS LES FORMATS ONT ÉCHOUÉ');
+    console.error('Formats testés:', urlFormats);
+    throw new Error(`LinkUp API error: Aucun format d'URL accepté - ${lastError?.message || 'Unknown error'}`);
   }
 }
 
