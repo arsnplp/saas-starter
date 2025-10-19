@@ -61,10 +61,11 @@ function cleanLinkedInUrl(url: string): string {
  * Formats d'entrée possibles:
  * - https://www.linkedin.com/posts/username-ugcPost-XXXXX-XXXX
  * - https://www.linkedin.com/posts/username_activity-XXXXX-XXXX
+ * - https://www.linkedin.com/posts/username_share-XXXXX-XXXX
  * - https://www.linkedin.com/feed/update/urn:li:activity:XXXXX
  * 
- * Formats de sortie testés:
- * 1. Remplacement ugcPost → activity
+ * Formats de sortie testés dans l'ordre:
+ * 1. Remplacement ugcPost-/share- → activity-
  * 2. Format URN (urn:li:activity:...)
  * 3. URL originale (fallback)
  */
@@ -76,14 +77,22 @@ function convertLinkedInPostUrl(url: string): string[] {
   
   try {
     const urlObj = new URL(url);
-    const pathname = urlObj.pathname;
+    let pathname = urlObj.pathname;
     
-    // Format 1: Remplacer ugcPost- par activity-
+    // Format 1: Remplacer ugcPost-/share- par activity-
+    let pathModified = false;
     if (pathname.includes('ugcPost-')) {
-      const convertedPath = pathname.replace('ugcPost-', 'activity-');
-      const format1 = `https://www.linkedin.com${convertedPath}`;
+      pathname = pathname.replace('ugcPost-', 'activity-');
+      pathModified = true;
+    } else if (pathname.includes('_share-') || pathname.includes('-share-')) {
+      pathname = pathname.replace('_share-', '_activity-').replace('-share-', '-activity-');
+      pathModified = true;
+    }
+    
+    if (pathModified) {
+      const format1 = `https://www.linkedin.com${pathname}`;
       formats.push(format1);
-      console.log('✅ Format 1 (ugcPost→activity):', format1);
+      console.log('✅ Format 1 (converti→activity):', format1);
     }
     
     // Format 2: Essayer d'extraire l'ID et créer un URN
