@@ -595,7 +595,7 @@ export class LinkupClient {
   /**
    * Nouvelle API: Extraire les commentaires d'un post LinkedIn
    * Endpoint: POST /v1/posts/extract-comments
-   * ⚠️ ATTENTION: Cette API NE nécessite PAS de login_token!
+   * ✅ Requiert le login_token pour accéder aux commentaires
    * Coût: 1 crédit = 10 résultats
    */
   async extractComments(postUrl: string, totalResults: number = 10): Promise<LinkupComment[]> {
@@ -609,7 +609,7 @@ export class LinkupClient {
     // Générer plusieurs formats d'URL à tester
     const urlFormats = convertLinkedInPostUrl(cleanedUrl);
     
-    console.log('🌐 Endpoint: /posts/extract-comments (SANS login_token)');
+    console.log('🌐 Endpoint: /posts/extract-comments (AVEC login_token)');
     console.log(`🔄 ${urlFormats.length} format(s) d'URL à tester séquentiellement...`);
 
     const fullUrl = `${LINKUP_API_BASE_URL}/posts/extract-comments`;
@@ -632,6 +632,7 @@ export class LinkupClient {
             post_url: testUrl,
             total_results: totalResults,
             country: 'FR',
+            login_token: this.loginToken,
           }),
         });
 
@@ -665,7 +666,7 @@ export class LinkupClient {
   /**
    * Nouvelle API: Extraire les réactions d'un post LinkedIn
    * Endpoint: POST /v1/posts/reactions
-   * ⚠️ ATTENTION: Cette API NE nécessite PAS de login_token!
+   * ✅ Requiert le login_token pour accéder aux réactions
    * Coût: 1 crédit = 10 résultats
    */
   async extractReactions(postUrl: string, totalResults: number = 10): Promise<LinkupReaction[]> {
@@ -679,7 +680,7 @@ export class LinkupClient {
     // Générer plusieurs formats d'URL à tester
     const urlFormats = convertLinkedInPostUrl(cleanedUrl);
     
-    console.log('🌐 Endpoint: /posts/reactions (SANS login_token)');
+    console.log('🌐 Endpoint: /posts/reactions (AVEC login_token)');
     console.log(`🔄 ${urlFormats.length} format(s) d'URL à tester séquentiellement...`);
 
     const fullUrl = `${LINKUP_API_BASE_URL}/posts/reactions`;
@@ -702,6 +703,7 @@ export class LinkupClient {
             post_url: testUrl,
             total_results: totalResults,
             country: 'FR',
+            login_token: this.loginToken,
           }),
         });
 
