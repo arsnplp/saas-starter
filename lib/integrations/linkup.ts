@@ -531,6 +531,7 @@ export class LinkupClient {
   /**
    * Nouvelle API: Extraire les commentaires d'un post LinkedIn
    * Endpoint: POST /v1/posts/extract-comments
+   * ⚠️ ATTENTION: Cette API NE nécessite PAS de login_token!
    * Coût: 1 crédit = 10 résultats
    */
   async extractComments(postUrl: string, totalResults: number = 10): Promise<LinkupComment[]> {
@@ -549,20 +550,38 @@ export class LinkupClient {
       console.log('  - Après:', cleanedUrl);
     }
 
-    console.log('🌐 Endpoint qui sera appelé: /posts/extract-comments');
+    console.log('🌐 Endpoint qui sera appelé: /posts/extract-comments (SANS login_token)');
     console.log('📦 Body qui sera envoyé:', {
       post_url: cleanedUrl,
       total_results: totalResults,
       country: 'FR',
     });
 
-    const response = await this.makeRequest('/posts/extract-comments', {
-      post_url: cleanedUrl,
-      total_results: totalResults,
-      country: 'FR',
+    // ⚠️ Utiliser l'appel direct sans login_token (nouvelle API)
+    const fullUrl = `${LINKUP_API_BASE_URL}/posts/extract-comments`;
+    const response = await fetch(fullUrl, {
+      method: 'POST',
+      headers: {
+        'x-api-key': this.apiKey,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        post_url: cleanedUrl,
+        total_results: totalResults,
+        country: 'FR',
+      }),
     });
 
-    const data = linkupCommentsResponseSchema.parse(response);
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('❌ ERREUR API:', errorText);
+      throw new Error(`LinkUp API error: ${response.status} ${response.statusText} - ${errorText}`);
+    }
+
+    const responseData = await response.json();
+    console.log('✅ Réponse API:', JSON.stringify(responseData, null, 2));
+
+    const data = linkupCommentsResponseSchema.parse(responseData);
     console.log(`✅ ${data.data.comments.length} commentaires récupérés (${data.data.total_available_results} disponibles)`);
     console.log('========== EXTRACT COMMENTS - FIN ==========\n');
     
@@ -572,6 +591,7 @@ export class LinkupClient {
   /**
    * Nouvelle API: Extraire les réactions d'un post LinkedIn
    * Endpoint: POST /v1/posts/reactions
+   * ⚠️ ATTENTION: Cette API NE nécessite PAS de login_token!
    * Coût: 1 crédit = 10 résultats
    */
   async extractReactions(postUrl: string, totalResults: number = 10): Promise<LinkupReaction[]> {
@@ -590,20 +610,38 @@ export class LinkupClient {
       console.log('  - Après:', cleanedUrl);
     }
 
-    console.log('🌐 Endpoint qui sera appelé: /posts/reactions');
+    console.log('🌐 Endpoint qui sera appelé: /posts/reactions (SANS login_token)');
     console.log('📦 Body qui sera envoyé:', {
       post_url: cleanedUrl,
       total_results: totalResults,
       country: 'FR',
     });
 
-    const response = await this.makeRequest('/posts/reactions', {
-      post_url: cleanedUrl,
-      total_results: totalResults,
-      country: 'FR',
+    // ⚠️ Utiliser l'appel direct sans login_token (nouvelle API)
+    const fullUrl = `${LINKUP_API_BASE_URL}/posts/reactions`;
+    const response = await fetch(fullUrl, {
+      method: 'POST',
+      headers: {
+        'x-api-key': this.apiKey,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        post_url: cleanedUrl,
+        total_results: totalResults,
+        country: 'FR',
+      }),
     });
 
-    const data = linkupReactionsResponseSchema.parse(response);
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('❌ ERREUR API:', errorText);
+      throw new Error(`LinkUp API error: ${response.status} ${response.statusText} - ${errorText}`);
+    }
+
+    const responseData = await response.json();
+    console.log('✅ Réponse API:', JSON.stringify(responseData, null, 2));
+
+    const data = linkupReactionsResponseSchema.parse(responseData);
     console.log(`✅ ${data.data.reactions.length} réactions récupérées (${data.data.total_available_results} disponibles)`);
     console.log('========== EXTRACT REACTIONS - FIN ==========\n');
     
