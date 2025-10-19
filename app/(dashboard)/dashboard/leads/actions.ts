@@ -19,17 +19,21 @@ const importLeadsFromPostSchema = z.object({
 export const importLeadsFromPost = validatedActionWithUser(
   importLeadsFromPostSchema,
   async (data, _, user) => {
+    console.log('\n🔍 ========== IMPORT LEADS FROM POST - DÉBUT ==========');
     const { postUrl, sourceMode, importMode, maxResults, teamId } = data;
 
     const creditsPerEndpoint = Math.ceil(maxResults / 10);
     const totalCredits = importMode === 'comments_and_reactions' ? creditsPerEndpoint * 2 : creditsPerEndpoint;
 
-    console.log('🎯 Lead Espion - Configuration:');
-    console.log('  Mode:', importMode);
-    console.log('  Max results:', maxResults, 'par type');
-    console.log('  💰 Coût total:', totalCredits, 'crédit(s) LinkUp');
-    console.log('  URL:', postUrl);
+    console.log('🎯 Configuration reçue:');
+    console.log('  - URL:', postUrl);
+    console.log('  - Mode source:', sourceMode);
+    console.log('  - Mode import:', importMode);
+    console.log('  - Max results:', maxResults, 'par type');
+    console.log('  - Team ID:', teamId);
+    console.log('  - 💰 Coût total:', totalCredits, 'crédit(s) LinkUp');
 
+    console.log('\n🔄 Récupération du client LinkUp...');
     const linkupClient = await getLinkupClient(teamId);
     
     let reactions: any[] = [];
@@ -37,19 +41,26 @@ export const importLeadsFromPost = validatedActionWithUser(
 
     try {
       if (importMode === 'comments_and_reactions') {
-        console.log('📥 Mode COMPLET: extraction commentaires + réactions...');
+        console.log('\n📥 Mode COMPLET: extraction commentaires + réactions en parallèle...');
         [comments, reactions] = await Promise.all([
           linkupClient.extractComments(postUrl, maxResults),
           linkupClient.extractReactions(postUrl, maxResults),
         ]);
         console.log(`✅ ${comments.length} commentaires + ${reactions.length} réactions récupérés`);
       } else {
-        console.log('📥 Mode ÉCONOMIQUE: extraction commentaires uniquement...');
+        console.log('\n📥 Mode ÉCONOMIQUE: extraction commentaires uniquement...');
         comments = await linkupClient.extractComments(postUrl, maxResults);
         console.log(`✅ ${comments.length} commentaires récupérés (${creditsPerEndpoint} crédit${creditsPerEndpoint > 1 ? 's' : ''})`);
       }
     } catch (error: any) {
-      console.error('❌ Erreur LinkUp API:', error.message);
+      console.error('\n❌ ========== ERREUR API LINKUP ==========');
+      console.error('Type d\'erreur:', error.constructor.name);
+      console.error('Message:', error.message);
+      console.error('Stack trace:', error.stack);
+      console.error('URL problématique:', postUrl);
+      console.error('Paramètres:', { importMode, maxResults, teamId });
+      console.error('========================================\n');
+      
       return { 
         error: `Erreur LinkUp: ${error.message}. Vérifiez que votre token LinkedIn est valide dans Intégrations.`,
         count: 0,
@@ -139,7 +150,8 @@ export const importLeadsFromPost = validatedActionWithUser(
       newProspects.push(prospect);
     }
 
-    console.log(`🎉 Import terminé: ${newProspects.length} nouveaux prospects, ${duplicatesSkipped} doublons évités`);
+    console.log(`\n🎉 Import terminé: ${newProspects.length} nouveaux prospects, ${duplicatesSkipped} doublons évités`);
+    console.log('========== IMPORT LEADS FROM POST - FIN ==========\n');
 
     return {
       success: true,
