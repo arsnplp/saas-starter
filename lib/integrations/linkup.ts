@@ -165,11 +165,23 @@ export class LinkupClient {
   }
 
   private async makeRequest(endpoint: string, body: any) {
+    console.log('\n🔍 ========== MAKE REQUEST - DÉBUT ==========');
+    console.log('📍 Endpoint:', endpoint);
+    console.log('🎭 Mode mock?', this.mockMode);
+    
     if (this.mockMode) {
+      console.log('⚠️ MODE MOCK ACTIF - Retour de données fictives');
       return this.getMockResponse(endpoint);
     }
 
+    console.log('🔐 Vérification des credentials:');
+    console.log('  - API Key présente?', !!this.apiKey);
+    console.log('  - API Key longueur:', this.apiKey?.length || 0);
+    console.log('  - Login Token présent?', !!this.loginToken);
+    console.log('  - Login Token longueur:', this.loginToken?.length || 0);
+
     if (!this.loginToken) {
+      console.error('❌ ERREUR: login_token manquant!');
       throw new Error('LinkedIn login_token is required. Please add LINKUP_LOGIN_TOKEN to your environment variables.');
     }
 
@@ -178,12 +190,19 @@ export class LinkupClient {
       login_token: this.loginToken,
     };
 
-    console.log(`\n🔍 LinkUp API Request (${endpoint}):`);
-    console.log('  Body:', JSON.stringify(requestBody, null, 2));
-    console.log('  Has login_token:', !!this.loginToken);
-    console.log('  Has API key:', !!this.apiKey);
+    console.log('📦 Body complet à envoyer (login_token masqué):');
+    const bodyToLog = { ...requestBody, login_token: `***${this.loginToken.slice(-6)}` };
+    console.log(JSON.stringify(bodyToLog, null, 2));
+    
+    const fullUrl = `${LINKUP_API_BASE_URL}${endpoint}`;
+    console.log('🌐 URL complète:', fullUrl);
+    
+    console.log('📤 Headers envoyés:');
+    console.log('  - x-api-key:', `***${this.apiKey.slice(-6)}`);
+    console.log('  - Content-Type: application/json');
 
-    const response = await fetch(`${LINKUP_API_BASE_URL}${endpoint}`, {
+    console.log('🚀 Envoi de la requête...');
+    const response = await fetch(fullUrl, {
       method: 'POST',
       headers: {
         'x-api-key': this.apiKey,
@@ -192,14 +211,25 @@ export class LinkupClient {
       body: JSON.stringify(requestBody),
     });
 
+    console.log('📥 Réponse reçue:');
+    console.log('  - Status:', response.status, response.statusText);
+    console.log('  - OK?', response.ok);
+
     if (!response.ok) {
       const errorText = await response.text();
-      console.error(`LinkUp API error (${endpoint}):`, response.status, errorText);
+      console.error('❌ ERREUR API LinkUp:');
+      console.error('  - Endpoint:', endpoint);
+      console.error('  - Status:', response.status, response.statusText);
+      console.error('  - Body erreur:', errorText);
+      console.error('  - URL utilisée:', fullUrl);
+      console.error('  - Body envoyé:', JSON.stringify(bodyToLog, null, 2));
       throw new Error(`LinkUp API error: ${response.status} ${response.statusText} - ${errorText}`);
     }
 
     const data = await response.json();
-    console.log(`LinkUp API response (${endpoint}):`, JSON.stringify(data, null, 2));
+    console.log('✅ Réponse API réussie:');
+    console.log(JSON.stringify(data, null, 2));
+    console.log('========== MAKE REQUEST - FIN ==========\n');
     return data;
   }
 
@@ -504,12 +534,26 @@ export class LinkupClient {
    * Coût: 1 crédit = 10 résultats
    */
   async extractComments(postUrl: string, totalResults: number = 10): Promise<LinkupComment[]> {
+    console.log('\n🔍 ========== EXTRACT COMMENTS - DÉBUT ==========');
+    console.log('📥 URL originale reçue:', postUrl);
+    console.log('📊 Paramètres:', { totalResults, credits: Math.ceil(totalResults / 10) });
+    
     const cleanedUrl = cleanLinkedInUrl(postUrl);
     
-    console.log('💬 Extraction des commentaires:', {
-      url: cleanedUrl,
+    console.log('🧹 URL après nettoyage:', cleanedUrl);
+    console.log('🔄 URL modifiée?', postUrl !== cleanedUrl);
+    
+    if (postUrl !== cleanedUrl) {
+      console.log('📝 Changements effectués:');
+      console.log('  - Avant:', postUrl);
+      console.log('  - Après:', cleanedUrl);
+    }
+
+    console.log('🌐 Endpoint qui sera appelé: /posts/extract-comments');
+    console.log('📦 Body qui sera envoyé:', {
+      post_url: cleanedUrl,
       total_results: totalResults,
-      credits: Math.ceil(totalResults / 10)
+      country: 'FR',
     });
 
     const response = await this.makeRequest('/posts/extract-comments', {
@@ -520,6 +564,7 @@ export class LinkupClient {
 
     const data = linkupCommentsResponseSchema.parse(response);
     console.log(`✅ ${data.data.comments.length} commentaires récupérés (${data.data.total_available_results} disponibles)`);
+    console.log('========== EXTRACT COMMENTS - FIN ==========\n');
     
     return data.data.comments;
   }
@@ -530,12 +575,26 @@ export class LinkupClient {
    * Coût: 1 crédit = 10 résultats
    */
   async extractReactions(postUrl: string, totalResults: number = 10): Promise<LinkupReaction[]> {
+    console.log('\n🔍 ========== EXTRACT REACTIONS - DÉBUT ==========');
+    console.log('📥 URL originale reçue:', postUrl);
+    console.log('📊 Paramètres:', { totalResults, credits: Math.ceil(totalResults / 10) });
+    
     const cleanedUrl = cleanLinkedInUrl(postUrl);
     
-    console.log('👍 Extraction des réactions:', {
-      url: cleanedUrl,
+    console.log('🧹 URL après nettoyage:', cleanedUrl);
+    console.log('🔄 URL modifiée?', postUrl !== cleanedUrl);
+    
+    if (postUrl !== cleanedUrl) {
+      console.log('📝 Changements effectués:');
+      console.log('  - Avant:', postUrl);
+      console.log('  - Après:', cleanedUrl);
+    }
+
+    console.log('🌐 Endpoint qui sera appelé: /posts/reactions');
+    console.log('📦 Body qui sera envoyé:', {
+      post_url: cleanedUrl,
       total_results: totalResults,
-      credits: Math.ceil(totalResults / 10)
+      country: 'FR',
     });
 
     const response = await this.makeRequest('/posts/reactions', {
@@ -546,25 +605,55 @@ export class LinkupClient {
 
     const data = linkupReactionsResponseSchema.parse(response);
     console.log(`✅ ${data.data.reactions.length} réactions récupérées (${data.data.total_available_results} disponibles)`);
+    console.log('========== EXTRACT REACTIONS - FIN ==========\n');
     
     return data.data.reactions;
   }
 }
 
 export async function getLinkupClient(teamId: number): Promise<LinkupClient> {
+  console.log('\n🔍 ========== GET LINKUP CLIENT - DÉBUT ==========');
+  console.log('🏢 Team ID:', teamId);
+  
   const connection = await db.query.linkedinConnections.findFirst({
     where: eq(linkedinConnections.teamId, teamId),
   });
 
+  console.log('🔍 Résultat de la requête DB:');
+  console.log('  - Connexion trouvée?', !!connection);
+  
+  if (connection) {
+    console.log('  - isActive?', connection.isActive);
+    console.log('  - Login token présent?', !!connection.loginToken);
+    console.log('  - Login token longueur:', connection.loginToken?.length || 0);
+    console.log('  - Connecté le:', connection.connectedAt?.toISOString());
+    console.log('  - Dernière utilisation:', connection.lastUsedAt?.toISOString());
+    
+    const daysSinceLastUse = connection.lastUsedAt 
+      ? (Date.now() - connection.lastUsedAt.getTime()) / (1000 * 60 * 60 * 24)
+      : (connection.connectedAt ? (Date.now() - connection.connectedAt.getTime()) / (1000 * 60 * 60 * 24) : 999);
+    
+    console.log('  - Jours depuis dernière utilisation:', Math.round(daysSinceLastUse));
+    
+    if (daysSinceLastUse > 30) {
+      console.warn('⚠️ ATTENTION: Token probablement expiré (>30 jours)');
+    }
+  }
+
   if (connection && connection.isActive) {
+    console.log('✅ Connexion active - Mise à jour de lastUsedAt');
     await db
       .update(linkedinConnections)
       .set({ lastUsedAt: new Date() })
       .where(eq(linkedinConnections.teamId, teamId));
 
+    console.log('✅ Client LinkUp créé avec login_token');
+    console.log('========== GET LINKUP CLIENT - FIN ==========\n');
     return new LinkupClient(undefined, connection.loginToken);
   }
 
+  console.warn('⚠️ Aucune connexion active - Client en mode mock');
+  console.log('========== GET LINKUP CLIENT - FIN ==========\n');
   return new LinkupClient();
 }
 
