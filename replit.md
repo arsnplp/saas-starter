@@ -50,32 +50,42 @@ The backend leverages Next.js API routes and Server Actions for data operations 
     *   **Services:** `LinkedInPublisher` (OAuth-based publishing with image upload), `LinkedInPostGenerator` (GPT content creation)
     *   **Security:** Team-scoped data isolation, OAuth token auto-refresh, scheduler API secured with bearer token
 
-*   **Decision-Maker Discovery & Management (NEW - October 2025):**
-    *   **Intelligent Search:** AI-powered discovery of key decision-makers within target companies using LinkUp Profile Search API and GPT-4o relevance scoring.
+*   **Decision-Maker Discovery & Management (UNIFIED SYSTEM - October 2025):**
+    *   **Unified Intelligent Search:** AI-powered discovery combining LinkUp API precision with web search resilience for maximum coverage.
+    *   **Architecture (Orchestrated Cascade):**
+        - **Primary Path (LinkUp):** Direct LinkedIn profile search by job title → GPT-4o scoring → Full profiles with photos
+        - **Fallback Path (Web Search):** Tavily web search → GPT extracts decision-makers → Web-based LinkedIn profile discovery
+        - **Automatic Enrichment:** Multi-source cascade (company site → LinkedIn public → web) for email/phone immediately after discovery
+        - **Intelligent Deduplication:** Merges candidates from both sources by LinkedIn URL > email > name+company
     *   **Key Features:**
+        - Single-button UX: One "Trouver des décideurs" button triggers entire workflow
         - Automated search across curated job titles (CTO, CEO, Head of Innovation, Facility Manager, etc.)
-        - GPT-4o scoring (0-100) based on hierarchical level, domain relevance, and decision-making power
-        - Duplicate detection and result deduplication across searches
-        - Profile enrichment via LinkUp API to retrieve email and phone contacts
+        - GPT-4o unified scoring (0-100) for all candidates regardless of source
+        - Automatic email/phone enrichment (no manual "Enrichir" button needed)
+        - Resilient to LinkUp API failures (seamless fallback to web)
         - Persistent storage in `decision_makers` table with team scoping
-    *   **User Workflows:**
+    *   **User Workflow:**
         1. Navigate to company detail page (`/dashboard/entreprises/[id]`)
-        2. Click "Trouver des décideurs" to launch automated search
-        3. GPT scores and filters candidates (threshold: ≥60/100)
-        4. View discovered decision-makers with photos, titles, LinkedIn profiles
-        5. Click "Enrichir" to fetch email/phone via LinkUp enrichment API
-        6. Access centralized "Base de Décideurs" (`/dashboard/decideurs`) to view all contacts across companies
-    *   **Tables:** `decision_makers` (decision-maker profiles with contact data, relevance scores, enrichment status)
+        2. Click "Trouver des décideurs" → System automatically tries LinkUp, falls back to web if needed
+        3. GPT scores all candidates (threshold: ≥60/100) from both sources uniformly
+        4. Automatic multi-source enrichment finds email/phone immediately
+        5. View results with LinkedIn profiles (when found), photos, scores, AND contact info
+        6. Access centralized "Base de Décideurs" (`/dashboard/decideurs`) to view all enriched contacts
+    *   **Tables:** `decision_makers` (nullable linkedinUrl for web-found contacts without profiles)
     *   **Services:** 
-        - `findDecisionMakersForCompany` (orchestrates search, scoring, deduplication)
-        - `enrichDecisionMaker` (enriches profile with email/phone via LinkUp)
-        - `saveDecisionMakers` (persists validated candidates to database)
+        - `DecisionMakerOrchestrator.findAndEnrichDecisionMakers` (unified orchestrator)
+        - `searchViaLinkUp` (LinkUp search with GPT scoring)
+        - `searchViaWeb` (Tavily search with GPT extraction and scoring)
+        - `enrichContactInfo` (multi-source cascade: company site → LinkedIn → web)
     *   **LinkUp API Wrappers:**
         - `searchLinkedInProfiles` (search by company + title)
         - `enrichLinkedInProfile` (email/phone enrichment by name + company)
-        - `getCompanyInfo` (retrieve company details)
+    *   **Web Search Integration:**
+        - Tavily API for intelligent web search
+        - GPT-4o for contact extraction and LinkedIn profile discovery
     *   **Security:** All queries scoped to `teamId`, strict ownership validation, no cross-team data access
-    *   **Cost Optimization:** Search results cached per company to minimize API calls; enrichment performed on-demand only
+    *   **Resilience:** Circuit-breaker pattern for LinkUp failures, automatic fallback, no user intervention needed
+    *   **Cost Optimization:** LinkUp tried first (high-quality data), web search only when needed; enrichment runs once per candidate
 
 *   **Database Schema Highlights:**
     *   `users`, `teams`, `team_members`, `activity_logs`, `invitations`.

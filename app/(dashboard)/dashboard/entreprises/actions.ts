@@ -6,6 +6,7 @@ import { db } from "@/lib/db";
 import { targetCompanies, icpProfiles } from "@/lib/db/schema";
 import { eq, and } from "drizzle-orm";
 import { getUser, getTeamForUser } from "@/lib/db/queries";
+import { findAndEnrichDecisionMakers } from "@/lib/services/decision-maker-orchestrator";
 
 export async function generateCompaniesAction(formData: FormData) {
   const user = await getUser();
@@ -730,10 +731,6 @@ export async function findDecisionMakersUnifiedAction(companyId: string) {
   }
 
   try {
-    const { findAndEnrichDecisionMakers } = await import(
-      "@/lib/services/decision-maker-orchestrator"
-    );
-
     const result = await findAndEnrichDecisionMakers({
       companyId,
       teamId: team.id,

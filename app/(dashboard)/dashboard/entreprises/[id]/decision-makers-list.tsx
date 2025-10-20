@@ -62,7 +62,7 @@ export function DecisionMakersList({ decisionMakers }: { decisionMakers: Decisio
     <div className="divide-y divide-gray-200">
       {decisionMakers.map((maker) => {
         const isEnriching = enrichingIds.has(maker.id);
-        const needsEnrichment = maker.emailStatus === 'not_found' || maker.phoneStatus === 'not_found';
+        const needsEnrichment = maker.emailStatus === 'pending' || maker.phoneStatus === 'pending';
         const hasRealLinkedinUrl = maker.linkedinUrl && !maker.linkedinUrl.startsWith('temp-');
 
         return (
