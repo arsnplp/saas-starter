@@ -221,29 +221,40 @@ async function searchViaWeb(params: {
       messages: [
         {
           role: 'system',
-          content: `Tu es un expert en identification de décideurs B2B. Analyse le contenu web fourni et identifie les décideurs clés de l'entreprise "${companyName}".
+          content: `Tu es un expert en identification de décideurs B2B. Analyse le contenu web fourni et identifie TOUS les décideurs et personnes clés mentionnés pour l'entreprise "${companyName}".
 
-Retourne un JSON avec la liste des décideurs trouvés:
+**POSTES RECHERCHÉS (prioriser ces titres):**
+- Direction générale: CEO, Président, Directeur Général, PDG
+- Direction technique: CTO, DSI, Directeur Technique, Directeur Informatique  
+- Direction innovation: CDO, Directeur Innovation, Directeur Transformation
+- Direction opérationnelle: COO, Directeur Opérations, Directeur Général Délégué
+- Autres directions: DRH, DAF, Directeur Commercial, VP, etc.
+
+**INSTRUCTIONS:**
+1. Cherche les NOMS COMPLETS (prénom + nom) des personnes mentionnées
+2. Identifie leur TITRE/POSTE exact
+3. Inclus même si le titre est approximatif (ex: "Responsable", "Manager", etc.) - on filtrera après
+4. Si tu trouves plusieurs personnes, retourne-les TOUTES
+5. Même si le texte est court, extrais toute personne mentionnée avec un rôle de décision
+
+**FORMAT DE RÉPONSE (JSON STRICT):**
 {
   "contacts": [
     {
-      "name": "Prénom Nom complet",
+      "name": "Prénom Nom",
       "title": "Titre exact du poste"
     }
   ]
 }
 
-IMPORTANT:
-- Cherche uniquement les postes de direction et décision (CEO, CTO, Directeur, VP, etc.)
-- Ignore les postes opérationnels ou junior
-- Retourne UNIQUEMENT un JSON valide`,
+Réponds UNIQUEMENT avec le JSON, sans texte avant ou après.`,
         },
         {
           role: 'user',
-          content: `Entreprise: ${companyName}\n\nContenu:\n${combinedContent}`,
+          content: `Entreprise cible: ${companyName}\n\nRésultats web à analyser:\n${combinedContent}`,
         },
       ],
-      temperature: 0.3,
+      temperature: 0.2,
       response_format: { type: 'json_object' },
     });
 
