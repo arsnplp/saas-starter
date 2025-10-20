@@ -139,7 +139,7 @@ export function DecisionMakersList({ decisionMakers }: { decisionMakers: Decisio
                     {maker.email ? (
                       <a
                         href={`mailto:${maker.email}`}
-                        className="text-linkedin-blue hover:underline truncate"
+                        className="text-linkedin-blue hover:underline break-all"
                       >
                         {maker.email}
                       </a>
@@ -156,7 +156,7 @@ export function DecisionMakersList({ decisionMakers }: { decisionMakers: Decisio
                     {maker.phone ? (
                       <a
                         href={`tel:${maker.phone}`}
-                        className="text-linkedin-blue hover:underline"
+                        className="text-linkedin-blue hover:underline whitespace-nowrap"
                       >
                         {maker.phone}
                       </a>
