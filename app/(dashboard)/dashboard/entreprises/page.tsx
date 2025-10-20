@@ -4,7 +4,7 @@ import { and, eq, sql } from "drizzle-orm";
 import Link from "next/link";
 
 import { db } from "@/lib/db";
-import { targetCompanies, icpProfiles } from "@/lib/db/schema";
+import { targetCompanies, icpProfiles, decisionMakers } from "@/lib/db/schema";
 import { getUser, getTeamForUser } from "@/lib/db/queries";
 import { CompanyContact } from "./company-contact";
 
@@ -50,6 +50,19 @@ export default async function EntreprisesPage({
     where: and(...conditions),
     orderBy: (t, { desc }) => [desc(t.createdAt)],
   });
+
+  const decisionMakerCounts = await db
+    .select({
+      companyId: decisionMakers.companyId,
+      count: sql<number>`count(*)::int`,
+    })
+    .from(decisionMakers)
+    .where(eq(decisionMakers.teamId, team.id))
+    .groupBy(decisionMakers.companyId);
+
+  const decisionMakerCountMap = new Map(
+    decisionMakerCounts.map((item) => [item.companyId, item.count])
+  );
 
   const icps = await db.query.icpProfiles.findMany({
     where: eq(icpProfiles.teamId, team.id),
@@ -178,7 +191,7 @@ export default async function EntreprisesPage({
                   Industrie
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Raison
+                  Décideurs
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Contact
@@ -192,36 +205,47 @@ export default async function EntreprisesPage({
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
-              {companies.map((company) => (
-                <tr key={company.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-3">
-                      <div>
-                        <div className="font-medium text-gray-900">{company.name}</div>
-                        {company.linkedinUrl && (
-                          <a
-                            href={
-                              company.linkedinUrl.startsWith("http")
-                                ? company.linkedinUrl
-                                : `https://${company.linkedinUrl}`
-                            }
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-xs text-[#0A66C2] hover:underline"
+              {companies.map((company) => {
+                const decisionMakerCount = decisionMakerCountMap.get(company.id) || 0;
+                return (
+                  <tr key={company.id} className="hover:bg-gray-50">
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-3">
+                        <div>
+                          <Link
+                            href={`/dashboard/entreprises/${company.id}`}
+                            className="font-medium text-gray-900 hover:text-[#0A66C2] transition-colors"
                           >
-                            Voir sur LinkedIn →
-                          </a>
-                        )}
+                            {company.name}
+                          </Link>
+                          {company.linkedinUrl && (
+                            <a
+                              href={
+                                company.linkedinUrl.startsWith("http")
+                                  ? company.linkedinUrl
+                                  : `https://${company.linkedinUrl}`
+                              }
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-xs text-[#0A66C2] hover:underline block mt-1"
+                            >
+                              Voir sur LinkedIn →
+                            </a>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  </td>
+                    </td>
                   <td className="px-6 py-4">
                     <span className="text-sm text-gray-600">{company.industry || "—"}</span>
                   </td>
                   <td className="px-6 py-4">
-                    <span className="text-sm text-gray-600 line-clamp-2">
-                      {company.reason || "—"}
-                    </span>
+                    <Link
+                      href={`/dashboard/entreprises/${company.id}`}
+                      className="inline-flex items-center gap-1 text-sm font-medium text-[#0A66C2] hover:underline"
+                    >
+                      <span>{decisionMakerCount}</span>
+                      <span className="text-gray-500">décideur{decisionMakerCount > 1 ? 's' : ''}</span>
+                    </Link>
                   </td>
                   <td className="px-6 py-4">
                     <CompanyContact company={company} />
