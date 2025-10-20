@@ -303,7 +303,8 @@ async function findLinkedInProfile(params: {
   try {
     console.log(`   🔍 Recherche profil LinkedIn: ${params.name}`);
 
-    const searchQuery = `site:linkedin.com/in "${params.name}" "${params.companyName}"`;
+    // Recherche ciblée sur LinkedIn
+    const searchQuery = `"${params.name}" "${params.companyName}" LinkedIn profil`;
 
     const response = await fetch('https://api.tavily.com/search', {
       method: 'POST',
@@ -311,7 +312,8 @@ async function findLinkedInProfile(params: {
       body: JSON.stringify({
         api_key: tavilyApiKey,
         query: searchQuery,
-        max_results: 3,
+        max_results: 5,
+        include_raw_content: true,
       }),
     });
 
@@ -320,13 +322,66 @@ async function findLinkedInProfile(params: {
     const data = await response.json();
     const results = data.results || [];
 
+    if (results.length === 0) {
+      console.log(`   ⚠️ Aucun résultat web`);
+      return null;
+    }
+
+    // D'abord, chercher dans les URLs directes
     for (const result of results) {
       const url = result.url || '';
       if (url.includes('linkedin.com/in/')) {
-        const cleanUrl = url.split('?')[0];
-        console.log(`   ✅ Profil trouvé: ${cleanUrl}`);
+        const cleanUrl = url.split('?')[0].split('#')[0];
+        console.log(`   ✅ Profil trouvé (URL): ${cleanUrl}`);
         return cleanUrl;
       }
+    }
+
+    // Si pas trouvé dans les URLs, utiliser GPT pour extraire depuis le contenu
+    const combinedContent = results
+      .map((r: any) => `URL: ${r.url}\nTitre: ${r.title}\nContenu: ${r.content || r.raw_content || ''}`)
+      .join('\n\n---\n\n')
+      .slice(0, 4000);
+
+    console.log(`   🤖 Extraction GPT du profil LinkedIn...`);
+
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4o',
+      messages: [
+        {
+          role: 'system',
+          content: `Tu es un expert en extraction d'URLs LinkedIn. Analyse le contenu fourni et trouve l'URL du profil LinkedIn de la personne spécifiée.
+
+**FORMAT DE RÉPONSE (JSON STRICT):**
+{
+  "linkedin_url": "URL complète du profil LinkedIn ou null"
+}
+
+**RÈGLES:**
+- Cherche uniquement les URLs de type linkedin.com/in/[nom]
+- Retourne l'URL COMPLÈTE (avec https://)
+- Si aucune URL n'est trouvée, retourne {"linkedin_url": null}
+- Ne retourne PAS les URLs de pages entreprise (linkedin.com/company/)`,
+        },
+        {
+          role: 'user',
+          content: `Personne recherchée: ${params.name}
+Entreprise: ${params.companyName}
+
+Résultats web:
+${combinedContent}`,
+        },
+      ],
+      temperature: 0.1,
+      response_format: { type: 'json_object' },
+    });
+
+    const result = JSON.parse(completion.choices[0].message.content || '{}');
+    const linkedinUrl = result.linkedin_url;
+
+    if (linkedinUrl && linkedinUrl.includes('linkedin.com/in/')) {
+      console.log(`   ✅ Profil trouvé (GPT): ${linkedinUrl}`);
+      return linkedinUrl;
     }
 
     console.log(`   ⚠️ Profil LinkedIn non trouvé`);
