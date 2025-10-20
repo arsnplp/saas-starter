@@ -6,7 +6,6 @@ import Link from "next/link";
 import { db } from "@/lib/db";
 import { targetCompanies, icpProfiles, decisionMakers } from "@/lib/db/schema";
 import { getUser, getTeamForUser } from "@/lib/db/queries";
-import { CompanyContact } from "./company-contact";
 
 export const dynamic = "force-dynamic";
 
@@ -194,9 +193,6 @@ export default async function EntreprisesPage({
                   Décideurs
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Contact
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Statut
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -246,9 +242,6 @@ export default async function EntreprisesPage({
                         <span>{decisionMakerCount}</span>
                         <span className="text-gray-500">décideur{decisionMakerCount > 1 ? 's' : ''}</span>
                       </Link>
-                    </td>
-                    <td className="px-6 py-4">
-                      <CompanyContact company={company} />
                     </td>
                     <td className="px-6 py-4">
                       <CompanyStatusBadge status={company.status} />
