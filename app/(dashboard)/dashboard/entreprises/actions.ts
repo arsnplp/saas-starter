@@ -200,7 +200,24 @@ Réponds UNIQUEMENT avec le JSON, sans texte avant ou après.`;
 }
 
 // ========== FIND CONTACT ACTION ==========
+/**
+ * ANCIEN: Recherche web de contacts
+ * @deprecated Utilisez findDecisionMakersUnifiedAction à la place
+ */
 export async function findContactAction(formData: FormData) {
+  const companyId = String(formData.get("companyId") || "");
+  
+  if (!companyId) {
+    return { success: false, message: "ID entreprise manquant" };
+  }
+
+  return findDecisionMakersUnifiedAction(companyId);
+}
+
+/**
+ * VERSION ORIGINALE (conservée pour référence, non utilisée)
+ */
+async function findContactActionOriginal(formData: FormData) {
   const user = await getUser();
   if (!user) {
     return { success: false, message: "Non authentifié" };
@@ -692,9 +709,10 @@ async function searchSingleLinkedInProfile(
 }
 
 /**
- * Lance la recherche intelligente de décideurs pour une entreprise
+ * NOUVELLE ACTION UNIFIÉE : Recherche intelligente de décideurs avec enrichissement automatique
+ * Combine LinkUp (profils + scores) et Web Search (enrichissement automatique)
  */
-export async function findDecisionMakersAction(companyId: string) {
+export async function findDecisionMakersUnifiedAction(companyId: string) {
   const user = await getUser();
   if (!user) {
     return {
@@ -712,44 +730,46 @@ export async function findDecisionMakersAction(companyId: string) {
   }
 
   try {
-    const { findDecisionMakersForCompany, saveDecisionMakers } = await import(
-      "@/lib/services/decision-makers"
+    const { findAndEnrichDecisionMakers } = await import(
+      "@/lib/services/decision-maker-orchestrator"
     );
 
-    const candidates = await findDecisionMakersForCompany({
-      companyId,
-      teamId: team.id,
-      maxResults: 10,
-    });
-
-    if (candidates.length === 0) {
-      return {
-        success: false,
-        message: "Aucun décideur trouvé pour cette entreprise",
-      };
-    }
-
-    await saveDecisionMakers({
-      candidates,
+    const result = await findAndEnrichDecisionMakers({
       companyId,
       teamId: team.id,
     });
 
     revalidatePath(`/dashboard/entreprises/${companyId}`);
     revalidatePath("/dashboard/entreprises");
+    revalidatePath("/dashboard/decideurs");
+
+    if (result.count === 0) {
+      return {
+        success: false,
+        message: "Aucun décideur trouvé pour cette entreprise",
+      };
+    }
 
     return {
       success: true,
-      message: `${candidates.length} décideur(s) trouvé(s) et sauvegardé(s)`,
-      count: candidates.length,
+      message: `${result.count} décideur(s) trouvé(s) et enrichi(s) automatiquement`,
+      count: result.count,
     };
   } catch (error: any) {
-    console.error("❌ Erreur lors de la recherche de décideurs:", error);
+    console.error("❌ Erreur lors de la recherche unifiée:", error);
     return {
       success: false,
       message: error.message || "Erreur lors de la recherche de décideurs",
     };
   }
+}
+
+/**
+ * ANCIEN: Lance la recherche intelligente de décideurs pour une entreprise
+ * @deprecated Utilisez findDecisionMakersUnifiedAction à la place
+ */
+export async function findDecisionMakersAction(companyId: string) {
+  return findDecisionMakersUnifiedAction(companyId);
 }
 
 /**
