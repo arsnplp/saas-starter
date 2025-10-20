@@ -577,3 +577,67 @@ export const linkedinPostsRelations = relations(linkedinPosts, ({ one }) => ({
         references: [users.id],
     }),
 }));
+
+export const decisionMakers = pgTable(
+    'decision_makers',
+    {
+        id: uuid('id').defaultRandom().primaryKey(),
+        teamId: integer('team_id').references(() => teams.id).notNull(),
+        companyId: uuid('company_id').references(() => targetCompanies.id).notNull(),
+        firstName: varchar('first_name', { length: 255 }),
+        lastName: varchar('last_name', { length: 255 }),
+        fullName: text('full_name').notNull(),
+        title: text('title'),
+        email: varchar('email', { length: 255 }),
+        phone: varchar('phone', { length: 50 }),
+        linkedinUrl: varchar('linkedin_url', { length: 1024 }).notNull(),
+        profilePictureUrl: text('profile_picture_url'),
+        relevanceScore: integer('relevance_score'),
+        enrichmentData: jsonb('enrichment_data').$type<{
+            headline?: string;
+            location?: string;
+            industry?: string;
+            summary?: string;
+            experience?: Array<{
+                company: string;
+                title: string;
+                description?: string;
+                start_date?: string;
+                end_date?: string;
+            }>;
+            education?: Array<{
+                school: string;
+                degree?: string;
+                field_of_study?: string;
+                start_date?: string;
+                end_date?: string;
+            }>;
+            skills?: string[];
+        }>(),
+        emailStatus: varchar('email_status', { length: 20 }).notNull().default('not_found'),
+        phoneStatus: varchar('phone_status', { length: 20 }).notNull().default('not_found'),
+        status: varchar('status', { length: 50 }).notNull().default('discovered'),
+        notes: text('notes'),
+        contactedAt: timestamp('contacted_at'),
+        createdAt: timestamp('created_at').notNull().defaultNow(),
+        updatedAt: timestamp('updated_at').notNull().defaultNow(),
+    },
+    (t) => ({
+        teamIdx: index('decision_makers_team_idx').on(t.teamId),
+        companyIdx: index('decision_makers_company_idx').on(t.companyId),
+        emailStatusIdx: index('decision_makers_email_status_idx').on(t.emailStatus),
+        statusIdx: index('decision_makers_status_idx').on(t.status),
+        linkedinUrlUnique: unique('decision_makers_linkedin_url_team_unique').on(t.linkedinUrl, t.teamId),
+    })
+);
+
+export const decisionMakersRelations = relations(decisionMakers, ({ one }) => ({
+    team: one(teams, {
+        fields: [decisionMakers.teamId],
+        references: [teams.id],
+    }),
+    company: one(targetCompanies, {
+        fields: [decisionMakers.companyId],
+        references: [targetCompanies.id],
+    }),
+}));
