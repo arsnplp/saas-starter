@@ -590,7 +590,7 @@ export const decisionMakers = pgTable(
         title: text('title'),
         email: varchar('email', { length: 255 }),
         phone: varchar('phone', { length: 50 }),
-        linkedinUrl: varchar('linkedin_url', { length: 1024 }).notNull(),
+        linkedinUrl: varchar('linkedin_url', { length: 1024 }),
         profilePictureUrl: text('profile_picture_url'),
         relevanceScore: integer('relevance_score'),
         enrichmentData: jsonb('enrichment_data').$type<{
