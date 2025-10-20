@@ -273,6 +273,7 @@ export async function findContactAction(formData: FormData) {
     // Step 3: Process ALL contacts found
     console.log(`\n🔍 ÉTAPE 3: Traitement de tous les contacts...`);
     const { enrichDecisionMaker } = await import("@/lib/services/decision-makers");
+    const { enrichContactInfo } = await import("@/lib/services/contact-enrichment");
     const { decisionMakers } = await import("@/lib/db/schema");
     let successCount = 0;
     let enrichedCount = 0;
@@ -285,72 +286,126 @@ export async function findContactAction(formData: FormData) {
         const linkedInResult = await searchSingleLinkedInProfile(company, contact);
         
         let decisionMakerId: string | null = null;
+        let linkedinUrl = '';
+        let profilePictureUrl: string | null = null;
         
         if (linkedInResult.found && linkedInResult.contact) {
-          // Found LinkedIn profile - save to database
           console.log(`      ✅ Profil LinkedIn trouvé`);
-          
-          const [savedMaker] = await db.insert(decisionMakers)
-            .values({
-              teamId: team.id,
-              companyId: companyId,
-              fullName: linkedInResult.contact.name,
-              firstName: contact.firstName,
-              lastName: contact.lastName,
-              title: linkedInResult.contact.title,
-              linkedinUrl: linkedInResult.contact.linkedinUrl,
-              profilePictureUrl: linkedInResult.contact.profilePicture || null,
-              emailStatus: 'not_found',
-              phoneStatus: 'not_found',
-              status: 'discovered',
-              createdAt: new Date(),
-              updatedAt: new Date(),
-            })
-            .returning({ id: decisionMakers.id })
-            .onConflictDoNothing();
-          
-          decisionMakerId = savedMaker?.id || null;
-          successCount++;
-          
-          // Try to enrich with email/phone
-          if (decisionMakerId) {
-            try {
-              console.log(`      💎 Enrichissement en cours...`);
-              await enrichDecisionMaker({
-                decisionMakerId,
-                teamId: team.id,
-              });
-              enrichedCount++;
-              console.log(`      ✅ Enrichi avec succès`);
-            } catch (enrichError) {
-              console.log(`      ⚠️ Enrichissement échoué (normal si pas de données)`);
-            }
-          }
+          linkedinUrl = linkedInResult.contact.linkedinUrl;
+          profilePictureUrl = linkedInResult.contact.profilePicture || null;
         } else {
-          // No LinkedIn profile found - save basic info anyway
-          console.log(`      ⚠️ Profil LinkedIn non trouvé - sauvegarde basique`);
-          
-          // Use a temporary unique identifier when no LinkedIn URL is found
-          const tempLinkedinUrl = `temp-${team.id}-${companyId}-${contact.firstName}-${contact.lastName}`.toLowerCase().replace(/\s+/g, '-');
-          
-          await db.insert(decisionMakers)
-            .values({
-              teamId: team.id,
-              companyId: companyId,
-              fullName: `${contact.firstName} ${contact.lastName}`,
-              firstName: contact.firstName,
-              lastName: contact.lastName,
-              title: contact.title,
-              linkedinUrl: tempLinkedinUrl,
-              emailStatus: 'not_found',
-              phoneStatus: 'not_found',
-              status: 'discovered',
-              createdAt: new Date(),
-              updatedAt: new Date(),
-            })
-            .onConflictDoNothing();
-          
-          successCount++;
+          console.log(`      ⚠️ Profil LinkedIn non trouvé`);
+          linkedinUrl = `temp-${team.id}-${companyId}-${contact.firstName}-${contact.lastName}`.toLowerCase().replace(/\s+/g, '-');
+        }
+        
+        // Save to database first
+        const [savedMaker] = await db.insert(decisionMakers)
+          .values({
+            teamId: team.id,
+            companyId: companyId,
+            fullName: linkedInResult.found ? linkedInResult.contact!.name : `${contact.firstName} ${contact.lastName}`,
+            firstName: contact.firstName,
+            lastName: contact.lastName,
+            title: linkedInResult.found ? linkedInResult.contact!.title : contact.title,
+            linkedinUrl,
+            profilePictureUrl,
+            emailStatus: 'not_found',
+            phoneStatus: 'not_found',
+            status: 'discovered',
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          })
+          .returning({ id: decisionMakers.id })
+          .onConflictDoNothing();
+        
+        decisionMakerId = savedMaker?.id || null;
+        successCount++;
+        
+        // Multi-source enrichment
+        if (decisionMakerId) {
+          try {
+            console.log(`      🔎 Enrichissement multi-sources...`);
+            
+            let currentEmail: string | null = null;
+            let currentPhone: string | null = null;
+            
+            // First try LinkUp enrichment if we have a real LinkedIn URL
+            if (linkedInResult.found && linkedinUrl && !linkedinUrl.startsWith('temp-')) {
+              try {
+                await enrichDecisionMaker({
+                  decisionMakerId,
+                  teamId: team.id,
+                });
+                console.log(`      ✅ Enrichissement LinkUp terminé`);
+                
+                // Fetch current data to see what LinkUp found
+                const updatedMaker = await db.query.decisionMakers.findFirst({
+                  where: eq(decisionMakers.id, decisionMakerId),
+                });
+                
+                if (updatedMaker) {
+                  currentEmail = updatedMaker.email;
+                  currentPhone = updatedMaker.phone;
+                  
+                  if (currentEmail || currentPhone) {
+                    console.log(`      ✅ LinkUp a trouvé: ${currentEmail ? 'email' : ''}${currentEmail && currentPhone ? ' + ' : ''}${currentPhone ? 'téléphone' : ''}`);
+                  }
+                }
+              } catch (enrichError) {
+                console.log(`      ⚠️ LinkUp enrichissement échoué, passage aux autres sources...`);
+              }
+            }
+            
+            // Only search if we still need email or phone
+            if (!currentEmail || !currentPhone) {
+              console.log(`      🌐 Recherche web pour coordonnées manquantes...`);
+              
+              const enrichmentResult = await enrichContactInfo(
+                {
+                  fullName: `${contact.firstName} ${contact.lastName}`,
+                  firstName: contact.firstName,
+                  lastName: contact.lastName,
+                  title: contact.title,
+                  companyName: company.name,
+                  companyWebsite: company.website || undefined,
+                  linkedinUrl: linkedInResult.found ? linkedinUrl : undefined,
+                },
+                currentEmail,
+                currentPhone
+              );
+              
+              if (enrichmentResult) {
+                // Update with found contact information
+                const updateData: any = {
+                  updatedAt: new Date(),
+                };
+                
+                if (enrichmentResult.email && !currentEmail) {
+                  updateData.email = enrichmentResult.email;
+                  updateData.emailStatus = 'found';
+                }
+                
+                if (enrichmentResult.phone && !currentPhone) {
+                  updateData.phone = enrichmentResult.phone;
+                  updateData.phoneStatus = 'found';
+                }
+                
+                await db.update(decisionMakers)
+                  .set(updateData)
+                  .where(eq(decisionMakers.id, decisionMakerId));
+                
+                enrichedCount++;
+                console.log(`      ✅ Enrichi avec succès via ${enrichmentResult.source}`);
+              } else {
+                console.log(`      ⚠️ Aucune coordonnée supplémentaire trouvée`);
+              }
+            } else {
+              console.log(`      ✅ Toutes les coordonnées déjà trouvées par LinkUp`);
+              enrichedCount++;
+            }
+          } catch (enrichError) {
+            console.log(`      ⚠️ Enrichissement échoué:`, enrichError);
+          }
         }
       } catch (contactError) {
         console.error(`      ❌ Erreur pour ${contact.firstName} ${contact.lastName}:`, contactError);
