@@ -50,6 +50,33 @@ The backend leverages Next.js API routes and Server Actions for data operations 
     *   **Services:** `LinkedInPublisher` (OAuth-based publishing with image upload), `LinkedInPostGenerator` (GPT content creation)
     *   **Security:** Team-scoped data isolation, OAuth token auto-refresh, scheduler API secured with bearer token
 
+*   **Decision-Maker Discovery & Management (NEW - October 2025):**
+    *   **Intelligent Search:** AI-powered discovery of key decision-makers within target companies using LinkUp Profile Search API and GPT-4o relevance scoring.
+    *   **Key Features:**
+        - Automated search across curated job titles (CTO, CEO, Head of Innovation, Facility Manager, etc.)
+        - GPT-4o scoring (0-100) based on hierarchical level, domain relevance, and decision-making power
+        - Duplicate detection and result deduplication across searches
+        - Profile enrichment via LinkUp API to retrieve email and phone contacts
+        - Persistent storage in `decision_makers` table with team scoping
+    *   **User Workflows:**
+        1. Navigate to company detail page (`/dashboard/entreprises/[id]`)
+        2. Click "Trouver des décideurs" to launch automated search
+        3. GPT scores and filters candidates (threshold: ≥60/100)
+        4. View discovered decision-makers with photos, titles, LinkedIn profiles
+        5. Click "Enrichir" to fetch email/phone via LinkUp enrichment API
+        6. Access centralized "Base de Décideurs" (`/dashboard/decideurs`) to view all contacts across companies
+    *   **Tables:** `decision_makers` (decision-maker profiles with contact data, relevance scores, enrichment status)
+    *   **Services:** 
+        - `findDecisionMakersForCompany` (orchestrates search, scoring, deduplication)
+        - `enrichDecisionMaker` (enriches profile with email/phone via LinkUp)
+        - `saveDecisionMakers` (persists validated candidates to database)
+    *   **LinkUp API Wrappers:**
+        - `searchLinkedInProfiles` (search by company + title)
+        - `enrichLinkedInProfile` (email/phone enrichment by name + company)
+        - `getCompanyInfo` (retrieve company details)
+    *   **Security:** All queries scoped to `teamId`, strict ownership validation, no cross-team data access
+    *   **Cost Optimization:** Search results cached per company to minimize API calls; enrichment performed on-demand only
+
 *   **Database Schema Highlights:**
     *   `users`, `teams`, `team_members`, `activity_logs`, `invitations`.
     *   `prospect_candidates`: Staging table for LinkedIn engagements.
@@ -57,6 +84,7 @@ The backend leverages Next.js API routes and Server Actions for data operations 
     *   `linkedinConnections`: LinkUp authentication (login_token per team).
     *   `linkedin_oauth_credentials`: OAuth tokens (access_token, refresh_token, expiry) with auto-refresh logic.
     *   `target_companies`: GPT-generated target companies with status tracking and `contactProfile` JSONB for found contacts.
+    *   `decision_makers`: Decision-maker profiles with contact information (email, phone), LinkedIn URL, relevance scores, enrichment status, and team/company associations.
     *   `messages`: Outbound communications.
     *   `icp_profiles`: Ideal Customer Profile definitions, including `problem_statement` and `ideal_customer_example` for enhanced AI scoring.
 
