@@ -235,29 +235,30 @@ export default async function EntreprisesPage({
                         </div>
                       </div>
                     </td>
-                  <td className="px-6 py-4">
-                    <span className="text-sm text-gray-600">{company.industry || "—"}</span>
-                  </td>
-                  <td className="px-6 py-4">
-                    <Link
-                      href={`/dashboard/entreprises/${company.id}`}
-                      className="inline-flex items-center gap-1 text-sm font-medium text-[#0A66C2] hover:underline"
-                    >
-                      <span>{decisionMakerCount}</span>
-                      <span className="text-gray-500">décideur{decisionMakerCount > 1 ? 's' : ''}</span>
-                    </Link>
-                  </td>
-                  <td className="px-6 py-4">
-                    <CompanyContact company={company} />
-                  </td>
-                  <td className="px-6 py-4">
-                    <CompanyStatusBadge status={company.status} />
-                  </td>
-                  <td className="px-6 py-4">
-                    <CompanyActions company={company} />
-                  </td>
-                </tr>
-              ))}
+                    <td className="px-6 py-4">
+                      <span className="text-sm text-gray-600">{company.industry || "—"}</span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <Link
+                        href={`/dashboard/entreprises/${company.id}`}
+                        className="inline-flex items-center gap-1 text-sm font-medium text-[#0A66C2] hover:underline"
+                      >
+                        <span>{decisionMakerCount}</span>
+                        <span className="text-gray-500">décideur{decisionMakerCount > 1 ? 's' : ''}</span>
+                      </Link>
+                    </td>
+                    <td className="px-6 py-4">
+                      <CompanyContact company={company} />
+                    </td>
+                    <td className="px-6 py-4">
+                      <CompanyStatusBadge status={company.status} />
+                    </td>
+                    <td className="px-6 py-4">
+                      <CompanyActions company={company} />
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
