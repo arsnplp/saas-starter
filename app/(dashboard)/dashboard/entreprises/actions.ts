@@ -535,6 +535,73 @@ Réponds UNIQUEMENT avec le JSON, sans texte avant ou après.`;
   }
 }
 
+// Step 3a: Fallback web search for LinkedIn profile
+async function searchLinkedInProfileViaWeb(
+  contact: { firstName: string; lastName: string; title: string },
+  companyName: string
+): Promise<{
+  found: boolean;
+  contact?: { name: string; title: string; linkedinUrl: string };
+}> {
+  const tavilyApiKey = process.env.TAVILY_API_KEY;
+  
+  if (!tavilyApiKey) {
+    return { found: false };
+  }
+
+  try {
+    console.log(`   🌐 Recherche web du profil LinkedIn...`);
+    
+    const searchQuery = `site:linkedin.com/in "${contact.firstName} ${contact.lastName}" "${companyName}"`;
+
+    const response = await fetch('https://api.tavily.com/search', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        api_key: tavilyApiKey,
+        query: searchQuery,
+        max_results: 3,
+      }),
+    });
+
+    if (!response.ok) {
+      return { found: false };
+    }
+
+    const data = await response.json();
+    const results = data.results || [];
+    
+    if (results.length === 0) {
+      return { found: false };
+    }
+
+    // Extract LinkedIn URL from first result
+    const firstResult = results[0];
+    const linkedinUrlMatch = firstResult.url.match(/linkedin\.com\/in\/[^/?]+/);
+    
+    if (linkedinUrlMatch) {
+      const linkedinUrl = linkedinUrlMatch[0];
+      console.log(`   ✅ Profil LinkedIn trouvé via web: ${linkedinUrl}`);
+      
+      return {
+        found: true,
+        contact: {
+          name: `${contact.firstName} ${contact.lastName}`,
+          title: contact.title,
+          linkedinUrl: `https://${linkedinUrl}`,
+        },
+      };
+    }
+
+    return { found: false };
+  } catch (error) {
+    console.error(`   ❌ Erreur recherche web LinkedIn:`, error);
+    return { found: false };
+  }
+}
+
 // Step 3: Search a single LinkedIn profile with LinkUp
 async function searchSingleLinkedInProfile(
   company: any,
@@ -557,15 +624,15 @@ async function searchSingleLinkedInProfile(
     : null;
 
   if (!companyUrl) {
-    console.log(`   ⚠️ Pas d'URL LinkedIn pour l'entreprise, recherche impossible`);
-    return { found: false };
+    console.log(`   ⚠️ Pas d'URL LinkedIn pour l'entreprise, recherche web de secours...`);
+    return searchLinkedInProfileViaWeb(contact, company.name);
   }
 
   const loginToken = process.env.LINKUP_LOGIN_TOKEN;
   
   if (!loginToken) {
-    console.log(`   ⚠️ LINKUP_LOGIN_TOKEN non disponible, impossible d'utiliser LinkUp`);
-    return { found: false };
+    console.log(`   ⚠️ LINKUP_LOGIN_TOKEN non disponible, recherche web de secours...`);
+    return searchLinkedInProfileViaWeb(contact, company.name);
   }
 
   const searchParams = {
@@ -598,7 +665,7 @@ async function searchSingleLinkedInProfile(
       
       if (profiles.length > 0) {
         const profile = profiles[0];
-        console.log(`   ✅ Profil LinkedIn trouvé: ${profile.name}`);
+        console.log(`   ✅ Profil LinkedIn trouvé via LinkUp: ${profile.name}`);
         return {
           found: true,
           contact: {
@@ -610,17 +677,18 @@ async function searchSingleLinkedInProfile(
           foundWithQuery: JSON.stringify({ firstName: contact.firstName, lastName: contact.lastName }),
         };
       } else {
-        console.log(`   ⚠️ Aucun profil dans la réponse LinkUp`);
+        console.log(`   ⚠️ LinkUp n'a rien trouvé, recherche web de secours...`);
       }
     } else {
       const errorText = await response.text();
-      console.log(`   ❌ Erreur LinkUp: ${errorText.slice(0, 200)}`);
+      console.log(`   ❌ Erreur LinkUp (${response.status}), recherche web de secours...`);
     }
   } catch (error) {
-    console.error(`   ❌ Erreur LinkUp: ${error}`);
+    console.error(`   ❌ Exception LinkUp, recherche web de secours...`);
   }
 
-  return { found: false };
+  // Fallback to web search if LinkUp failed or found nothing
+  return searchLinkedInProfileViaWeb(contact, company.name);
 }
 
 /**
