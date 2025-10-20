@@ -270,55 +270,100 @@ export async function findContactAction(formData: FormData) {
       };
     }
 
-    // Step 3: Use LinkUp to find LinkedIn profiles
-    console.log(`\n🔍 ÉTAPE 3: Recherche LinkUp avec infos précises...`);
-    const result = await searchLinkedInProfiles(company, extractedContacts);
+    // Step 3: Process ALL contacts found
+    console.log(`\n🔍 ÉTAPE 3: Traitement de tous les contacts...`);
+    const { enrichDecisionMaker } = await import("@/lib/services/decision-makers");
+    const { decisionMakers } = await import("@/lib/db/schema");
+    let successCount = 0;
+    let enrichedCount = 0;
 
-    let contactData;
-    let successMessage;
-
-    if (result.found) {
-      // Contact found via LinkUp - full profile with LinkedIn URL
-      contactData = {
-        name: result.contact!.name,
-        title: result.contact!.title,
-        linkedinUrl: result.contact!.linkedinUrl,
-        searchMethod: 'web_linkup',
-        foundWithQuery: result.foundWithQuery!,
-      };
-      successMessage = `Contact trouvé : ${result.contact!.name} (${result.contact!.title})`;
-      console.log(`   ✅ Contact enrichi via LinkUp`);
-    } else {
-      // Fallback: Save contact from web research (without LinkedIn profile URL)
-      const firstContact = extractedContacts[0];
-      contactData = {
-        name: `${firstContact.firstName} ${firstContact.lastName}`,
-        title: firstContact.title,
-        linkedinUrl: null,
-        searchMethod: 'web_only',
-        source: 'Trouvé via recherche web (Tavily + GPT)',
-      };
-      successMessage = `Contact identifié : ${firstContact.firstName} ${firstContact.lastName} (${firstContact.title}) - Recherchez-le manuellement sur LinkedIn`;
-      console.log(`   ℹ️ Contact sauvegardé depuis le web (LinkUp n'a pas trouvé le profil)`);
+    for (const contact of extractedContacts) {
+      try {
+        console.log(`\n   👤 Traitement: ${contact.firstName} ${contact.lastName}`);
+        
+        // Search for LinkedIn profile
+        const linkedInResult = await searchSingleLinkedInProfile(company, contact);
+        
+        let decisionMakerId: string | null = null;
+        
+        if (linkedInResult.found && linkedInResult.contact) {
+          // Found LinkedIn profile - save to database
+          console.log(`      ✅ Profil LinkedIn trouvé`);
+          
+          const [savedMaker] = await db.insert(decisionMakers)
+            .values({
+              teamId: team.id,
+              companyId: companyId,
+              fullName: linkedInResult.contact.name,
+              firstName: contact.firstName,
+              lastName: contact.lastName,
+              title: linkedInResult.contact.title,
+              linkedinUrl: linkedInResult.contact.linkedinUrl,
+              profilePictureUrl: linkedInResult.contact.profilePicture || null,
+              emailStatus: 'not_found',
+              phoneStatus: 'not_found',
+              status: 'discovered',
+              createdAt: new Date(),
+              updatedAt: new Date(),
+            })
+            .returning({ id: decisionMakers.id })
+            .onConflictDoNothing();
+          
+          decisionMakerId = savedMaker?.id || null;
+          successCount++;
+          
+          // Try to enrich with email/phone
+          if (decisionMakerId) {
+            try {
+              console.log(`      💎 Enrichissement en cours...`);
+              await enrichDecisionMaker({
+                decisionMakerId,
+                teamId: team.id,
+              });
+              enrichedCount++;
+              console.log(`      ✅ Enrichi avec succès`);
+            } catch (enrichError) {
+              console.log(`      ⚠️ Enrichissement échoué (normal si pas de données)`);
+            }
+          }
+        } else {
+          // No LinkedIn profile found - save basic info anyway
+          console.log(`      ⚠️ Profil LinkedIn non trouvé - sauvegarde basique`);
+          
+          await db.insert(decisionMakers)
+            .values({
+              teamId: team.id,
+              companyId: companyId,
+              fullName: `${contact.firstName} ${contact.lastName}`,
+              firstName: contact.firstName,
+              lastName: contact.lastName,
+              title: contact.title,
+              linkedinUrl: '',
+              emailStatus: 'not_found',
+              phoneStatus: 'not_found',
+              status: 'discovered',
+              createdAt: new Date(),
+              updatedAt: new Date(),
+            })
+            .onConflictDoNothing();
+          
+          successCount++;
+        }
+      } catch (contactError) {
+        console.error(`      ❌ Erreur pour ${contact.firstName} ${contact.lastName}:`, contactError);
+      }
     }
 
-    // Update company with contact info
-    await db.update(targetCompanies)
-      .set({
-        contactProfile: contactData,
-        updatedAt: new Date(),
-      })
-      .where(and(
-        eq(targetCompanies.id, companyId),
-        eq(targetCompanies.teamId, team.id)
-      ));
-
     revalidatePath("/dashboard/entreprises");
+    revalidatePath(`/dashboard/entreprises/${companyId}`);
+
+    const message = `${successCount} contact(s) trouvé(s)${enrichedCount > 0 ? `, dont ${enrichedCount} enrichi(s) avec email/téléphone` : ''}`;
 
     return {
-      success: true,
-      message: successMessage,
-      contact: contactData,
+      success: successCount > 0,
+      message,
+      count: successCount,
+      enriched: enrichedCount,
     };
   } catch (error) {
     console.error("❌ Erreur recherche contact:", error);
@@ -432,13 +477,13 @@ Réponds UNIQUEMENT avec le JSON, sans texte avant ou après.`;
   }
 }
 
-// Step 3: Search LinkedIn profiles with LinkUp using precise names
-async function searchLinkedInProfiles(
+// Step 3: Search a single LinkedIn profile with LinkUp
+async function searchSingleLinkedInProfile(
   company: any,
-  extractedContacts: Array<{ firstName: string; lastName: string; title: string }>
+  contact: { firstName: string; lastName: string; title: string }
 ): Promise<{
   found: boolean;
-  contact?: { name: string; title: string; linkedinUrl: string };
+  contact?: { name: string; title: string; linkedinUrl: string; profilePicture?: string };
   foundWithQuery?: string;
 }> {
   const linkupApiKey = process.env.LINKUP_API_KEY;
@@ -465,62 +510,58 @@ async function searchLinkedInProfiles(
     return { found: false };
   }
 
-  // Try each extracted contact
-  for (const contact of extractedContacts) {
-    const searchParams = {
-      first_name: contact.firstName,
-      last_name: contact.lastName,
-      company_url: companyUrl,
-      login_token: loginToken,
-      total_results: 5,
-    };
+  const searchParams = {
+    first_name: contact.firstName,
+    last_name: contact.lastName,
+    company_url: companyUrl,
+    login_token: loginToken,
+    total_results: 5,
+  };
 
-    console.log(`   Recherche: ${contact.firstName} ${contact.lastName} @ ${company.name}`);
+  console.log(`   Recherche LinkUp: ${contact.firstName} ${contact.lastName} @ ${company.name}`);
 
-    try {
-      const response = await fetch(`${linkupApiBase}/v1/profile/search`, {
-        method: "POST",
-        headers: {
-          "x-api-key": linkupApiKey,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(searchParams),
-      });
+  try {
+    const response = await fetch(`${linkupApiBase}/v1/profile/search`, {
+      method: "POST",
+      headers: {
+        "x-api-key": linkupApiKey,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(searchParams),
+    });
 
-      console.log(`   📡 Statut LinkUp: ${response.status} ${response.statusText}`);
+    console.log(`   📡 Statut LinkUp: ${response.status} ${response.statusText}`);
 
-      if (response.ok) {
-        const data = await response.json();
-        console.log(`   📦 Réponse LinkUp:`, JSON.stringify(data).slice(0, 400));
-        
-        // LinkUp returns data in: { status: "success", data: { profiles: [...] } }
-        const profiles = data?.data?.profiles || [];
-        
-        if (profiles.length > 0) {
-          const profile = profiles[0];
-          console.log(`   ✅ Profil LinkedIn trouvé: ${profile.name}`);
-          return {
-            found: true,
-            contact: {
-              name: profile.name || `${contact.firstName} ${contact.lastName}`,
-              title: profile.job_title || contact.title,
-              linkedinUrl: profile.profile_url || "",
-            },
-            foundWithQuery: JSON.stringify({ firstName: contact.firstName, lastName: contact.lastName }),
-          };
-        } else {
-          console.log(`   ⚠️ Aucun profil dans la réponse LinkUp`);
-        }
+    if (response.ok) {
+      const data = await response.json();
+      
+      // LinkUp returns data in: { status: "success", data: { profiles: [...] } }
+      const profiles = data?.data?.profiles || [];
+      
+      if (profiles.length > 0) {
+        const profile = profiles[0];
+        console.log(`   ✅ Profil LinkedIn trouvé: ${profile.name}`);
+        return {
+          found: true,
+          contact: {
+            name: profile.name || `${contact.firstName} ${contact.lastName}`,
+            title: profile.job_title || contact.title,
+            linkedinUrl: profile.profile_url || "",
+            profilePicture: profile.profile_picture || undefined,
+          },
+          foundWithQuery: JSON.stringify({ firstName: contact.firstName, lastName: contact.lastName }),
+        };
       } else {
-        const errorText = await response.text();
-        console.log(`   ❌ Erreur LinkUp: ${errorText.slice(0, 200)}`);
+        console.log(`   ⚠️ Aucun profil dans la réponse LinkUp`);
       }
-    } catch (error) {
-      console.error(`   ❌ Erreur LinkUp: ${error}`);
+    } else {
+      const errorText = await response.text();
+      console.log(`   ❌ Erreur LinkUp: ${errorText.slice(0, 200)}`);
     }
+  } catch (error) {
+    console.error(`   ❌ Erreur LinkUp: ${error}`);
   }
 
-  console.log(`\n❌ Aucun profil LinkedIn trouvé pour les contacts identifiés`);
   return { found: false };
 }
 

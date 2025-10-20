@@ -7,6 +7,7 @@ import { Building2, MapPin, Globe, Phone, Mail, Linkedin, Users, ArrowLeft } fro
 import Link from 'next/link';
 import { DecisionMakersList } from './decision-makers-list';
 import { FindDecisionMakersButton } from './find-decision-makers-button';
+import { FindContactButton } from './find-contact-button';
 
 export default async function CompanyDetailPage({
   params,
@@ -174,7 +175,10 @@ export default async function CompanyDetailPage({
                 {makers.length} personne{makers.length > 1 ? 's' : ''} trouvée{makers.length > 1 ? 's' : ''}
               </p>
             </div>
-            <FindDecisionMakersButton companyId={id} />
+            <div className="flex items-center gap-3">
+              <FindContactButton companyId={id} />
+              <FindDecisionMakersButton companyId={id} />
+            </div>
           </div>
 
           <DecisionMakersList decisionMakers={makers} />
