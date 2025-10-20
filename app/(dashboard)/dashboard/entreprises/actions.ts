@@ -330,6 +330,9 @@ export async function findContactAction(formData: FormData) {
           // No LinkedIn profile found - save basic info anyway
           console.log(`      ⚠️ Profil LinkedIn non trouvé - sauvegarde basique`);
           
+          // Use a temporary unique identifier when no LinkedIn URL is found
+          const tempLinkedinUrl = `temp-${team.id}-${companyId}-${contact.firstName}-${contact.lastName}`.toLowerCase().replace(/\s+/g, '-');
+          
           await db.insert(decisionMakers)
             .values({
               teamId: team.id,
@@ -338,7 +341,7 @@ export async function findContactAction(formData: FormData) {
               firstName: contact.firstName,
               lastName: contact.lastName,
               title: contact.title,
-              linkedinUrl: '',
+              linkedinUrl: tempLinkedinUrl,
               emailStatus: 'not_found',
               phoneStatus: 'not_found',
               status: 'discovered',

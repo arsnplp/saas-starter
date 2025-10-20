@@ -63,6 +63,7 @@ export function DecisionMakersList({ decisionMakers }: { decisionMakers: Decisio
       {decisionMakers.map((maker) => {
         const isEnriching = enrichingIds.has(maker.id);
         const needsEnrichment = maker.emailStatus === 'not_found' || maker.phoneStatus === 'not_found';
+        const hasRealLinkedinUrl = maker.linkedinUrl && !maker.linkedinUrl.startsWith('temp-');
 
         return (
           <div key={maker.id} className="px-6 py-5 hover:bg-gray-50 transition-colors">
@@ -100,7 +101,7 @@ export function DecisionMakersList({ decisionMakers }: { decisionMakers: Decisio
                   </div>
 
                   <div className="flex items-center gap-2">
-                    {needsEnrichment && (
+                    {needsEnrichment && hasRealLinkedinUrl && (
                       <button
                         onClick={() => handleEnrich(maker.id)}
                         disabled={isEnriching}
@@ -111,15 +112,24 @@ export function DecisionMakersList({ decisionMakers }: { decisionMakers: Decisio
                       </button>
                     )}
                     
-                    <a
-                      href={maker.linkedinUrl.startsWith('http') ? maker.linkedinUrl : `https://${maker.linkedinUrl}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-white bg-linkedin-blue hover:bg-blue-700 rounded-lg transition-colors"
-                    >
-                      <Linkedin className="w-4 h-4" />
-                      LinkedIn
-                    </a>
+                    {hasRealLinkedinUrl && (
+                      <a
+                        href={maker.linkedinUrl.startsWith('http') ? maker.linkedinUrl : `https://${maker.linkedinUrl}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-white bg-linkedin-blue hover:bg-blue-700 rounded-lg transition-colors"
+                      >
+                        <Linkedin className="w-4 h-4" />
+                        LinkedIn
+                      </a>
+                    )}
+                    
+                    {!hasRealLinkedinUrl && (
+                      <div className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-400 bg-gray-100 rounded-lg">
+                        <Linkedin className="w-4 h-4" />
+                        Profil non trouvé
+                      </div>
+                    )}
                   </div>
                 </div>
 
