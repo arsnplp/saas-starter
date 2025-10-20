@@ -523,3 +523,109 @@ async function searchLinkedInProfiles(
   console.log(`\n❌ Aucun profil LinkedIn trouvé pour les contacts identifiés`);
   return { found: false };
 }
+
+/**
+ * Lance la recherche intelligente de décideurs pour une entreprise
+ */
+export async function findDecisionMakersAction(companyId: string) {
+  const user = await getUser();
+  if (!user) {
+    return {
+      success: false,
+      message: "Non authentifié",
+    };
+  }
+
+  const team = await getTeamForUser();
+  if (!team) {
+    return {
+      success: false,
+      message: "Équipe introuvable",
+    };
+  }
+
+  try {
+    const { findDecisionMakersForCompany, saveDecisionMakers } = await import(
+      "@/lib/services/decision-makers"
+    );
+
+    const candidates = await findDecisionMakersForCompany({
+      companyId,
+      teamId: team.id,
+      maxResults: 10,
+    });
+
+    if (candidates.length === 0) {
+      return {
+        success: false,
+        message: "Aucun décideur trouvé pour cette entreprise",
+      };
+    }
+
+    await saveDecisionMakers({
+      candidates,
+      companyId,
+      teamId: team.id,
+    });
+
+    revalidatePath(`/dashboard/entreprises/${companyId}`);
+    revalidatePath("/dashboard/entreprises");
+
+    return {
+      success: true,
+      message: `${candidates.length} décideur(s) trouvé(s) et sauvegardé(s)`,
+      count: candidates.length,
+    };
+  } catch (error: any) {
+    console.error("❌ Erreur lors de la recherche de décideurs:", error);
+    return {
+      success: false,
+      message: error.message || "Erreur lors de la recherche de décideurs",
+    };
+  }
+}
+
+/**
+ * Enrichit un décideur pour récupérer email et téléphone
+ */
+export async function enrichDecisionMakerAction(decisionMakerId: string) {
+  const user = await getUser();
+  if (!user) {
+    return {
+      success: false,
+      message: "Non authentifié",
+    };
+  }
+
+  const team = await getTeamForUser();
+  if (!team) {
+    return {
+      success: false,
+      message: "Équipe introuvable",
+    };
+  }
+
+  try {
+    const { enrichDecisionMaker } = await import(
+      "@/lib/services/decision-makers"
+    );
+
+    await enrichDecisionMaker({
+      decisionMakerId,
+      teamId: team.id,
+    });
+
+    revalidatePath("/dashboard/entreprises");
+
+    return {
+      success: true,
+      message: "Décideur enrichi avec succès",
+    };
+  } catch (error: any) {
+    console.error("❌ Erreur lors de l'enrichissement:", error);
+    return {
+      success: false,
+      message: error.message || "Erreur lors de l'enrichissement du décideur",
+    };
+  }
+}
