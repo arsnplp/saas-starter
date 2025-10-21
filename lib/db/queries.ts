@@ -23,17 +23,28 @@ export async function getUser() {
     return null;
   }
 
-  const user = await db
-    .select()
+  const result = await db
+    .select({
+      id: users.id,
+      email: users.email,
+      name: users.name,
+      role: users.role,
+      createdAt: users.createdAt,
+      updatedAt: users.updatedAt,
+      deletedAt: users.deletedAt,
+      passwordHash: users.passwordHash,
+      teamId: teamMembers.teamId,
+    })
     .from(users)
+    .leftJoin(teamMembers, eq(users.id, teamMembers.userId))
     .where(and(eq(users.id, sessionData.user.id), isNull(users.deletedAt)))
     .limit(1);
 
-  if (user.length === 0) {
+  if (result.length === 0) {
     return null;
   }
 
-  return user[0];
+  return result[0];
 }
 
 export async function getTeamByStripeCustomerId(customerId: string) {
