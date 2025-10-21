@@ -493,13 +493,11 @@ export async function fetchPostsForAccountAction(companyId: string) {
     const feedPosts = data.data?.Feed || [];
     console.log(`📊 ${feedPosts.length} posts récupérés du feed`);
 
-    if (feedPosts.length > 0 && feedPosts[0]) {
-      console.log('🔍 Exemple de post:', JSON.stringify({
-        post_url: feedPosts[0].post_url,
-        actor_url: feedPosts[0].actor?.url,
-        actor_name: feedPosts[0].actor?.name,
-        author_name: feedPosts[0].author?.name,
-      }, null, 2));
+    if (feedPosts.length > 0) {
+      console.log('🔍 Premier post complet:', JSON.stringify(feedPosts[0], null, 2));
+      console.log(`🔍 Total de ${feedPosts.length} posts dans le feed`);
+      const uniqueAuthors = [...new Set(feedPosts.map((p: any) => p.actor?.name || p.author?.name))];
+      console.log('🔍 Auteurs dans le feed:', uniqueAuthors.join(', '));
     }
 
     const targetUrl = company.linkedinCompanyUrl.toLowerCase();
