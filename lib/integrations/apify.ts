@@ -39,10 +39,9 @@ export async function getProfilePosts(linkedinProfileUrl: string, maxPosts: numb
   try {
     console.log('🔍 Apify: Fetching posts for URL:', linkedinProfileUrl, 'maxPosts:', maxPosts);
     
-    const run = await client.actor('apify/linkedin-profile-scraper').call({
-      startUrls: [{ url: linkedinProfileUrl }],
-      includeActivities: true,
-      maxActivities: maxPosts,
+    const run = await client.actor('apimaestro/linkedin-profile-posts').call({
+      linkedinProfileUrl: linkedinProfileUrl,
+      totalPostsToScrape: maxPosts,
     });
 
     console.log('✅ Apify run completed:', {
@@ -53,35 +52,23 @@ export async function getProfilePosts(linkedinProfileUrl: string, maxPosts: numb
 
     const { items } = await client.dataset(run.defaultDatasetId).listItems();
     
-    console.log(`📊 Apify returned ${items.length} profile(s)`);
+    console.log(`📊 Apify returned ${items.length} items`);
     
     if (items.length > 0) {
       console.log('📝 First item structure:', JSON.stringify(items[0], null, 2));
     }
     
-    const posts: LinkedInPost[] = [];
-    
-    for (const profile of items) {
-      const activities: any[] = (profile.activities || profile.posts || []) as any[];
-      console.log(`📄 Profile has ${activities.length} activities/posts`);
-      
-      for (const activity of activities.slice(0, maxPosts)) {
-        posts.push({
-          postId: String(activity.urn || activity.id || activity.postId || ''),
-          postUrl: String(activity.url || activity.postUrl || activity.link || ''),
-          authorName: String(profile.fullName || profile.name || ''),
-          authorUrl: linkedinProfileUrl,
-          content: String(activity.commentary || activity.text || activity.content || ''),
-          publishedAt: String(activity.postedDate || activity.publishedAt || activity.createdAt || new Date().toISOString()),
-          mediaUrls: activity.media || activity.images || [],
-          likeCount: activity.numLikes || activity.likes || 0,
-          commentCount: activity.numComments || activity.comments || 0,
-        });
-      }
-    }
-    
-    console.log(`✅ Extracted ${posts.length} posts total`);
-    return posts;
+    return items.map((item: any) => ({
+      postId: String(item.postId || item.urn || item.id || ''),
+      postUrl: String(item.postUrl || item.url || item.link || ''),
+      authorName: String(item.authorName || item.author?.name || ''),
+      authorUrl: String(item.authorUrl || item.author?.url || linkedinProfileUrl),
+      content: String(item.postContent || item.content || item.text || item.commentary || ''),
+      publishedAt: String(item.publishedAt || item.postedDate || item.createdAt || new Date().toISOString()),
+      mediaUrls: item.mediaUrls || item.media || item.images || [],
+      likeCount: item.likeCount || item.numLikes || item.reactions || 0,
+      commentCount: item.commentCount || item.numComments || item.comments || 0,
+    }));
   } catch (error) {
     console.error('❌ Error fetching profile posts from Apify:', error);
     throw new Error(`Failed to fetch posts: ${error instanceof Error ? error.message : 'Unknown error'}`);
