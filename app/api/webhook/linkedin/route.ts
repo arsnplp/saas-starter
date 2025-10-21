@@ -198,13 +198,20 @@ export async function POST(req: NextRequest) {
 
 function extractCompanyFromPostUrl(postUrl: string): string | null {
   try {
-    const patterns = [
+    const profilePattern = /linkedin\.com\/posts\/([^_]+)_/;
+    const profileMatch = postUrl.match(profilePattern);
+    
+    if (profileMatch) {
+      const profileSlug = profileMatch[1];
+      return `linkedin.com/in/${profileSlug}`;
+    }
+
+    const companyPatterns = [
       /linkedin\.com\/company\/([^\/\?]+)/,
-      /linkedin\.com\/posts\/([^_]+)_/,
       /feed\/update\/urn:li:activity:(\d+)/,
     ];
 
-    for (const pattern of patterns) {
+    for (const pattern of companyPatterns) {
       const match = postUrl.match(pattern);
       if (match) {
         const companySlug = match[1];
