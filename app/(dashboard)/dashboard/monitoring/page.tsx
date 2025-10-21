@@ -1,0 +1,402 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Plus, Trash2, Power, PowerOff, Radio, Clock, CheckCircle2, XCircle } from 'lucide-react';
+import { toast } from 'sonner';
+import {
+  addMonitoredProfile,
+  getMonitoredProfiles,
+  deleteMonitoredProfile,
+  toggleProfileActive,
+  getDetectedPosts,
+} from './actions';
+
+interface MonitoredProfile {
+  id: string;
+  linkedinCompanyUrl: string;
+  companyName: string;
+  profileType: string;
+  logoUrl: string | null;
+  isActive: boolean;
+  addedAt: Date;
+  lastPostAt: Date | null;
+  lastCheckedAt: Date | null;
+  totalPostsReceived: number;
+  delayHours: number | null;
+  isEnabled: boolean | null;
+}
+
+interface DetectedPost {
+  id: string;
+  postUrl: string;
+  authorName: string;
+  content: string;
+  publishedAt: Date;
+  receivedAt: Date;
+  isNew: boolean;
+  profileName: string;
+  profileType: string;
+  scheduledFor: Date | null;
+  collectionStatus: string | null;
+  leadsCreated: number | null;
+  reactionsCollected: number | null;
+  commentsCollected: number | null;
+}
+
+export default function MonitoringPage() {
+  const [profiles, setProfiles] = useState<MonitoredProfile[]>([]);
+  const [detectedPosts, setDetectedPosts] = useState<DetectedPost[]>([]);
+  const [selectedProfile, setSelectedProfile] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [showAddForm, setShowAddForm] = useState(false);
+
+  const [formData, setFormData] = useState({
+    linkedinUrl: '',
+    profileName: '',
+    profileType: 'company' as 'company' | 'personal',
+    delayHours: 24,
+  });
+
+  const loadProfiles = async () => {
+    const result = await getMonitoredProfiles({});
+    if (result.success && result.profiles) {
+      setProfiles(result.profiles as MonitoredProfile[]);
+    }
+  };
+
+  const loadPosts = async (profileId?: string) => {
+    const result = await getDetectedPosts({ profileId });
+    if (result.success && result.posts) {
+      setDetectedPosts(result.posts as DetectedPost[]);
+    }
+  };
+
+  useEffect(() => {
+    loadProfiles();
+    loadPosts();
+  }, []);
+
+  const handleAddProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+
+    const result = await addMonitoredProfile(formData);
+    
+    if (result.success) {
+      toast.success('Profil ajouté avec succès');
+      setShowAddForm(false);
+      setFormData({
+        linkedinUrl: '',
+        profileName: '',
+        profileType: 'company',
+        delayHours: 24,
+      });
+      loadProfiles();
+    } else {
+      toast.error(result.error || 'Erreur lors de l\'ajout du profil');
+    }
+
+    setLoading(false);
+  };
+
+  const handleDeleteProfile = async (profileId: string) => {
+    if (!confirm('Êtes-vous sûr de vouloir supprimer ce profil ? Tous les posts détectés seront également supprimés.')) {
+      return;
+    }
+
+    const result = await deleteMonitoredProfile({ profileId });
+    
+    if (result.success) {
+      toast.success('Profil supprimé');
+      loadProfiles();
+      if (selectedProfile === profileId) {
+        setSelectedProfile(null);
+        loadPosts();
+      }
+    } else {
+      toast.error(result.error || 'Erreur lors de la suppression');
+    }
+  };
+
+  const handleToggleActive = async (profileId: string, isActive: boolean) => {
+    const result = await toggleProfileActive({ profileId, isActive });
+    
+    if (result.success) {
+      toast.success(isActive ? 'Profil activé' : 'Profil désactivé');
+      loadProfiles();
+    } else {
+      toast.error(result.error || 'Erreur');
+    }
+  };
+
+  const getTimeRemaining = (scheduledFor: Date) => {
+    const now = new Date();
+    const diff = new Date(scheduledFor).getTime() - now.getTime();
+    
+    if (diff <= 0) return 'Prêt pour extraction';
+    
+    const hours = Math.floor(diff / (1000 * 60 * 60));
+    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+    
+    return `Dans ${hours}h ${minutes}min`;
+  };
+
+  const getStatusBadge = (status: string | null) => {
+    switch (status) {
+      case 'pending':
+        return <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800"><Clock className="w-3 h-3 mr-1" />En attente</span>;
+      case 'processing':
+        return <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800"><Radio className="w-3 h-3 mr-1 animate-pulse" />En cours</span>;
+      case 'completed':
+        return <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800"><CheckCircle2 className="w-3 h-3 mr-1" />Terminé</span>;
+      case 'failed':
+        return <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800"><XCircle className="w-3 h-3 mr-1" />Échec</span>;
+      default:
+        return <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">Non planifié</span>;
+    }
+  };
+
+  return (
+    <div className="p-6 space-y-6">
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-2xl font-bold">Monitoring LinkedIn</h1>
+          <p className="text-gray-600">Surveillez automatiquement les posts et extrayez les leads</p>
+        </div>
+        <Button onClick={() => setShowAddForm(!showAddForm)}>
+          <Plus className="w-4 h-4 mr-2" />
+          Ajouter un profil
+        </Button>
+      </div>
+
+      {showAddForm && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Ajouter un profil à surveiller</CardTitle>
+            <CardDescription>
+              Ajoutez une entreprise ou un profil personnel LinkedIn à surveiller
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleAddProfile} className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="linkedinUrl">URL LinkedIn</Label>
+                  <Input
+                    id="linkedinUrl"
+                    type="url"
+                    placeholder="https://www.linkedin.com/in/..."
+                    value={formData.linkedinUrl}
+                    onChange={(e) => setFormData({ ...formData, linkedinUrl: e.target.value })}
+                    required
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="profileName">Nom du profil</Label>
+                  <Input
+                    id="profileName"
+                    placeholder="Nom de l'entreprise ou de la personne"
+                    value={formData.profileName}
+                    onChange={(e) => setFormData({ ...formData, profileName: e.target.value })}
+                    required
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="profileType">Type de profil</Label>
+                  <Select
+                    value={formData.profileType}
+                    onValueChange={(value: 'company' | 'personal') =>
+                      setFormData({ ...formData, profileType: value })
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="company">Entreprise</SelectItem>
+                      <SelectItem value="personal">Profil personnel</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="delayHours">Délai avant extraction (heures)</Label>
+                  <Input
+                    id="delayHours"
+                    type="number"
+                    min="1"
+                    max="168"
+                    value={formData.delayHours}
+                    onChange={(e) =>
+                      setFormData({ ...formData, delayHours: parseInt(e.target.value) })
+                    }
+                    required
+                  />
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <Button type="submit" disabled={loading}>
+                  {loading ? 'Ajout...' : 'Ajouter'}
+                </Button>
+                <Button type="button" variant="outline" onClick={() => setShowAddForm(false)}>
+                  Annuler
+                </Button>
+              </div>
+            </form>
+          </CardContent>
+        </Card>
+      )}
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Profils surveillés ({profiles.length})</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {profiles.length === 0 ? (
+            <p className="text-gray-500 text-center py-8">
+              Aucun profil surveillé. Ajoutez-en un pour commencer.
+            </p>
+          ) : (
+            <div className="space-y-3">
+              {profiles.map((profile) => (
+                <div
+                  key={profile.id}
+                  className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50"
+                >
+                  <div className="flex-1">
+                    <div className="flex items-center gap-3">
+                      <h3 className="font-semibold">{profile.companyName}</h3>
+                      <span className="text-xs px-2 py-1 rounded-full bg-gray-100">
+                        {profile.profileType === 'company' ? 'Entreprise' : 'Profil'}
+                      </span>
+                      {!profile.isActive && (
+                        <span className="text-xs px-2 py-1 rounded-full bg-red-100 text-red-800">
+                          Inactif
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-sm text-gray-600 mt-1">
+                      {profile.totalPostsReceived} posts détectés
+                      {profile.lastPostAt && ` • Dernier post: ${new Date(profile.lastPostAt).toLocaleDateString()}`}
+                      {profile.lastCheckedAt && ` • Dernière vérification: ${new Date(profile.lastCheckedAt).toLocaleString()}`}
+                    </p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Délai d'extraction: {profile.delayHours || 24}h
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleToggleActive(profile.id, !profile.isActive)}
+                    >
+                      {profile.isActive ? (
+                        <Power className="w-4 h-4 text-green-600" />
+                      ) : (
+                        <PowerOff className="w-4 h-4 text-gray-400" />
+                      )}
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setSelectedProfile(profile.id);
+                        loadPosts(profile.id);
+                      }}
+                    >
+                      Voir les posts
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleDeleteProfile(profile.id)}
+                    >
+                      <Trash2 className="w-4 h-4 text-red-600" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <div className="flex justify-between items-center">
+            <CardTitle>Posts détectés ({detectedPosts.length})</CardTitle>
+            {selectedProfile && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setSelectedProfile(null);
+                  loadPosts();
+                }}
+              >
+                Voir tous les posts
+              </Button>
+            )}
+          </div>
+        </CardHeader>
+        <CardContent>
+          {detectedPosts.length === 0 ? (
+            <p className="text-gray-500 text-center py-8">
+              Aucun post détecté pour le moment.
+            </p>
+          ) : (
+            <div className="space-y-4">
+              {detectedPosts.map((post) => (
+                <div key={post.id} className="border rounded-lg p-4">
+                  <div className="flex justify-between items-start mb-2">
+                    <div>
+                      <h4 className="font-semibold">{post.authorName}</h4>
+                      <p className="text-xs text-gray-500">
+                        {post.profileName} • {new Date(post.publishedAt).toLocaleString()}
+                      </p>
+                    </div>
+                    {getStatusBadge(post.collectionStatus)}
+                  </div>
+                  <p className="text-sm text-gray-700 mb-3 line-clamp-2">{post.content}</p>
+                  <div className="flex items-center justify-between text-sm">
+                    <div className="text-gray-600">
+                      {post.collectionStatus === 'pending' && post.scheduledFor && (
+                        <span className="flex items-center gap-1">
+                          <Clock className="w-4 h-4" />
+                          {getTimeRemaining(post.scheduledFor)}
+                        </span>
+                      )}
+                      {post.collectionStatus === 'completed' && (
+                        <span>
+                          {post.leadsCreated || 0} leads créés • {post.reactionsCollected || 0} réactions + {post.commentsCollected || 0} commentaires
+                        </span>
+                      )}
+                    </div>
+                    <a
+                      href={post.postUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-600 hover:underline"
+                    >
+                      Voir le post
+                    </a>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}

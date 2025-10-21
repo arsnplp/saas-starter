@@ -24,10 +24,11 @@ The backend utilizes Next.js API routes and Server Actions. Authentication is JW
 *   **LinkedIn Integration:** Supports dual authentication via LinkUp API (for profile enrichment) and LinkedIn OAuth (for official API access and post automation). OAuth tokens are subject to future encryption.
 *   **LinkedIn Post Automation:** GPT-4o powers professional LinkedIn post creation and scheduled publishing via OAuth. It supports four post types with optimized prompts, configurable recurrence, and manual validation or auto-publish options.
 *   **Decision-Maker Discovery & Management:** A unified AI-powered system combines LinkUp API and web search for comprehensive decision-maker discovery. It features an orchestrated cascade (LinkUp primary, web fallback), automated email/phone enrichment, and intelligent deduplication. Candidates are scored by GPT-4o and stored in a centralized `decision_makers` table.
+*   **Automated LinkedIn Monitoring:** Users can monitor any LinkedIn profile (company or personal) for new posts. When a post is detected, the system waits a configurable delay (default 24h) then automatically extracts leads (reactions and comments) using Apify actors. All leads are tagged with their source post for full attribution. The system supports scheduled detection and extraction via cron jobs.
 
 ### Database Schema Highlights
 
-Key tables include `users`, `teams`, `prospect_candidates`, `leads`, `linkedinConnections` (LinkUp auth), `linkedin_oauth_credentials` (OAuth tokens), `target_companies`, `decision_makers`, `icp_profiles`, and tables for LinkedIn post automation.
+Key tables include `users`, `teams`, `prospect_candidates`, `leads`, `linkedinConnections` (LinkUp auth), `linkedin_oauth_credentials` (OAuth tokens), `target_companies`, `decision_makers`, `icp_profiles`, tables for LinkedIn post automation, and monitoring tables (`monitored_companies`, `company_posts`, `lead_collection_configs`, `scheduled_collections`).
 
 ### Security
 
@@ -35,7 +36,7 @@ The system employs JWT-based authentication, HTTP-only cookies, bcrypt hashing, 
 
 ### Cost Optimization
 
-LinkUp API calls for profile enrichment are cached to prevent redundant usage.
+LinkUp API calls for profile enrichment are cached to prevent redundant usage. Apify actors are used for automated LinkedIn monitoring to avoid rate limits and account restrictions.
 
 ## External Dependencies
 
@@ -44,4 +45,5 @@ LinkUp API calls for profile enrichment are cached to prevent redundant usage.
     *   **LinkUp API:** For LinkedIn data extraction and lead enrichment. Requires a login_token stored in `linkedinConnections` table.
     *   **OpenAI API:** GPT-4o for AI-powered lead scoring, content generation, and intelligent targeting.
     *   **Tavily API:** For intelligent web search as a fallback in decision-maker discovery.
+    *   **Apify API:** For automated LinkedIn profile monitoring, post detection, and engagement extraction (reactions/comments). Uses actors: `apimaestro/linkedin-profile-posts`, `apimaestro/linkedin-post-reactions`, `apimaestro/linkedin-post-comments-replies-engagements-scraper-no-cookies`.
 *   **Database:** PostgreSQL (Replit managed) with Drizzle ORM.
