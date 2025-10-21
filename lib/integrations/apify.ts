@@ -34,6 +34,11 @@ export interface LinkedInEngagement {
   commentedAt?: string;
 }
 
+function extractProfileIdentifier(url: string): string | null {
+  const match = url.match(/\/in\/([^\/\?]+)|\/company\/([^\/\?]+)/i);
+  return match ? (match[1] || match[2]).toLowerCase() : null;
+}
+
 export async function getProfilePosts(linkedinProfileUrl: string): Promise<LinkedInPost[]> {
   try {
     const run = await client.actor('apimaestro/linkedin-profile-posts').call({
@@ -42,17 +47,30 @@ export async function getProfilePosts(linkedinProfileUrl: string): Promise<Linke
 
     const { items } = await client.dataset(run.defaultDatasetId).listItems();
     
-    return items.map((item: any) => ({
-      postId: item.postId || item.id || '',
-      postUrl: item.postUrl || item.url || '',
-      authorName: item.authorName || item.author?.name || '',
-      authorUrl: item.authorUrl || item.author?.url || linkedinProfileUrl,
-      content: item.content || item.text || '',
-      publishedAt: item.publishedAt || item.createdAt || new Date().toISOString(),
-      mediaUrls: item.mediaUrls || item.media || [],
-      likeCount: item.likeCount || item.reactions?.total || 0,
-      commentCount: item.commentCount || item.comments?.total || 0,
-    }));
+    const profileIdentifier = extractProfileIdentifier(linkedinProfileUrl);
+    
+    if (!profileIdentifier) {
+      console.warn(`Could not extract identifier from profile URL: ${linkedinProfileUrl}`);
+      return [];
+    }
+    
+    return items
+      .map((item: any) => ({
+        postId: item.postId || item.id || '',
+        postUrl: item.postUrl || item.url || '',
+        authorName: item.authorName || item.author?.name || '',
+        authorUrl: item.authorUrl || item.author?.url || linkedinProfileUrl,
+        content: item.content || item.text || '',
+        publishedAt: item.publishedAt || item.createdAt || new Date().toISOString(),
+        mediaUrls: item.mediaUrls || item.media || [],
+        likeCount: item.likeCount || item.reactions?.total || 0,
+        commentCount: item.commentCount || item.comments?.total || 0,
+      }))
+      .filter((post) => {
+        const postUrlLower = post.postUrl.toLowerCase();
+        return postUrlLower.includes(`/posts/${profileIdentifier}_`) || 
+               postUrlLower.includes(`/posts/${profileIdentifier}-`);
+      });
   } catch (error) {
     console.error('Error fetching profile posts from Apify:', error);
     throw new Error(`Failed to fetch posts: ${error instanceof Error ? error.message : 'Unknown error'}`);
