@@ -7,6 +7,7 @@ import {
   companyPosts,
   webhookAccounts,
   scheduledCollections,
+  linkedinConnections,
 } from '@/lib/db/schema';
 import { eq, and, desc } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
@@ -427,4 +428,167 @@ export async function configurePostCollectionAction(
     console.error('❌ Erreur configuration post:', error);
     return { success: false, error: error.message };
   }
+}
+
+export async function fetchPostsForAccountAction(companyId: string) {
+  const user = await getUser();
+  if (!user) {
+    return { success: false, error: 'Non authentifié' };
+  }
+
+  const teamId = user.teamId;
+  if (!teamId) {
+    return { success: false, error: 'Équipe non trouvée' };
+  }
+
+  try {
+    const company = await db.query.monitoredCompanies.findFirst({
+      where: and(
+        eq(monitoredCompanies.id, companyId),
+        eq(monitoredCompanies.teamId, teamId)
+      ),
+    });
+
+    if (!company) {
+      return { success: false, error: 'Compte non trouvé' };
+    }
+
+    const connection = await db.query.linkedinConnections.findFirst({
+      where: eq(linkedinConnections.teamId, teamId),
+    });
+
+    if (!connection || !connection.loginToken) {
+      return { success: false, error: 'Connexion LinkedIn non configurée. Veuillez d\'abord connecter votre compte LinkedIn.' };
+    }
+
+    console.log(`📥 Récupération des posts pour: ${company.companyName}`);
+
+    const apiUrl = `${process.env.LINKUP_API_BASE || 'https://api.linkupapi.com'}/v1/posts/feed`;
+    const response = await fetch(apiUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': process.env.LINKUP_API_KEY || '',
+      },
+      body: JSON.stringify({
+        total_results: 10,
+        login_token: connection.loginToken,
+        country: 'FR',
+      }),
+      cache: 'no-store',
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('❌ Erreur API LinkUp:', response.status, errorText);
+      return { success: false, error: `Erreur API: ${response.status}` };
+    }
+
+    const data = await response.json();
+    
+    if (data.status === 'error') {
+      return { success: false, error: data.message || 'Erreur API LinkUp' };
+    }
+
+    const feedPosts = data.data?.Feed || [];
+    console.log(`📊 ${feedPosts.length} posts récupérés du feed`);
+
+    const targetUrl = company.linkedinCompanyUrl.toLowerCase();
+    const isPersonalProfile = targetUrl.includes('/in/');
+    
+    let filteredPosts = feedPosts.filter((post: any) => {
+      if (!post.post_url) return false;
+      
+      const postUrl = post.post_url.toLowerCase();
+      const authorUrl = (post.actor?.url || '').toLowerCase();
+      
+      if (isPersonalProfile) {
+        const profileMatch = targetUrl.match(/\/in\/([^\/\?]+)/);
+        if (profileMatch) {
+          const profileId = profileMatch[1];
+          return authorUrl.includes(`/in/${profileId}`) || postUrl.includes(`_${profileId}_`);
+        }
+      } else {
+        const companyMatch = targetUrl.match(/\/company\/([^\/\?]+)/);
+        if (companyMatch) {
+          const companyId = companyMatch[1];
+          return authorUrl.includes(`/company/${companyId}`) || postUrl.includes(`/company/${companyId}/`);
+        }
+      }
+      
+      return false;
+    });
+
+    console.log(`🎯 ${filteredPosts.length} posts correspondent au profil surveillé`);
+
+    let newPostsCount = 0;
+    
+    for (const post of filteredPosts) {
+      const postId = extractPostId(post.post_url);
+      if (!postId) continue;
+
+      const existing = await db.query.companyPosts.findFirst({
+        where: and(
+          eq(companyPosts.postId, postId),
+          eq(companyPosts.teamId, teamId)
+        ),
+      });
+
+      if (existing) {
+        continue;
+      }
+
+      await db.insert(companyPosts).values({
+        teamId,
+        monitoredCompanyId: companyId,
+        postId,
+        postUrl: post.post_url,
+        authorName: post.actor?.name || company.companyName,
+        authorUrl: post.actor?.url || `https://${company.linkedinCompanyUrl}`,
+        content: post.commentary || '',
+        mediaUrls: post.images || [],
+        publishedAt: new Date(post.published_at || Date.now()),
+        webhookPayload: post,
+      });
+
+      newPostsCount++;
+    }
+
+    if (newPostsCount > 0) {
+      await db
+        .update(monitoredCompanies)
+        .set({
+          totalPostsReceived: (company.totalPostsReceived || 0) + newPostsCount,
+          lastPostAt: new Date(),
+        })
+        .where(eq(monitoredCompanies.id, companyId));
+    }
+
+    await db
+      .update(linkedinConnections)
+      .set({ lastUsedAt: new Date() })
+      .where(eq(linkedinConnections.teamId, teamId));
+
+    console.log(`✅ ${newPostsCount} nouveaux posts ajoutés`);
+
+    revalidatePath('/dashboard/monitoring');
+
+    return { success: true, newPostsCount, totalFetched: filteredPosts.length };
+  } catch (error: any) {
+    console.error('❌ Erreur récupération posts:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+function extractPostId(postUrl: string): string | null {
+  const activityMatch = postUrl.match(/activity[:-](\d+)/i);
+  if (activityMatch) return activityMatch[1];
+  
+  const ugcMatch = postUrl.match(/ugcPost[:-](\d+)/i);
+  if (ugcMatch) return ugcMatch[1];
+  
+  const urnMatch = postUrl.match(/urn:li:[\w]+:(\d+)/);
+  if (urnMatch) return urnMatch[1];
+  
+  return postUrl;
 }

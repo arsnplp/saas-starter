@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useTransition, useEffect } from 'react';
-import { Plus, Play, Pause, Bell, Clock, Settings2, ExternalLink, Trash2 } from 'lucide-react';
+import { Plus, Play, Pause, Bell, Clock, Settings2, ExternalLink, Trash2, Download } from 'lucide-react';
 import {
   addMonitoredCompanyAction,
   removeMonitoredCompanyAction,
@@ -11,6 +11,7 @@ import {
   setupWebhookAccountAction,
   getAccountPostsAction,
   configurePostCollectionAction,
+  fetchPostsForAccountAction,
 } from './actions';
 import { toast } from 'sonner';
 import { estimateLeadCollectionCredits } from '@/lib/utils/credit-estimation';
@@ -172,6 +173,18 @@ export function MonitoringDashboard({ initialData }: { initialData: MonitoringDa
                   toast.error(result.error || 'Erreur');
                 }
               }}
+              onFetchPosts={async (e) => {
+                e.stopPropagation();
+                toast.loading('Récupération des posts...');
+                const result = await fetchPostsForAccountAction(company.id);
+                toast.dismiss();
+                if (result.success) {
+                  toast.success(`${result.newPostsCount} nouveau(x) post(s) récupéré(s)`);
+                  window.location.reload();
+                } else {
+                  toast.error(result.error || 'Erreur de récupération');
+                }
+              }}
             />
           ))}
         </div>
@@ -214,7 +227,7 @@ export function MonitoringDashboard({ initialData }: { initialData: MonitoringDa
   );
 }
 
-function CompanyCard({ company, onClick, onRemove }: any) {
+function CompanyCard({ company, onClick, onRemove, onFetchPosts }: any) {
   const lastPost = company.lastPostAt
     ? new Date(company.lastPostAt).toLocaleDateString('fr-FR')
     : 'Aucun post';
@@ -267,6 +280,14 @@ function CompanyCard({ company, onClick, onRemove }: any) {
             {newPostsCount} nouveau{newPostsCount > 1 ? 'x' : ''} post{newPostsCount > 1 ? 's' : ''}
           </div>
         )}
+        
+        <button
+          onClick={onFetchPosts}
+          className="w-full mt-3 px-4 py-2 bg-linkedin-blue text-white rounded-lg hover:bg-blue-700 font-medium text-sm flex items-center justify-center gap-2 transition-colors"
+        >
+          <Download className="w-4 h-4" />
+          Récupérer les posts
+        </button>
       </div>
     </div>
   );
