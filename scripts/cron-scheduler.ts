@@ -33,8 +33,8 @@ async function extractLeads() {
 }
 
 // Configuration des intervalles
-const DETECT_INTERVAL = 5 * 60 * 1000; // 5 minutes
-const EXTRACT_INTERVAL = 5 * 60 * 1000; // 5 minutes
+const DETECT_INTERVAL = 2 * 60 * 60 * 1000; // 2 heures
+const EXTRACT_INTERVAL = 2 * 60 * 60 * 1000; // 2 heures
 
 console.log('🚀 Démarrage du planificateur de cron jobs...');
 console.log(`   - Détection des posts: toutes les ${DETECT_INTERVAL / 60000} minutes`);
