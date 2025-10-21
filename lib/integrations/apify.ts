@@ -40,8 +40,8 @@ export async function getProfilePosts(linkedinProfileUrl: string, maxPosts: numb
     console.log('🔍 Apify: Fetching posts for URL:', linkedinProfileUrl, 'maxPosts:', maxPosts);
     
     const run = await client.actor('apimaestro/linkedin-profile-posts').call({
-      linkedinProfileUrl: linkedinProfileUrl,
-      totalPostsToScrape: maxPosts,
+      username: linkedinProfileUrl,
+      total_posts: maxPosts,
     });
 
     console.log('✅ Apify run completed:', {
@@ -59,15 +59,15 @@ export async function getProfilePosts(linkedinProfileUrl: string, maxPosts: numb
     }
     
     return items.map((item: any) => ({
-      postId: String(item.postId || item.urn || item.id || ''),
-      postUrl: String(item.postUrl || item.url || item.link || ''),
-      authorName: String(item.authorName || item.author?.name || ''),
-      authorUrl: String(item.authorUrl || item.author?.url || linkedinProfileUrl),
-      content: String(item.postContent || item.content || item.text || item.commentary || ''),
-      publishedAt: String(item.publishedAt || item.postedDate || item.createdAt || new Date().toISOString()),
-      mediaUrls: item.mediaUrls || item.media || item.images || [],
-      likeCount: item.likeCount || item.numLikes || item.reactions || 0,
-      commentCount: item.commentCount || item.numComments || item.comments || 0,
+      postId: String(item.urn?.ugcPost_urn || item.full_urn || item.urn?.activity_urn || ''),
+      postUrl: String(item.url || ''),
+      authorName: String(item.author ? `${item.author.first_name || ''} ${item.author.last_name || ''}`.trim() : ''),
+      authorUrl: String(item.author?.profile_url || linkedinProfileUrl),
+      content: String(item.text || ''),
+      publishedAt: new Date(item.posted_at?.timestamp || item.posted_at?.date || new Date()).toISOString(),
+      mediaUrls: item.media?.url ? [item.media.url] : [],
+      likeCount: item.stats?.total_reactions || 0,
+      commentCount: item.stats?.comments || 0,
     }));
   } catch (error) {
     console.error('❌ Error fetching profile posts from Apify:', error);
