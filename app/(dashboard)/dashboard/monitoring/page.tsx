@@ -6,7 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Plus, Trash2, Power, PowerOff, Radio, Clock, CheckCircle2, XCircle } from 'lucide-react';
+import { Plus, Trash2, Power, PowerOff, Radio, Clock, CheckCircle2, XCircle, Zap } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
 import {
   addMonitoredProfile,
@@ -15,6 +16,7 @@ import {
   toggleProfileActive,
   getDetectedPosts,
   manualDetectPosts,
+  toggleAutoMode,
 } from './actions';
 
 interface MonitoredProfile {
@@ -65,11 +67,15 @@ export default function MonitoringPage() {
 
   const [manualPosts, setManualPosts] = useState(1);
   const [isManualDetecting, setIsManualDetecting] = useState(false);
+  const [autoModeEnabled, setAutoModeEnabled] = useState(true);
 
   const loadProfiles = async () => {
     const result = await getMonitoredProfiles({});
     if (result.success && result.profiles) {
       setProfiles(result.profiles as MonitoredProfile[]);
+      if (result.profiles.length > 0) {
+        setAutoModeEnabled(result.profiles[0].isEnabled ?? true);
+      }
     }
   };
 
@@ -158,6 +164,18 @@ export default function MonitoringPage() {
     setIsManualDetecting(false);
   };
 
+  const handleToggleAutoMode = async (enabled: boolean) => {
+    const result = await toggleAutoMode({ enabled });
+    
+    if (result.success) {
+      setAutoModeEnabled(enabled);
+      toast.success(enabled ? 'Mode automatique activé' : 'Mode automatique désactivé');
+      loadProfiles();
+    } else {
+      toast.error(result.error || 'Erreur lors du changement de mode');
+    }
+  };
+
   const getTimeRemaining = (scheduledFor: Date) => {
     const now = new Date();
     const diff = new Date(scheduledFor).getTime() - now.getTime();
@@ -198,35 +216,64 @@ export default function MonitoringPage() {
         </Button>
       </div>
 
-      <Card className="bg-blue-50 border-blue-200">
+      <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
         <CardHeader>
-          <CardTitle className="text-blue-900">Détection manuelle</CardTitle>
-          <CardDescription className="text-blue-700">
-            Déclenchez manuellement la vérification des derniers posts (entre 1 et 10)
-          </CardDescription>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="text-blue-900 flex items-center gap-2">
+                <Zap className="w-5 h-5" />
+                Détection des posts
+              </CardTitle>
+              <CardDescription className="text-blue-700">
+                Contrôlez la détection automatique ou manuelle des nouveaux posts
+              </CardDescription>
+            </div>
+            <div className="flex items-center gap-3 bg-white rounded-lg px-4 py-2 shadow-sm border border-blue-200">
+              <span className={`text-sm font-medium ${!autoModeEnabled ? 'text-gray-900' : 'text-gray-500'}`}>
+                Manuel
+              </span>
+              <Switch
+                checked={autoModeEnabled}
+                onCheckedChange={handleToggleAutoMode}
+              />
+              <span className={`text-sm font-medium ${autoModeEnabled ? 'text-blue-900' : 'text-gray-500'}`}>
+                Auto
+              </span>
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
-          <div className="flex gap-4 items-end">
-            <div className="flex-1 max-w-xs">
-              <Label htmlFor="manualPosts">Nombre de posts par profil</Label>
-              <Input
-                id="manualPosts"
-                type="number"
-                min={1}
-                max={10}
-                value={manualPosts}
-                onChange={(e) => setManualPosts(parseInt(e.target.value) || 1)}
-                className="mt-1"
-              />
+          {!autoModeEnabled && (
+            <div className="flex gap-4 items-end">
+              <div className="flex-1 max-w-xs">
+                <Label htmlFor="manualPosts">Nombre de posts par profil</Label>
+                <Input
+                  id="manualPosts"
+                  type="number"
+                  min={1}
+                  max={10}
+                  value={manualPosts}
+                  onChange={(e) => setManualPosts(parseInt(e.target.value) || 1)}
+                  className="mt-1"
+                />
+              </div>
+              <Button 
+                onClick={handleManualDetect}
+                disabled={isManualDetecting}
+                className="bg-blue-600 hover:bg-blue-700"
+              >
+                {isManualDetecting ? 'Détection...' : 'Détecter maintenant'}
+              </Button>
             </div>
-            <Button 
-              onClick={handleManualDetect}
-              disabled={isManualDetecting}
-              className="bg-blue-600 hover:bg-blue-700"
-            >
-              {isManualDetecting ? 'Détection...' : 'Détecter maintenant'}
-            </Button>
-          </div>
+          )}
+          {autoModeEnabled && (
+            <div className="bg-white/60 rounded-lg p-4 border border-blue-100">
+              <p className="text-sm text-blue-900 flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-green-600" />
+                Mode automatique activé : vérification toutes les 2 heures (1 post par profil)
+              </p>
+            </div>
+          )}
         </CardContent>
       </Card>
 

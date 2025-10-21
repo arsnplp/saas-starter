@@ -292,6 +292,30 @@ export const updateCollectionConfig = validatedActionWithUser(
   }
 );
 
+const toggleAutoModeSchema = z.object({
+  enabled: z.boolean(),
+});
+
+export const toggleAutoMode = validatedActionWithUser(
+  toggleAutoModeSchema,
+  async (data, _, user) => {
+    const teamId = user.teamId;
+    if (!teamId) {
+      return { error: 'Team non trouvée' };
+    }
+
+    await db
+      .update(leadCollectionConfigs)
+      .set({
+        isEnabled: data.enabled,
+        updatedAt: new Date(),
+      })
+      .where(eq(leadCollectionConfigs.teamId, teamId));
+
+    return { success: true };
+  }
+);
+
 const manualDetectPostsSchema = z.object({
   maxPosts: z.number().min(1).max(10).default(1),
 });
