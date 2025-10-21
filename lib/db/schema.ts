@@ -293,11 +293,12 @@ export const leads = pgTable(
         scoreReason: text('score_reason'),
         linkedinUrl: varchar('linkedin_url', { length: 512 }),
         profilePictureUrl: varchar('profile_picture_url', { length: 512 }),
-        sourceMode: varchar('source_mode', { length: 50 }).notNull(), // chaud | espion | magnet | froid
+        sourceMode: varchar('source_mode', { length: 50 }).notNull(), // chaud | espion | magnet | froid | monitoring
         sourcePostUrl: varchar('source_post_url', { length: 1024 }),
         engagementType: varchar('engagement_type', { length: 50 }), // reaction | comment
         reactionType: varchar('reaction_type', { length: 50 }), // LIKE | PRAISE | etc
         commentText: text('comment_text'),
+        detectedPostId: uuid('detected_post_id').references(() => companyPosts.id),
         profileData: jsonb('profile_data'),
         tags: text('tags'),
         notes: text('notes'),
@@ -313,6 +314,7 @@ export const leads = pgTable(
         sourceIdx: index('leads_source_idx').on(t.sourceMode),
         linkedinIdx: index('leads_linkedin_idx').on(t.linkedinUrl),
         scoreIdx: index('leads_score_idx').on(t.score),
+        detectedPostIdx: index('leads_detected_post_idx').on(t.detectedPostId),
     })
 );
 // ---------- ICP PROFILES ----------
@@ -667,7 +669,7 @@ export const webhookAccounts = pgTable(
     })
 );
 
-// Monitored Companies - Liste des entreprises suivies
+// Monitored Companies - Liste des entreprises et profils suivis
 export const monitoredCompanies = pgTable(
     'monitored_companies',
     {
@@ -677,16 +679,19 @@ export const monitoredCompanies = pgTable(
         companyName: varchar('company_name', { length: 255 }).notNull(),
         companyId: varchar('company_id', { length: 255 }),
         logoUrl: text('logo_url'),
+        profileType: varchar('profile_type', { length: 50 }).notNull().default('company'), // company | personal
         isActive: boolean('is_active').notNull().default(true),
         addedBy: integer('added_by').references(() => users.id).notNull(),
         addedAt: timestamp('added_at').notNull().defaultNow(),
         lastPostAt: timestamp('last_post_at'),
+        lastCheckedAt: timestamp('last_checked_at'),
         totalPostsReceived: integer('total_posts_received').notNull().default(0),
     },
     (t) => ({
         teamIdx: index('monitored_companies_team_idx').on(t.teamId),
         linkedinUrlUnique: unique('monitored_companies_linkedin_url_team_unique').on(t.linkedinCompanyUrl, t.teamId),
         lastPostIdx: index('monitored_companies_last_post_idx').on(t.lastPostAt),
+        profileTypeIdx: index('monitored_companies_profile_type_idx').on(t.profileType),
     })
 );
 
