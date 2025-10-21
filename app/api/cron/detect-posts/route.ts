@@ -46,7 +46,7 @@ export async function GET(request: NextRequest) {
 
     for (const profile of activeProfiles) {
       try {
-        const posts = await getProfilePosts(profile.linkedinUrl);
+        const posts = await getProfilePosts(profile.linkedinUrl, 5);
         
         for (const post of posts) {
           const existing = await db

@@ -34,63 +34,27 @@ export interface LinkedInEngagement {
   commentedAt?: string;
 }
 
-function extractProfileIdentifier(url: string): string | null {
-  const match = url.match(/\/in\/([^\/\?]+)|\/company\/([^\/\?]+)/i);
-  return match ? (match[1] || match[2]).toLowerCase() : null;
-}
 
-export async function getProfilePosts(linkedinProfileUrl: string): Promise<LinkedInPost[]> {
+export async function getProfilePosts(linkedinProfileUrl: string, maxPosts: number = 5): Promise<LinkedInPost[]> {
   try {
-    const run = await client.actor('apimaestro/linkedin-profile-posts').call({
-      profileUrl: linkedinProfileUrl,
+    const run = await client.actor('harvestapi/linkedin-profile-posts').call({
+      urls: [linkedinProfileUrl],
+      maxPosts: maxPosts,
     });
 
     const { items } = await client.dataset(run.defaultDatasetId).listItems();
     
-    console.log(`[DEBUG] Apify returned ${items.length} items for profile: ${linkedinProfileUrl}`);
-    
-    const profileIdentifier = extractProfileIdentifier(linkedinProfileUrl);
-    
-    if (!profileIdentifier) {
-      console.warn(`Could not extract identifier from profile URL: ${linkedinProfileUrl}`);
-      return [];
-    }
-    
-    console.log(`[DEBUG] Profile identifier extracted: ${profileIdentifier}`);
-    
-    const mappedPosts = items.map((item: any) => ({
+    return items.map((item: any) => ({
       postId: item.postId || item.id || '',
-      postUrl: item.postUrl || item.url || '',
-      authorName: item.authorName || item.author?.name || '',
-      authorUrl: item.authorUrl || item.author?.url || linkedinProfileUrl,
-      content: item.content || item.text || '',
-      publishedAt: item.publishedAt || item.createdAt || new Date().toISOString(),
-      mediaUrls: item.mediaUrls || item.media || [],
-      likeCount: item.likeCount || item.reactions?.total || 0,
-      commentCount: item.commentCount || item.comments?.total || 0,
+      postUrl: item.postUrl || item.url || item.postLink || '',
+      authorName: item.authorName || item.author?.name || item.name || '',
+      authorUrl: item.authorUrl || item.author?.url || item.profileUrl || linkedinProfileUrl,
+      content: item.content || item.text || item.postContent || '',
+      publishedAt: item.publishedAt || item.createdAt || item.postedDate || new Date().toISOString(),
+      mediaUrls: item.mediaUrls || item.media || item.images || [],
+      likeCount: item.likeCount || item.reactions?.total || item.likes || 0,
+      commentCount: item.commentCount || item.comments?.total || item.commentsCount || 0,
     }));
-    
-    console.log('[DEBUG] Sample post URLs:');
-    mappedPosts.slice(0, 3).forEach((post, idx) => {
-      console.log(`  [${idx}] ${post.postUrl}`);
-      console.log(`      Author: ${post.authorName} (${post.authorUrl})`);
-    });
-    
-    const filteredPosts = mappedPosts.filter((post) => {
-      const postUrlLower = post.postUrl.toLowerCase();
-      const matches = postUrlLower.includes(`/posts/${profileIdentifier}_`) || 
-                     postUrlLower.includes(`/posts/${profileIdentifier}-`);
-      
-      if (!matches && post.postUrl) {
-        console.log(`[DEBUG] FILTERED OUT: ${post.postUrl}`);
-      }
-      
-      return matches;
-    });
-    
-    console.log(`[DEBUG] After filtering: ${filteredPosts.length} posts (from ${mappedPosts.length} total)`);
-    
-    return filteredPosts;
   } catch (error) {
     console.error('Error fetching profile posts from Apify:', error);
     throw new Error(`Failed to fetch posts: ${error instanceof Error ? error.message : 'Unknown error'}`);
