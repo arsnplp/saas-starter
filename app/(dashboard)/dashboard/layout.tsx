@@ -20,7 +20,7 @@ export default function DashboardLayout({
     { href: '/dashboard/prospects', icon: UserSearch, label: 'Prospects' },
     { href: '/dashboard/leads', icon: UserCheck, label: 'Leads' },
     { href: '/dashboard/entreprises', icon: Building2, label: 'Entreprises' },
-    { href: '/dashboard/monitoring', icon: Radio, label: 'Monitoring Temps Réel' },
+    { href: '/dashboard/monitoring', icon: Radio, label: 'Monitoring' },
     { href: '/dashboard/posts', icon: FileText, label: 'Posts LinkedIn' },
     { href: '/dashboard/general', icon: Settings, label: 'General' },
     { href: '/dashboard/activity', icon: Activity, label: 'Activity' },

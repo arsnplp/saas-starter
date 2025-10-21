@@ -125,28 +125,28 @@ export function MonitoringDashboard({ initialData }: { initialData: MonitoringDa
 
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-semibold text-gray-900">
-          Entreprises suivies ({companies.length})
+          Comptes suivis ({companies.length})
         </h2>
         <button
           onClick={() => setShowAddModal(true)}
           className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
         >
           <Plus className="w-4 h-4" />
-          Ajouter une entreprise
+          Ajouter un compte
         </button>
       </div>
 
       {companies.length === 0 ? (
         <div className="bg-white rounded-lg border border-gray-200 p-12 text-center">
           <p className="text-gray-600 mb-4">
-            Aucune entreprise suivie. Ajoutez-en une pour commencer !
+            Aucun compte suivi. Ajoutez-en un pour commencer !
           </p>
           <button
             onClick={() => setShowAddModal(true)}
             className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
           >
             <Plus className="w-4 h-4" />
-            Ajouter ma première entreprise
+            Ajouter mon premier compte
           </button>
         </div>
       ) : (
@@ -279,13 +279,13 @@ function AddCompanyModal({ onClose, onAdd }: any) {
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
         <h2 className="text-xl font-semibold text-gray-900 mb-4">
-          Ajouter une entreprise
+          Ajouter un compte LinkedIn
         </h2>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Nom de l'entreprise
+              Nom (Entreprise ou Personne)
             </label>
             <input
               type="text"
@@ -293,13 +293,13 @@ function AddCompanyModal({ onClose, onAdd }: any) {
               onChange={(e) => setCompanyName(e.target.value)}
               required
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-linkedin-blue focus:border-transparent"
-              placeholder="ex: Engie, EDF, Nexity..."
+              placeholder="ex: Engie, EDF ou John Doe..."
             />
           </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              URL LinkedIn de l'entreprise
+              URL LinkedIn du compte
             </label>
             <input
               type="text"
@@ -307,10 +307,10 @@ function AddCompanyModal({ onClose, onAdd }: any) {
               onChange={(e) => setLinkedinUrl(e.target.value)}
               required
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-linkedin-blue focus:border-transparent"
-              placeholder="linkedin.com/company/engie"
+              placeholder="linkedin.com/company/engie ou linkedin.com/in/johndoe"
             />
             <p className="text-xs text-gray-500 mt-1">
-              Collez simplement l'URL de la page LinkedIn de l'entreprise
+              Collez l'URL de la page entreprise ou du profil personnel LinkedIn
             </p>
           </div>
 

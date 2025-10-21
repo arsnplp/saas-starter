@@ -17,7 +17,7 @@ export default async function MonitoringPage() {
             Monitoring Temps Réel
           </h1>
           <p className="mt-2 text-sm text-gray-600">
-            Suivez les publications LinkedIn des entreprises ciblées et collectez
+            Suivez les publications LinkedIn des comptes ciblés (entreprises et personnes) et collectez
             automatiquement les leads engagés
           </p>
         </div>
