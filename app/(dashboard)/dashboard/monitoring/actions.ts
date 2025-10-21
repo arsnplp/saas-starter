@@ -208,6 +208,32 @@ export async function getMonitoringDataAction() {
     orderBy: [desc(monitoredCompanies.lastPostAt)],
   });
 
+  const companiesWithNewPosts = await Promise.all(
+    companies.map(async (company) => {
+      const newPosts = await db
+        .select({ count: companyPosts.id })
+        .from(companyPosts)
+        .where(
+          and(
+            eq(companyPosts.monitoredCompanyId, company.id),
+            eq(companyPosts.teamId, teamId),
+            eq(companyPosts.isNew, true)
+          )
+        );
+
+      return {
+        ...company,
+        newPostsCount: newPosts.length,
+      };
+    })
+  );
+
+  companiesWithNewPosts.sort((a, b) => {
+    if (a.newPostsCount > 0 && b.newPostsCount === 0) return -1;
+    if (a.newPostsCount === 0 && b.newPostsCount > 0) return 1;
+    return new Date(b.lastPostAt || 0).getTime() - new Date(a.lastPostAt || 0).getTime();
+  });
+
   const recentPosts = await db.query.companyPosts.findMany({
     where: eq(companyPosts.teamId, teamId),
     with: {
@@ -219,16 +245,13 @@ export async function getMonitoringDataAction() {
 
   const webhookStatus = await WebhookManager.getMonitoringStatus(teamId);
 
-  const newPostsCount = await db
-    .select({ count: companyPosts.id })
-    .from(companyPosts)
-    .where(and(eq(companyPosts.teamId, teamId), eq(companyPosts.isNew, true)));
+  const totalNewPosts = companiesWithNewPosts.reduce((sum, c) => sum + c.newPostsCount, 0);
 
   return {
-    companies,
+    companies: companiesWithNewPosts,
     recentPosts,
     webhookStatus,
-    newPostsCount: newPostsCount.length,
+    newPostsCount: totalNewPosts,
   };
 }
 
@@ -290,6 +313,113 @@ export async function toggleMonitoringAction(enable: boolean) {
 
     return { success: true };
   } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
+export async function getAccountPostsAction(companyId: string) {
+  const user = await getUser();
+  if (!user || !user.teamId) {
+    return { posts: [] };
+  }
+
+  const teamId = user.teamId;
+
+  const posts = await db.query.companyPosts.findMany({
+    where: and(
+      eq(companyPosts.monitoredCompanyId, companyId),
+      eq(companyPosts.teamId, teamId)
+    ),
+    with: {
+      scheduledCollection: true,
+    },
+    orderBy: [desc(companyPosts.publishedAt)],
+  });
+
+  await db
+    .update(companyPosts)
+    .set({ isNew: false })
+    .where(
+      and(
+        eq(companyPosts.monitoredCompanyId, companyId),
+        eq(companyPosts.teamId, teamId),
+        eq(companyPosts.isNew, true)
+      )
+    );
+
+  return { posts };
+}
+
+export async function configurePostCollectionAction(
+  postId: string,
+  config: {
+    delayHours: number;
+    maxReactions: number;
+    maxComments: number;
+    enabled: boolean;
+  }
+) {
+  const user = await getUser();
+  if (!user || !user.teamId) {
+    return { success: false, error: 'Non authentifié' };
+  }
+
+  const teamId = user.teamId;
+
+  try {
+    const post = await db.query.companyPosts.findFirst({
+      where: and(
+        eq(companyPosts.id, postId),
+        eq(companyPosts.teamId, teamId)
+      ),
+      with: {
+        monitoredCompany: {
+          with: {
+            collectionConfig: true,
+          },
+        },
+      },
+    });
+
+    if (!post) {
+      return { success: false, error: 'Post non trouvé' };
+    }
+
+    const existingCollection = await db.query.scheduledCollections.findFirst({
+      where: eq(scheduledCollections.postId, postId),
+    });
+
+    const scheduledAt = new Date(post.publishedAt);
+    scheduledAt.setHours(scheduledAt.getHours() + config.delayHours);
+
+    if (existingCollection) {
+      await db
+        .update(scheduledCollections)
+        .set({
+          scheduledAt,
+          status: config.enabled ? 'pending' : 'cancelled',
+        })
+        .where(eq(scheduledCollections.id, existingCollection.id));
+    } else {
+      const collectionConfig = post.monitoredCompany.collectionConfig;
+      if (!collectionConfig) {
+        return { success: false, error: 'Configuration de compte manquante' };
+      }
+
+      await db.insert(scheduledCollections).values({
+        teamId,
+        postId,
+        configId: collectionConfig.id,
+        scheduledAt,
+        status: config.enabled ? 'pending' : 'cancelled',
+      });
+    }
+
+    revalidatePath('/dashboard/monitoring');
+
+    return { success: true };
+  } catch (error: any) {
+    console.error('❌ Erreur configuration post:', error);
     return { success: false, error: error.message };
   }
 }
