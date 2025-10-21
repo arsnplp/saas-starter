@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useTransition, useEffect } from 'react';
-import { Plus, Play, Pause, Bell, Clock, Settings2, ExternalLink, Trash2, Download } from 'lucide-react';
+import { Plus, Play, Pause, Bell, Clock, Settings2, ExternalLink, Trash2, Download, Users } from 'lucide-react';
 import {
   addMonitoredCompanyAction,
   removeMonitoredCompanyAction,
@@ -12,6 +12,7 @@ import {
   getAccountPostsAction,
   configurePostCollectionAction,
   fetchPostsForAccountAction,
+  extractLeadsFromPostAction,
 } from './actions';
 import { toast } from 'sonner';
 import { estimateLeadCollectionCredits } from '@/lib/utils/credit-estimation';
@@ -553,7 +554,7 @@ function PostsPanel({ posts, onClose, onMarkAsRead }: any) {
 function AccountDetailModal({ company, onClose }: any) {
   const [posts, setPosts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
+  const [selectedPostForExtraction, setSelectedPostForExtraction] = useState<any | null>(null);
 
   useEffect(() => {
     async function loadPosts() {
@@ -572,7 +573,7 @@ function AccountDetailModal({ company, onClose }: any) {
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-2xl font-semibold text-gray-900">
-                {company.companyName}
+                Feed: {company.companyName}
               </h2>
               <a
                 href={`https://${company.linkedinCompanyUrl}`}
@@ -583,6 +584,9 @@ function AccountDetailModal({ company, onClose }: any) {
                 Voir sur LinkedIn
                 <ExternalLink className="w-3 h-3" />
               </a>
+              <p className="text-sm text-gray-600 mt-2">
+                {posts.length} post{posts.length > 1 ? 's' : ''} enregistré{posts.length > 1 ? 's' : ''}
+              </p>
             </div>
             <button
               onClick={onClose}
@@ -600,7 +604,8 @@ function AccountDetailModal({ company, onClose }: any) {
             </div>
           ) : posts.length === 0 ? (
             <div className="text-center py-12">
-              <p className="text-gray-600">Aucun post reçu pour ce compte</p>
+              <p className="text-gray-600">Aucun post pour ce compte</p>
+              <p className="text-sm text-gray-500 mt-2">Cliquez sur "Récupérer les posts" pour charger le feed</p>
             </div>
           ) : (
             <div className="space-y-4">
@@ -608,7 +613,7 @@ function AccountDetailModal({ company, onClose }: any) {
                 <PostCard
                   key={post.id}
                   post={post}
-                  onConfigure={() => setSelectedPostId(post.id)}
+                  onExtractLeads={() => setSelectedPostForExtraction(post)}
                 />
               ))}
             </div>
@@ -616,87 +621,87 @@ function AccountDetailModal({ company, onClose }: any) {
         </div>
       </div>
 
-      {selectedPostId && (
-        <PostConfigModal
-          post={posts.find((p: any) => p.id === selectedPostId)!}
-          config={company.collectionConfig}
-          onClose={() => setSelectedPostId(null)}
-          onSave={async (config) => {
-            const result = await configurePostCollectionAction(selectedPostId, config);
-            if (result.success) {
-              toast.success('Collecte configurée pour ce post');
-              setSelectedPostId(null);
-            } else {
-              toast.error(result.error || 'Erreur');
-            }
-          }}
+      {selectedPostForExtraction && (
+        <LeadExtractionModal
+          post={selectedPostForExtraction}
+          onClose={() => setSelectedPostForExtraction(null)}
         />
       )}
     </div>
   );
 }
 
-function PostCard({ post, onConfigure }: any) {
-  const hasScheduledCollection = post.scheduledCollection;
-  const collectionStatus = hasScheduledCollection?.status;
-
+function PostCard({ post, onExtractLeads }: any) {
   return (
-    <div className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
-      <div className="flex items-start justify-between mb-3">
+    <div className="border border-gray-200 rounded-lg p-5 hover:shadow-md transition-shadow bg-white">
+      <div className="flex items-start gap-3 mb-3">
+        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white font-semibold">
+          {(post.authorName || 'U')[0].toUpperCase()}
+        </div>
         <div className="flex-1">
-          <div className="flex items-center gap-2 mb-1">
-            <span className="text-sm font-medium text-gray-900">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-semibold text-gray-900">
               {post.authorName || 'Auteur inconnu'}
             </span>
             {post.isNew && (
-              <span className="px-2 py-0.5 bg-blue-500 text-white text-xs font-medium rounded">
-                NOUVEAU
+              <span className="px-2 py-0.5 bg-blue-500 text-white text-xs font-bold rounded">
+                NEW
               </span>
             )}
           </div>
-          <p className="text-xs text-gray-600">
-            {new Date(post.publishedAt).toLocaleString('fr-FR')}
+          <p className="text-xs text-gray-500">
+            {new Date(post.publishedAt).toLocaleString('fr-FR', {
+              day: 'numeric',
+              month: 'long',
+              year: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit'
+            })}
           </p>
         </div>
-        {collectionStatus && (
-          <div className={`px-2 py-1 rounded text-xs font-medium ${
-            collectionStatus === 'completed' ? 'bg-green-100 text-green-800' :
-            collectionStatus === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-            'bg-gray-100 text-gray-800'
-          }`}>
-            {collectionStatus === 'completed' ? 'Collecté' :
-             collectionStatus === 'pending' ? 'Programmé' : 'Annulé'}
-          </div>
-        )}
       </div>
 
       {post.content && (
-        <p className="text-sm text-gray-700 mb-3 line-clamp-4">
+        <p className="text-sm text-gray-800 mb-4 whitespace-pre-wrap">
           {post.content}
         </p>
       )}
 
-      <div className="flex items-center justify-between">
+      {post.mediaUrls && post.mediaUrls.length > 0 && (
+        <div className="mb-4">
+          <img 
+            src={post.mediaUrls[0]} 
+            alt="Post media" 
+            className="w-full rounded-lg max-h-96 object-cover"
+          />
+        </div>
+      )}
+
+      <div className="flex items-center justify-between pt-3 border-t border-gray-100">
         <div className="flex items-center gap-4 text-xs text-gray-600">
-          <span>👍 {post.totalReactions || 0} réactions</span>
-          <span>💬 {post.totalComments || 0} commentaires</span>
+          <span className="flex items-center gap-1">
+            👍 <span className="font-medium">{post.totalReactions || 0}</span>
+          </span>
+          <span className="flex items-center gap-1">
+            💬 <span className="font-medium">{post.totalComments || 0}</span>
+          </span>
         </div>
         <div className="flex items-center gap-2">
           <a
             href={post.postUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-sm text-linkedin-blue hover:underline inline-flex items-center gap-1"
+            className="text-xs text-linkedin-blue hover:underline inline-flex items-center gap-1"
           >
-            Voir
+            Voir sur LinkedIn
             <ExternalLink className="w-3 h-3" />
           </a>
           <button
-            onClick={onConfigure}
-            className="px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium text-sm inline-flex items-center gap-1"
+            onClick={onExtractLeads}
+            className="px-3 py-2 bg-linkedin-blue text-white rounded-lg hover:bg-blue-700 font-medium text-sm inline-flex items-center gap-2 transition-colors"
           >
-            <Settings2 className="w-3.5 h-3.5" />
-            Configurer
+            <Users className="w-4 h-4" />
+            Extraire les leads
           </button>
         </div>
       </div>
@@ -798,6 +803,134 @@ function PostConfigModal({ post, config, onClose, onSave }: any) {
             className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
           >
             Sauvegarder
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function LeadExtractionModal({ post, onClose }: any) {
+  const [extractionType, setExtractionType] = useState<'reactions' | 'comments'>('reactions');
+  const [maxCount, setMaxCount] = useState(50);
+  const [isExtracting, setIsExtracting] = useState(false);
+
+  const estimatedCredits = Math.ceil(maxCount / 10);
+
+  const handleExtract = async () => {
+    setIsExtracting(true);
+    const result = await extractLeadsFromPostAction({
+      postId: post.id,
+      extractionType,
+      maxCount,
+    });
+    setIsExtracting(false);
+
+    if (result.success) {
+      toast.success(`${result.leadsCount} lead(s) extrait(s) avec succès !`);
+      onClose();
+    } else {
+      toast.error(result.error || 'Erreur lors de l\'extraction');
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60]">
+      <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+        <h2 className="text-xl font-semibold text-gray-900 mb-4">
+          Extraire les leads
+        </h2>
+
+        <div className="mb-4 p-3 bg-gray-50 rounded-lg">
+          <p className="text-sm text-gray-700 font-medium">Post de {post.authorName}</p>
+          <p className="text-xs text-gray-500 mt-1">
+            {new Date(post.publishedAt).toLocaleDateString('fr-FR')}
+          </p>
+        </div>
+
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Type d'engagement
+            </label>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setExtractionType('reactions')}
+                className={`flex-1 px-4 py-3 rounded-lg border-2 font-medium transition-colors ${
+                  extractionType === 'reactions'
+                    ? 'border-linkedin-blue bg-blue-50 text-linkedin-blue'
+                    : 'border-gray-200 text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                👍 Réactions
+              </button>
+              <button
+                onClick={() => setExtractionType('comments')}
+                className={`flex-1 px-4 py-3 rounded-lg border-2 font-medium transition-colors ${
+                  extractionType === 'comments'
+                    ? 'border-linkedin-blue bg-blue-50 text-linkedin-blue'
+                    : 'border-gray-200 text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                💬 Commentaires
+              </button>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Nombre maximum à extraire
+            </label>
+            <input
+              type="number"
+              value={maxCount}
+              onChange={(e) => setMaxCount(Math.max(1, Math.min(500, parseInt(e.target.value) || 1)))}
+              min="1"
+              max="500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-linkedin-blue focus:border-transparent"
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              Entre 1 et 500 {extractionType === 'reactions' ? 'réactions' : 'commentaires'}
+            </p>
+          </div>
+
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <div className="text-sm font-medium text-gray-900 mb-1">
+              Estimation des crédits
+            </div>
+            <div className="text-2xl font-bold text-linkedin-blue">
+              ~{estimatedCredits} crédit{estimatedCredits > 1 ? 's' : ''}
+            </div>
+            <p className="text-xs text-gray-600 mt-1">
+              10 {extractionType === 'reactions' ? 'réactions' : 'commentaires'} = 1 crédit LinkUp
+            </p>
+          </div>
+        </div>
+
+        <div className="flex gap-3 pt-6 mt-6 border-t">
+          <button
+            onClick={onClose}
+            disabled={isExtracting}
+            className="flex-1 px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 font-medium disabled:opacity-50"
+          >
+            Annuler
+          </button>
+          <button
+            onClick={handleExtract}
+            disabled={isExtracting}
+            className="flex-1 px-4 py-2 bg-linkedin-blue text-white rounded-lg hover:bg-blue-700 font-medium disabled:opacity-50 inline-flex items-center justify-center gap-2"
+          >
+            {isExtracting ? (
+              <>
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                Extraction...
+              </>
+            ) : (
+              <>
+                <Users className="w-4 h-4" />
+                Extraire
+              </>
+            )}
           </button>
         </div>
       </div>

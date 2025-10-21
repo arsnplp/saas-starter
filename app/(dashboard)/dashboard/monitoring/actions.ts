@@ -592,3 +592,134 @@ function extractPostId(postUrl: string): string | null {
   
   return postUrl;
 }
+
+export async function extractLeadsFromPostAction(params: {
+  postId: string;
+  extractionType: 'reactions' | 'comments';
+  maxCount: number;
+}) {
+  const user = await getUser();
+  if (!user) {
+    return { success: false, error: 'Non authentifié' };
+  }
+
+  const teamId = user.teamId;
+  if (!teamId) {
+    return { success: false, error: 'Équipe non trouvée' };
+  }
+
+  try {
+    const post = await db.query.companyPosts.findFirst({
+      where: and(
+        eq(companyPosts.id, params.postId),
+        eq(companyPosts.teamId, teamId)
+      ),
+    });
+
+    if (!post) {
+      return { success: false, error: 'Post non trouvé' };
+    }
+
+    const connection = await db.query.linkedinConnections.findFirst({
+      where: eq(linkedinConnections.teamId, teamId),
+    });
+
+    if (!connection || !connection.loginToken) {
+      return { success: false, error: 'Connexion LinkedIn non configurée' };
+    }
+
+    console.log(`🔍 Extraction de ${params.extractionType} pour le post: ${post.postUrl}`);
+
+    const apiEndpoint = params.extractionType === 'reactions' 
+      ? '/v1/data/signals/posts/reactions'
+      : '/v1/data/signals/posts/comments';
+
+    const apiUrl = `${process.env.LINKUP_API_BASE || 'https://api.linkupapi.com'}${apiEndpoint}`;
+    const response = await fetch(apiUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': process.env.LINKUP_API_KEY || '',
+      },
+      body: JSON.stringify({
+        post_url: post.postUrl,
+        total_results: params.maxCount,
+        login_token: connection.loginToken,
+        country: 'FR',
+      }),
+      cache: 'no-store',
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('❌ Erreur API LinkUp:', response.status, errorText);
+      return { success: false, error: `Erreur API: ${response.status}` };
+    }
+
+    const data = await response.json();
+    
+    if (data.status === 'error') {
+      return { success: false, error: data.message || 'Erreur API LinkUp' };
+    }
+
+    const results = data.results || [];
+    console.log(`📊 ${results.length} ${params.extractionType} récupéré(e)s`);
+
+    let leadsCount = 0;
+    const { leads: leadsTable } = await import('@/lib/db/schema');
+
+    for (const item of results) {
+      const profileUrl = item.profileUrl || item.profile_url;
+      if (!profileUrl) continue;
+
+      const existing = await db.query.leads.findFirst({
+        where: and(
+          eq(leadsTable.linkedinUrl, profileUrl),
+          eq(leadsTable.teamId, teamId)
+        ),
+      });
+
+      if (existing) {
+        console.log(`⏭️ Lead déjà existant: ${profileUrl}`);
+        continue;
+      }
+
+      const name = item.name || '';
+      const nameParts = name.split(' ');
+      const firstName = nameParts[0] || '';
+      const lastName = nameParts.slice(1).join(' ') || '';
+
+      await db.insert(leadsTable).values({
+        teamId,
+        linkedinUrl: profileUrl,
+        firstName,
+        lastName,
+        sourceMode: 'magnet',
+        sourcePostUrl: post.postUrl,
+        engagementType: params.extractionType === 'reactions' ? 'reaction' : 'comment',
+        reactionType: params.extractionType === 'reactions' ? (item.reactionType || 'LIKE') : null,
+        commentText: params.extractionType === 'comments' ? (item.text || item.comment_text) : null,
+        profileData: item,
+        score: 50,
+        status: 'new',
+      });
+
+      leadsCount++;
+    }
+
+    await db
+      .update(linkedinConnections)
+      .set({ lastUsedAt: new Date() })
+      .where(eq(linkedinConnections.teamId, teamId));
+
+    console.log(`✅ ${leadsCount} nouveaux leads créés`);
+
+    revalidatePath('/dashboard/monitoring');
+    revalidatePath('/dashboard/leads');
+
+    return { success: true, leadsCount, totalExtracted: results.length };
+  } catch (error: any) {
+    console.error('❌ Erreur extraction leads:', error);
+    return { success: false, error: error.message };
+  }
+}
