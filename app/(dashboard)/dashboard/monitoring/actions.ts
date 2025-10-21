@@ -493,7 +493,19 @@ export async function fetchPostsForAccountAction(companyId: string) {
     const feedPosts = data.data?.Feed || [];
     console.log(`📊 ${feedPosts.length} posts récupérés du feed`);
 
+    if (feedPosts.length > 0 && feedPosts[0]) {
+      console.log('🔍 Exemple de post:', JSON.stringify({
+        post_url: feedPosts[0].post_url,
+        actor_url: feedPosts[0].actor?.url,
+        actor_name: feedPosts[0].actor?.name,
+        author_name: feedPosts[0].author?.name,
+      }, null, 2));
+    }
+
     const targetUrl = company.linkedinCompanyUrl.toLowerCase();
+    const companyNameLower = company.companyName.toLowerCase();
+    console.log(`🎯 Recherche de posts pour: "${company.companyName}" (URL: ${targetUrl})`);
+    
     const isPersonalProfile = targetUrl.includes('/in/');
     
     let filteredPosts = feedPosts.filter((post: any) => {
@@ -501,22 +513,31 @@ export async function fetchPostsForAccountAction(companyId: string) {
       
       const postUrl = post.post_url.toLowerCase();
       const authorUrl = (post.actor?.url || '').toLowerCase();
+      const authorName = (post.actor?.name || post.author?.name || '').toLowerCase();
+      
+      const nameMatch = authorName.includes(companyNameLower) || 
+                        companyNameLower.includes(authorName.split(' ')[0]);
       
       if (isPersonalProfile) {
         const profileMatch = targetUrl.match(/\/in\/([^\/\?]+)/);
         if (profileMatch) {
           const profileId = profileMatch[1];
-          return authorUrl.includes(`/in/${profileId}`) || postUrl.includes(`_${profileId}_`);
+          const urlMatch = authorUrl.includes(`/in/${profileId}`) || 
+                          postUrl.includes(`_${profileId}_`) ||
+                          postUrl.includes(`/in/${profileId}/`);
+          return urlMatch || nameMatch;
         }
       } else {
         const companyMatch = targetUrl.match(/\/company\/([^\/\?]+)/);
         if (companyMatch) {
           const companyId = companyMatch[1];
-          return authorUrl.includes(`/company/${companyId}`) || postUrl.includes(`/company/${companyId}/`);
+          const urlMatch = authorUrl.includes(`/company/${companyId}`) || 
+                          postUrl.includes(`/company/${companyId}/`);
+          return urlMatch || nameMatch;
         }
       }
       
-      return false;
+      return nameMatch;
     });
 
     console.log(`🎯 ${filteredPosts.length} posts correspondent au profil surveillé`);
