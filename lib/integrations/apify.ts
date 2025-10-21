@@ -37,12 +37,26 @@ export interface LinkedInEngagement {
 
 export async function getProfilePosts(linkedinProfileUrl: string, maxPosts: number = 5): Promise<LinkedInPost[]> {
   try {
+    console.log('🔍 Apify: Fetching posts for URL:', linkedinProfileUrl, 'maxPosts:', maxPosts);
+    
     const run = await client.actor('harvestapi/linkedin-profile-posts').call({
       urls: [linkedinProfileUrl],
       maxPosts: maxPosts,
     });
 
+    console.log('✅ Apify run completed:', {
+      runId: run.id,
+      status: run.status,
+      datasetId: run.defaultDatasetId,
+    });
+
     const { items } = await client.dataset(run.defaultDatasetId).listItems();
+    
+    console.log(`📊 Apify returned ${items.length} items`);
+    
+    if (items.length > 0) {
+      console.log('📝 First item structure:', JSON.stringify(items[0], null, 2));
+    }
     
     return items.map((item: any) => ({
       postId: item.postId || item.id || '',
@@ -56,7 +70,7 @@ export async function getProfilePosts(linkedinProfileUrl: string, maxPosts: numb
       commentCount: item.commentCount || item.comments?.total || item.commentsCount || 0,
     }));
   } catch (error) {
-    console.error('Error fetching profile posts from Apify:', error);
+    console.error('❌ Error fetching profile posts from Apify:', error);
     throw new Error(`Failed to fetch posts: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }
