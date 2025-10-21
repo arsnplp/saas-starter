@@ -113,10 +113,18 @@ export class PostCollector {
     }
 
     const config = collection.config;
+    
+    const maxReactions = collection.maxReactionsOverride !== null 
+      ? collection.maxReactionsOverride 
+      : config.maxReactions;
+    
+    const maxComments = collection.maxCommentsOverride !== null 
+      ? collection.maxCommentsOverride 
+      : config.maxComments;
 
     console.log(`📊 Configuration:`);
-    console.log(`  - Max réactions: ${config.maxReactions}`);
-    console.log(`  - Max commentaires: ${config.maxComments}`);
+    console.log(`  - Max réactions: ${maxReactions} ${collection.maxReactionsOverride !== null ? '(override)' : '(global)'}`);
+    console.log(`  - Max commentaires: ${maxComments} ${collection.maxCommentsOverride !== null ? '(override)' : '(global)'}`);
     console.log(`  - Post URL: ${post.postUrl}`);
 
     const result: CollectionResult = {
@@ -127,11 +135,11 @@ export class PostCollector {
     };
 
     try {
-      if (config.maxReactions > 0) {
+      if (maxReactions > 0) {
         console.log(`\n🎯 === COLLECTE RÉACTIONS ===`);
         const reactionsResult = await this.collectReactions(
           post.postUrl,
-          config.maxReactions,
+          maxReactions,
           teamId,
           post.monitoredCompany.companyName
         );
@@ -140,11 +148,11 @@ export class PostCollector {
         result.creditsUsed += reactionsResult.creditsUsed;
       }
 
-      if (config.maxComments > 0) {
+      if (maxComments > 0) {
         console.log(`\n💬 === COLLECTE COMMENTAIRES ===`);
         const commentsResult = await this.collectComments(
           post.postUrl,
-          config.maxComments,
+          maxComments,
           teamId,
           post.monitoredCompany.companyName
         );

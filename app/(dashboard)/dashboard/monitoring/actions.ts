@@ -6,6 +6,7 @@ import {
   leadCollectionConfigs,
   companyPosts,
   webhookAccounts,
+  scheduledCollections,
 } from '@/lib/db/schema';
 import { eq, and, desc } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
@@ -396,8 +397,10 @@ export async function configurePostCollectionAction(
       await db
         .update(scheduledCollections)
         .set({
-          scheduledAt,
+          scheduledFor: scheduledAt,
           status: config.enabled ? 'pending' : 'cancelled',
+          maxReactionsOverride: config.maxReactions,
+          maxCommentsOverride: config.maxComments,
         })
         .where(eq(scheduledCollections.id, existingCollection.id));
     } else {
@@ -410,8 +413,10 @@ export async function configurePostCollectionAction(
         teamId,
         postId,
         configId: collectionConfig.id,
-        scheduledAt,
+        scheduledFor: scheduledAt,
         status: config.enabled ? 'pending' : 'cancelled',
+        maxReactionsOverride: config.maxReactions,
+        maxCommentsOverride: config.maxComments,
       });
     }
 

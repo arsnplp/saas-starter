@@ -747,6 +747,8 @@ export const scheduledCollections = pgTable(
         configId: uuid('config_id').references(() => leadCollectionConfigs.id).notNull(),
         scheduledFor: timestamp('scheduled_for').notNull(),
         status: varchar('status', { length: 50 }).notNull().default('pending'),
+        maxReactionsOverride: integer('max_reactions_override'),
+        maxCommentsOverride: integer('max_comments_override'),
         collectedAt: timestamp('collected_at'),
         reactionsCollected: integer('reactions_collected').notNull().default(0),
         commentsCollected: integer('comments_collected').notNull().default(0),
