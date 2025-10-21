@@ -348,8 +348,7 @@ export const manualDetectPosts = validatedActionWithUser(
       .where(
         and(
           eq(monitoredCompanies.teamId, teamId),
-          eq(monitoredCompanies.isActive, true),
-          eq(leadCollectionConfigs.isEnabled, true)
+          eq(monitoredCompanies.isActive, true)
         )
       );
 
