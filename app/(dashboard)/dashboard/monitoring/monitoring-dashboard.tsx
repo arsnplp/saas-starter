@@ -11,7 +11,7 @@ import {
   setupWebhookAccountAction,
 } from './actions';
 import { toast } from 'sonner';
-import { PostCollector } from '@/lib/services/post-collector';
+import { estimateLeadCollectionCredits } from '@/lib/utils/credit-estimation';
 
 type MonitoringData = Awaited<ReturnType<typeof import('./actions').getMonitoringDataAction>>;
 
@@ -357,7 +357,7 @@ function ConfigModal({ company, onClose, onSave }: any) {
   const [maxComments, setMaxComments] = useState(config.maxComments);
   const [isEnabled, setIsEnabled] = useState(config.isEnabled);
 
-  const estimatedCredits = PostCollector.estimateCredits({ maxReactions, maxComments });
+  const estimatedCredits = estimateLeadCollectionCredits({ maxReactions, maxComments });
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
