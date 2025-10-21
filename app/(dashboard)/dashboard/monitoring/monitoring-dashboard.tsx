@@ -100,7 +100,7 @@ export function MonitoringDashboard({ initialData }: { initialData: MonitoringDa
               <button
                 onClick={handleSetupWebhook}
                 disabled={isPending}
-                className="inline-flex items-center gap-2 px-4 py-2 bg-linkedin-blue text-white rounded-lg hover:bg-blue-700 font-medium"
+                className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
               >
                 <Settings2 className="w-4 h-4" />
                 Configurer le Webhook
@@ -110,7 +110,7 @@ export function MonitoringDashboard({ initialData }: { initialData: MonitoringDa
             {newPostsCount > 0 && (
               <button
                 onClick={() => setShowPostsPanel(true)}
-                className="relative inline-flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 font-medium"
+                className="relative inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
               >
                 <Bell className="w-4 h-4" />
                 Nouveaux posts
@@ -129,7 +129,7 @@ export function MonitoringDashboard({ initialData }: { initialData: MonitoringDa
         </h2>
         <button
           onClick={() => setShowAddModal(true)}
-          className="inline-flex items-center gap-2 px-4 py-2 bg-linkedin-blue text-white rounded-lg hover:bg-blue-700 font-medium"
+          className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
         >
           <Plus className="w-4 h-4" />
           Ajouter une entreprise
@@ -143,7 +143,7 @@ export function MonitoringDashboard({ initialData }: { initialData: MonitoringDa
           </p>
           <button
             onClick={() => setShowAddModal(true)}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-linkedin-blue text-white rounded-lg hover:bg-blue-700 font-medium"
+            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
           >
             <Plus className="w-4 h-4" />
             Ajouter ma première entreprise
@@ -254,7 +254,7 @@ function CompanyCard({ company, onConfigure, onRemove }: any) {
 
       <button
         onClick={onConfigure}
-        className="w-full inline-flex items-center justify-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 font-medium text-sm"
+        className="w-full inline-flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium text-sm"
       >
         <Settings2 className="w-4 h-4" />
         Configurer la collecte
@@ -318,14 +318,14 @@ function AddCompanyModal({ onClose, onAdd }: any) {
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium"
+              className="flex-1 px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 font-medium"
             >
               Annuler
             </button>
             <button
               type="submit"
               disabled={isSubmitting}
-              className="flex-1 px-4 py-2 bg-linkedin-blue text-white rounded-lg hover:bg-blue-700 font-medium disabled:opacity-50"
+              className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium disabled:opacity-50"
             >
               {isSubmitting ? 'Ajout...' : 'Ajouter'}
             </button>
@@ -433,13 +433,13 @@ function ConfigModal({ company, onClose, onSave }: any) {
         <div className="flex gap-3 pt-6 mt-6 border-t">
           <button
             onClick={onClose}
-            className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium"
+            className="flex-1 px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 font-medium"
           >
             Annuler
           </button>
           <button
             onClick={() => onSave({ delayHours, maxReactions, maxComments, isEnabled })}
-            className="flex-1 px-4 py-2 bg-linkedin-blue text-white rounded-lg hover:bg-blue-700 font-medium"
+            className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
           >
             Sauvegarder
           </button>
@@ -460,13 +460,13 @@ function PostsPanel({ posts, onClose, onMarkAsRead }: any) {
           <div className="flex gap-3">
             <button
               onClick={onMarkAsRead}
-              className="px-4 py-2 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 font-medium text-sm"
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium text-sm"
             >
               Marquer tout comme lu
             </button>
             <button
               onClick={onClose}
-              className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium text-sm"
+              className="px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 font-medium text-sm"
             >
               Fermer
             </button>
