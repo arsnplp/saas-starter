@@ -23,12 +23,11 @@ The backend utilizes Next.js API routes and Server Actions. Authentication is JW
 *   **AI-Powered Lead Generation:** Includes various modes for prospect discovery from LinkedIn engagements, intelligent company targeting using GPT-4o, and an AI scoring pipeline for lead qualification. A "Target Companies" feature generates lists based on ICP. "Intelligent Contact Search" employs a 3-level cascade (LinkUp, then web search with GPT) to find decision-makers.
 *   **LinkedIn Integration:** Supports dual authentication via LinkUp API (for profile enrichment) and LinkedIn OAuth (for official API access and post automation). OAuth tokens are subject to future encryption.
 *   **LinkedIn Post Automation:** GPT-4o powers professional LinkedIn post creation and scheduled publishing via OAuth. It supports four post types with optimized prompts, configurable recurrence, and manual validation or auto-publish options.
-*   **LinkedIn Profile Monitoring (Manual Polling):** Allows users to monitor LinkedIn profiles (both personal and company pages) via manual on-demand polling. Users can fetch the latest posts from monitored accounts with a button click, view reconstructed feeds for each profile, and extract leads (reactions or comments) from individual posts with granular control. The system detects duplicates and only stores new posts/leads. Each extracted lead is tagged with its source post URL and engagement type for full attribution.
 *   **Decision-Maker Discovery & Management:** A unified AI-powered system combines LinkUp API and web search for comprehensive decision-maker discovery. It features an orchestrated cascade (LinkUp primary, web fallback), automated email/phone enrichment, and intelligent deduplication. Candidates are scored by GPT-4o and stored in a centralized `decision_makers` table.
 
 ### Database Schema Highlights
 
-Key tables include `users`, `teams`, `prospect_candidates`, `leads`, `linkedinConnections` (LinkUp auth), `linkedin_oauth_credentials` (OAuth tokens), `target_companies`, `decision_makers`, `icp_profiles`, and tables for LinkedIn post automation and manual monitoring (`monitored_companies`, `company_posts`).
+Key tables include `users`, `teams`, `prospect_candidates`, `leads`, `linkedinConnections` (LinkUp auth), `linkedin_oauth_credentials` (OAuth tokens), `target_companies`, `decision_makers`, `icp_profiles`, and tables for LinkedIn post automation.
 
 ### Security
 
@@ -36,13 +35,13 @@ The system employs JWT-based authentication, HTTP-only cookies, bcrypt hashing, 
 
 ### Cost Optimization
 
-LinkUp API calls for profile enrichment are cached to prevent redundant usage. Manual polling allows users to control when API calls are made, optimizing credit consumption by only fetching posts on-demand. Lead extraction provides credit estimates before execution (10 reactions/comments = 1 credit).
+LinkUp API calls for profile enrichment are cached to prevent redundant usage.
 
 ## External Dependencies
 
 *   **Payment Processing:** Stripe (for subscriptions, billing, Checkout, Customer Portal, webhooks).
 *   **Third-Party APIs:**
-    *   **LinkUp API:** For LinkedIn data extraction, manual feed polling, and lead extraction (reactions/comments). Requires a login_token stored in `linkedinConnections` table.
+    *   **LinkUp API:** For LinkedIn data extraction and lead enrichment. Requires a login_token stored in `linkedinConnections` table.
     *   **OpenAI API:** GPT-4o for AI-powered lead scoring, content generation, and intelligent targeting.
     *   **Tavily API:** For intelligent web search as a fallback in decision-maker discovery.
 *   **Database:** PostgreSQL (Replit managed) with Drizzle ORM.
