@@ -5,13 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Plus, Trash2, Power, PowerOff, Radio, Clock, CheckCircle2, XCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import {
@@ -213,21 +207,27 @@ export default function MonitoringPage() {
                   />
                 </div>
                 <div>
-                  <Label htmlFor="profileType">Type de profil</Label>
-                  <Select
+                  <Label>Type de profil</Label>
+                  <RadioGroup
                     value={formData.profileType}
                     onValueChange={(value: 'company' | 'personal') =>
                       setFormData({ ...formData, profileType: value })
                     }
+                    className="flex gap-4 mt-2"
                   >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="company">Entreprise</SelectItem>
-                      <SelectItem value="personal">Profil personnel</SelectItem>
-                    </SelectContent>
-                  </Select>
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="company" id="company" />
+                      <Label htmlFor="company" className="font-normal cursor-pointer">
+                        Entreprise
+                      </Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="personal" id="personal" />
+                      <Label htmlFor="personal" className="font-normal cursor-pointer">
+                        Profil personnel
+                      </Label>
+                    </div>
+                  </RadioGroup>
                 </div>
                 <div>
                   <Label htmlFor="delayHours">Délai avant extraction (heures)</Label>
