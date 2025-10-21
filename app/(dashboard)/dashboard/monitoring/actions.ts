@@ -190,7 +190,12 @@ export async function markPostsAsReadAction() {
 export async function getMonitoringDataAction() {
   const user = await getUser();
   if (!user || !user.teamId) {
-    return null;
+    return {
+      companies: [],
+      recentPosts: [],
+      webhookStatus: { hasAccount: false, isActive: false, accountInfo: null },
+      newPostsCount: 0,
+    };
   }
 
   const teamId = user.teamId;
@@ -238,8 +243,9 @@ export async function setupWebhookAccountAction() {
   try {
     const webhookUrl = `${process.env.NEXT_PUBLIC_BASE_URL || 'https://' + process.env.REPLIT_DEV_DOMAIN}/api/webhook/linkedin`;
 
+    const { linkedinConnections } = await import('@/lib/db/schema');
     const connection = await db.query.linkedinConnections.findFirst({
-      where: eq(monitoredCompanies.teamId, teamId),
+      where: eq(linkedinConnections.teamId, teamId),
     });
 
     if (!connection) {

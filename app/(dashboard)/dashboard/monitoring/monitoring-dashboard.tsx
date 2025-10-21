@@ -22,14 +22,6 @@ export function MonitoringDashboard({ initialData }: { initialData: MonitoringDa
   const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
-  if (!data) {
-    return (
-      <div className="text-center py-12">
-        <p className="text-gray-600">Chargement...</p>
-      </div>
-    );
-  }
-
   const { companies, recentPosts, webhookStatus, newPostsCount } = data;
 
   const handleToggleMonitoring = async () => {
