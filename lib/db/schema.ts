@@ -641,3 +641,200 @@ export const decisionMakersRelations = relations(decisionMakers, ({ one }) => ({
         references: [targetCompanies.id],
     }),
 }));
+
+// ========== REAL-TIME MONITORING SYSTEM ==========
+
+// Webhook Accounts - LinkUp webhook configuration
+export const webhookAccounts = pgTable(
+    'webhook_accounts',
+    {
+        id: serial('id').primaryKey(),
+        teamId: integer('team_id').references(() => teams.id).notNull(),
+        linkupAccountId: varchar('linkup_account_id', { length: 255 }).notNull(),
+        accountName: varchar('account_name', { length: 255 }).notNull(),
+        webhookUrl: text('webhook_url').notNull(),
+        country: varchar('country', { length: 10 }).notNull().default('FR'),
+        isActive: boolean('is_active').notNull().default(false),
+        createdBy: integer('created_by').references(() => users.id).notNull(),
+        createdAt: timestamp('created_at').notNull().defaultNow(),
+        updatedAt: timestamp('updated_at').notNull().defaultNow(),
+        lastStartedAt: timestamp('last_started_at'),
+        lastStoppedAt: timestamp('last_stopped_at'),
+    },
+    (t) => ({
+        teamIdx: index('webhook_accounts_team_idx').on(t.teamId),
+        linkupAccountIdUnique: unique('webhook_accounts_linkup_id_unique').on(t.linkupAccountId),
+    })
+);
+
+// Monitored Companies - Liste des entreprises suivies
+export const monitoredCompanies = pgTable(
+    'monitored_companies',
+    {
+        id: uuid('id').defaultRandom().primaryKey(),
+        teamId: integer('team_id').references(() => teams.id).notNull(),
+        linkedinCompanyUrl: text('linkedin_company_url').notNull(),
+        companyName: varchar('company_name', { length: 255 }).notNull(),
+        companyId: varchar('company_id', { length: 255 }),
+        logoUrl: text('logo_url'),
+        isActive: boolean('is_active').notNull().default(true),
+        addedBy: integer('added_by').references(() => users.id).notNull(),
+        addedAt: timestamp('added_at').notNull().defaultNow(),
+        lastPostAt: timestamp('last_post_at'),
+        totalPostsReceived: integer('total_posts_received').notNull().default(0),
+    },
+    (t) => ({
+        teamIdx: index('monitored_companies_team_idx').on(t.teamId),
+        linkedinUrlUnique: unique('monitored_companies_linkedin_url_team_unique').on(t.linkedinCompanyUrl, t.teamId),
+        lastPostIdx: index('monitored_companies_last_post_idx').on(t.lastPostAt),
+    })
+);
+
+// Company Posts - Posts reçus via webhook
+export const companyPosts = pgTable(
+    'company_posts',
+    {
+        id: uuid('id').defaultRandom().primaryKey(),
+        teamId: integer('team_id').references(() => teams.id).notNull(),
+        monitoredCompanyId: uuid('monitored_company_id').references(() => monitoredCompanies.id).notNull(),
+        postId: varchar('post_id', { length: 255 }).notNull(),
+        postUrl: text('post_url').notNull(),
+        authorName: varchar('author_name', { length: 255 }),
+        authorUrl: text('author_url'),
+        content: text('content'),
+        mediaUrls: jsonb('media_urls').$type<string[]>(),
+        publishedAt: timestamp('published_at').notNull(),
+        receivedAt: timestamp('received_at').notNull().defaultNow(),
+        isNew: boolean('is_new').notNull().default(true),
+        webhookPayload: jsonb('webhook_payload'),
+    },
+    (t) => ({
+        teamIdx: index('company_posts_team_idx').on(t.teamId),
+        companyIdx: index('company_posts_company_idx').on(t.monitoredCompanyId),
+        postIdUnique: unique('company_posts_post_id_unique').on(t.postId, t.teamId),
+        publishedAtIdx: index('company_posts_published_at_idx').on(t.publishedAt),
+        isNewIdx: index('company_posts_is_new_idx').on(t.isNew),
+    })
+);
+
+// Lead Collection Configs - Configuration de collecte par entreprise
+export const leadCollectionConfigs = pgTable(
+    'lead_collection_configs',
+    {
+        id: uuid('id').defaultRandom().primaryKey(),
+        teamId: integer('team_id').references(() => teams.id).notNull(),
+        monitoredCompanyId: uuid('monitored_company_id').references(() => monitoredCompanies.id).notNull(),
+        delayHours: integer('delay_hours').notNull().default(24),
+        maxReactions: integer('max_reactions').notNull().default(50),
+        maxComments: integer('max_comments').notNull().default(50),
+        isEnabled: boolean('is_enabled').notNull().default(true),
+        createdAt: timestamp('created_at').notNull().defaultNow(),
+        updatedAt: timestamp('updated_at').notNull().defaultNow(),
+    },
+    (t) => ({
+        teamIdx: index('lead_collection_configs_team_idx').on(t.teamId),
+        companyUnique: unique('lead_collection_configs_company_unique').on(t.monitoredCompanyId),
+    })
+);
+
+// Scheduled Collections - Tâches planifiées de collecte
+export const scheduledCollections = pgTable(
+    'scheduled_collections',
+    {
+        id: uuid('id').defaultRandom().primaryKey(),
+        teamId: integer('team_id').references(() => teams.id).notNull(),
+        postId: uuid('post_id').references(() => companyPosts.id).notNull(),
+        configId: uuid('config_id').references(() => leadCollectionConfigs.id).notNull(),
+        scheduledFor: timestamp('scheduled_for').notNull(),
+        status: varchar('status', { length: 50 }).notNull().default('pending'),
+        collectedAt: timestamp('collected_at'),
+        reactionsCollected: integer('reactions_collected').notNull().default(0),
+        commentsCollected: integer('comments_collected').notNull().default(0),
+        leadsCreated: integer('leads_created').notNull().default(0),
+        creditsUsed: integer('credits_used').notNull().default(0),
+        errorMessage: text('error_message'),
+        createdAt: timestamp('created_at').notNull().defaultNow(),
+    },
+    (t) => ({
+        teamIdx: index('scheduled_collections_team_idx').on(t.teamId),
+        postIdx: index('scheduled_collections_post_idx').on(t.postId),
+        statusIdx: index('scheduled_collections_status_idx').on(t.status),
+        scheduledForIdx: index('scheduled_collections_scheduled_for_idx').on(t.scheduledFor),
+        postUnique: unique('scheduled_collections_post_unique').on(t.postId),
+    })
+);
+
+// Relations
+export const webhookAccountsRelations = relations(webhookAccounts, ({ one }) => ({
+    team: one(teams, {
+        fields: [webhookAccounts.teamId],
+        references: [teams.id],
+    }),
+    createdByUser: one(users, {
+        fields: [webhookAccounts.createdBy],
+        references: [users.id],
+    }),
+}));
+
+export const monitoredCompaniesRelations = relations(monitoredCompanies, ({ one, many }) => ({
+    team: one(teams, {
+        fields: [monitoredCompanies.teamId],
+        references: [teams.id],
+    }),
+    addedByUser: one(users, {
+        fields: [monitoredCompanies.addedBy],
+        references: [users.id],
+    }),
+    posts: many(companyPosts),
+    collectionConfig: one(leadCollectionConfigs),
+}));
+
+export const companyPostsRelations = relations(companyPosts, ({ one, many }) => ({
+    team: one(teams, {
+        fields: [companyPosts.teamId],
+        references: [teams.id],
+    }),
+    monitoredCompany: one(monitoredCompanies, {
+        fields: [companyPosts.monitoredCompanyId],
+        references: [monitoredCompanies.id],
+    }),
+    scheduledCollection: one(scheduledCollections),
+}));
+
+export const leadCollectionConfigsRelations = relations(leadCollectionConfigs, ({ one }) => ({
+    team: one(teams, {
+        fields: [leadCollectionConfigs.teamId],
+        references: [teams.id],
+    }),
+    monitoredCompany: one(monitoredCompanies, {
+        fields: [leadCollectionConfigs.monitoredCompanyId],
+        references: [monitoredCompanies.id],
+    }),
+}));
+
+export const scheduledCollectionsRelations = relations(scheduledCollections, ({ one }) => ({
+    team: one(teams, {
+        fields: [scheduledCollections.teamId],
+        references: [teams.id],
+    }),
+    post: one(companyPosts, {
+        fields: [scheduledCollections.postId],
+        references: [companyPosts.id],
+    }),
+    config: one(leadCollectionConfigs, {
+        fields: [scheduledCollections.configId],
+        references: [leadCollectionConfigs.id],
+    }),
+}));
+
+// Export types
+export type WebhookAccount = typeof webhookAccounts.$inferSelect;
+export type NewWebhookAccount = typeof webhookAccounts.$inferInsert;
+export type MonitoredCompany = typeof monitoredCompanies.$inferSelect;
+export type NewMonitoredCompany = typeof monitoredCompanies.$inferInsert;
+export type CompanyPost = typeof companyPosts.$inferSelect;
+export type NewCompanyPost = typeof companyPosts.$inferInsert;
+export type LeadCollectionConfig = typeof leadCollectionConfigs.$inferSelect;
+export type NewLeadCollectionConfig = typeof leadCollectionConfigs.$inferInsert;
+export type ScheduledCollection = typeof scheduledCollections.$inferSelect;
+export type NewScheduledCollection = typeof scheduledCollections.$inferInsert;
