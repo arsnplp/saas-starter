@@ -24,6 +24,7 @@ export async function GET(request: NextRequest) {
         profileName: monitoredCompanies.companyName,
         profileType: monitoredCompanies.profileType,
         lastPostAt: monitoredCompanies.lastPostAt,
+        totalPostsReceived: monitoredCompanies.totalPostsReceived,
         configId: leadCollectionConfigs.id,
         delayHours: leadCollectionConfigs.delayHours,
       })
@@ -96,7 +97,7 @@ export async function GET(request: NextRequest) {
               .update(monitoredCompanies)
               .set({
                 lastPostAt: new Date(post.publishedAt),
-                totalPostsReceived: (profile as any).totalPostsReceived + 1,
+                totalPostsReceived: (profile.totalPostsReceived || 0) + 1,
               })
               .where(eq(monitoredCompanies.id, profile.id));
           }
