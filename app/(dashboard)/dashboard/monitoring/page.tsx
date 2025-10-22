@@ -481,7 +481,14 @@ export default function MonitoringPage() {
                     </div>
                     {getStatusBadge(post.collectionStatus)}
                   </div>
-                  <p className="text-sm text-gray-700 mb-3 line-clamp-2">{post.content}</p>
+                  <a
+                    href={post.postUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="block text-sm text-gray-700 mb-3 line-clamp-2 hover:text-blue-600 hover:underline cursor-pointer transition-colors"
+                  >
+                    {post.content}
+                  </a>
                   <div className="flex items-center justify-between text-sm">
                     <div className="text-gray-600">
                       {post.collectionStatus === 'pending' && post.scheduledFor && (
@@ -496,14 +503,6 @@ export default function MonitoringPage() {
                         </span>
                       )}
                     </div>
-                    <a
-                      href={post.postUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-blue-600 hover:underline"
-                    >
-                      Voir le post
-                    </a>
                   </div>
                 </div>
               ))}
