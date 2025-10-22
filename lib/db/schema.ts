@@ -208,6 +208,8 @@ export type LinkedinOAuthCredential = typeof linkedinOAuthCredentials.$inferSele
 export type NewLinkedinOAuthCredential = typeof linkedinOAuthCredentials.$inferInsert;
 export type ProspectCandidate = typeof prospectCandidates.$inferSelect;
 export type NewProspectCandidate = typeof prospectCandidates.$inferInsert;
+export type LeadFolder = typeof leadFolders.$inferSelect;
+export type NewLeadFolder = typeof leadFolders.$inferInsert;
 export type Lead = typeof leads.$inferSelect;
 export type NewLead = typeof leads.$inferInsert;
 export type Message = typeof messages.$inferSelect;
@@ -272,12 +274,31 @@ export const prospectCandidates = pgTable(
     })
 );
 
+// ---------- LEAD FOLDERS TABLE ----------
+export const leadFolders = pgTable(
+    'lead_folders',
+    {
+        id: serial('id').primaryKey(),
+        teamId: integer('team_id').references(() => teams.id).notNull(),
+        name: varchar('name', { length: 255 }).notNull(),
+        color: varchar('color', { length: 7 }).default('#3b82f6'), // hex color
+        icon: varchar('icon', { length: 50 }).default('folder'), // lucide icon name
+        isDefault: boolean('is_default').notNull().default(false),
+        createdAt: timestamp('created_at').notNull().defaultNow(),
+        updatedAt: timestamp('updated_at').notNull().defaultNow(),
+    },
+    (t) => ({
+        teamIdx: index('lead_folders_team_idx').on(t.teamId),
+    })
+);
+
 // ---------- LEADS TABLE ----------
 export const leads = pgTable(
     'leads',
     {
         id: uuid('id').defaultRandom().primaryKey(),
         teamId: integer('team_id').references(() => teams.id).notNull(),
+        folderId: integer('folder_id').references(() => leadFolders.id),
         email: varchar('email', { length: 255 }),
         phone: varchar('phone', { length: 50 }),
         firstName: varchar('first_name', { length: 120 }),
@@ -308,6 +329,7 @@ export const leads = pgTable(
     },
     (t) => ({
         teamIdx: index('leads_team_idx').on(t.teamId),
+        folderIdx: index('leads_folder_idx').on(t.folderId),
         emailIdx: index('leads_email_idx').on(t.email),
         companyIdx: index('leads_company_idx').on(t.company),
         statusIdx: index('leads_status_idx').on(t.status),
@@ -428,10 +450,22 @@ export const webhookEvents = pgTable('webhook_events', {
 }));
 
 // Relations for new tables
+export const leadFoldersRelations = relations(leadFolders, ({ one, many }) => ({
+    team: one(teams, {
+        fields: [leadFolders.teamId],
+        references: [teams.id],
+    }),
+    leads: many(leads),
+}));
+
 export const leadsRelations = relations(leads, ({ one }) => ({
     team: one(teams, {
         fields: [leads.teamId],
         references: [teams.id],
+    }),
+    folder: one(leadFolders, {
+        fields: [leads.folderId],
+        references: [leadFolders.id],
     }),
 }));
 
