@@ -34,7 +34,11 @@ Key tables include `users`, `teams`, `prospect_candidates`, `leads`, `linkedinCo
 
 **Leads vs Prospects UI:**
 - **/dashboard/leads:** Displays a simple, flat list of all leads extracted from LinkedIn posts. Each lead is clickable and links to `/dashboard/leads/[id]` for detailed view with personalized messaging capabilities. No folder system on this page.
-- **/dashboard/prospects:** Features a LinkedIn-style folder card interface for organizing prospects. Users can create custom folders (with name and color) and navigate between folders using search params (`?folder=X`). The default "Tous les prospects" folder displays all prospects.
+- **/dashboard/prospects:** Features a LinkedIn-style folder card interface for organizing prospects. Users can create custom folders (with name and color) and navigate between folders using search params (`?folder=X`). The default "Général" folder displays all prospects. When clicking on a folder, the page displays:
+  - Folder statistics (total, converted, conversion rate)
+  - List of prospects in the folder with clickable names linking to `/dashboard/prospects/[id]`
+  - "View Post" button for prospects from LinkedIn posts
+  - Back button to return to folder overview
 
 ### Security
 

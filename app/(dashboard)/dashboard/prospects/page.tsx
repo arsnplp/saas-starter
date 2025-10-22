@@ -43,7 +43,7 @@ async function getProspectsByFolder(folderId: number, teamId: number) {
 export default async function ProspectsPage({
   searchParams,
 }: {
-  searchParams: { folder?: string };
+  searchParams: Promise<{ folder?: string }>;
 }) {
   const user = await getUser();
   if (!user) {
@@ -75,7 +75,8 @@ export default async function ProspectsPage({
 
   const folders = await getFoldersWithCounts(team.id);
   
-  const selectedFolderId = searchParams.folder ? parseInt(searchParams.folder) : null;
+  const params = await searchParams;
+  const selectedFolderId = params.folder ? parseInt(params.folder) : null;
   const selectedFolder = selectedFolderId 
     ? folders.find(f => f.id === selectedFolderId)
     : null;
