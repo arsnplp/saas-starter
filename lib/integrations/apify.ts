@@ -38,11 +38,13 @@ export interface LinkedInEngagement {
 
 export async function getProfilePosts(linkedinProfileUrl: string, maxPosts: number = 5, includeReposts: boolean = false): Promise<LinkedInPost[]> {
   try {
-    console.log('🔍 Apify: Fetching posts for URL:', linkedinProfileUrl, 'maxPosts:', maxPosts, 'includeReposts:', includeReposts);
+    const postsToFetch = includeReposts ? maxPosts : Math.min(maxPosts * 5, 20);
+    
+    console.log('🔍 Apify: Fetching posts for URL:', linkedinProfileUrl, 'maxPosts:', maxPosts, 'includeReposts:', includeReposts, 'postsToFetch:', postsToFetch);
     
     const run = await client.actor('apimaestro/linkedin-profile-posts').call({
       username: linkedinProfileUrl,
-      total_posts: maxPosts,
+      total_posts: postsToFetch,
     });
 
     console.log('✅ Apify run completed:', {
@@ -67,6 +69,9 @@ export async function getProfilePosts(linkedinProfileUrl: string, maxPosts: numb
         return postType === 'regular';
       });
       console.log(`🔍 Filtered to ${filteredItems.length} original posts (excluded reposts)`);
+      
+      filteredItems = filteredItems.slice(0, maxPosts);
+      console.log(`✂️ Trimmed to ${filteredItems.length} posts (requested: ${maxPosts})`);
     }
     
     return filteredItems.map((item: any) => ({
