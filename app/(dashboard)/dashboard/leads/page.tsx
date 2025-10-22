@@ -45,7 +45,7 @@ async function getLeadsByFolder(folderId: number, teamId: number) {
 export default async function LeadsPage({
   searchParams,
 }: {
-  searchParams: { folder?: string };
+  searchParams: Promise<{ folder?: string }>;
 }) {
   const user = await getUser();
   if (!user) {
@@ -79,7 +79,8 @@ export default async function LeadsPage({
   const folders = await getFoldersWithCounts(team.id);
   
   // Si un dossier est sélectionné, afficher ses leads
-  const selectedFolderId = searchParams.folder ? parseInt(searchParams.folder) : null;
+  const params = await searchParams;
+  const selectedFolderId = params.folder ? parseInt(params.folder) : null;
   const selectedFolder = selectedFolderId 
     ? folders.find(f => f.id === selectedFolderId)
     : null;
