@@ -59,7 +59,21 @@ export async function getProfilePosts(linkedinProfileUrl: string, maxPosts: numb
       console.log('📝 First item structure:', JSON.stringify(items[0], null, 2));
     }
     
-    return items.map((item: any) => ({
+    const validItems = items.filter((item: any) => {
+      if (item.message && item.message.includes('No posts found')) {
+        console.log('⚠️ Filtered out item with "No posts found" message');
+        return false;
+      }
+      if (!item.url || !item.posted_at) {
+        console.log('⚠️ Filtered out invalid item (missing url or posted_at)');
+        return false;
+      }
+      return true;
+    });
+    
+    console.log(`✅ Valid posts after filtering: ${validItems.length}`);
+    
+    return validItems.map((item: any) => ({
       postId: String(item.urn?.ugcPost_urn || item.full_urn || item.urn?.activity_urn || ''),
       postUrl: String(item.url || ''),
       authorName: String(item.author ? `${item.author.first_name || ''} ${item.author.last_name || ''}`.trim() : ''),
