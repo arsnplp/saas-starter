@@ -295,7 +295,7 @@ export function ProspectListClient({ prospects, folders, currentFolderId }: Prop
 
                 {!selectionMode && (
                   <div className="flex flex-col gap-2 ml-4">
-                    {prospect.profileUrl && (
+                    {prospect.profileUrl && !prospect.profileUrl.startsWith('temp-') && (
                       <a
                         href={prospect.profileUrl}
                         target="_blank"
