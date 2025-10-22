@@ -85,6 +85,9 @@ export default async function ProspectsPage({
     : [];
 
   if (selectedFolder) {
+    const convertedCount = folderProspects.filter(p => p.status === 'converted').length;
+    const totalCount = folderProspects.length;
+    
     return (
       <section className="flex-1 p-4 lg:p-8">
         <div className="mb-6">
@@ -96,7 +99,7 @@ export default async function ProspectsPage({
             Retour aux dossiers
           </Link>
           
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 mb-6">
             <div 
               className="p-3 rounded-lg" 
               style={{ backgroundColor: `${selectedFolder.color}15` }}
@@ -112,13 +115,58 @@ export default async function ProspectsPage({
                 {selectedFolder.name}
               </h1>
               <p className="text-sm text-gray-500">
-                {folderProspects.length === 0 
+                {totalCount === 0 
                   ? 'Aucun lead en attente dans ce dossier'
-                  : folderProspects.length === 1
+                  : totalCount === 1
                   ? '1 lead en attente'
-                  : `${folderProspects.length} leads en attente`
+                  : `${totalCount} leads en attente`
                 }
               </p>
+            </div>
+          </div>
+
+          {/* Statistiques du dossier */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <div className="bg-white border rounded-lg p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-gray-600">Total</p>
+                  <p className="text-2xl font-bold text-gray-900">{totalCount}</p>
+                </div>
+                <div className="p-3 bg-blue-50 rounded-lg">
+                  <Folder className="w-6 h-6 text-blue-600" />
+                </div>
+              </div>
+            </div>
+            
+            <div className="bg-white border rounded-lg p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-gray-600">Convertis</p>
+                  <p className="text-2xl font-bold text-green-600">{convertedCount}</p>
+                </div>
+                <div className="p-3 bg-green-50 rounded-lg">
+                  <svg className="w-6 h-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+              </div>
+            </div>
+            
+            <div className="bg-white border rounded-lg p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-gray-600">Taux de conversion</p>
+                  <p className="text-2xl font-bold text-purple-600">
+                    {totalCount > 0 ? Math.round((convertedCount / totalCount) * 100) : 0}%
+                  </p>
+                </div>
+                <div className="p-3 bg-purple-50 rounded-lg">
+                  <svg className="w-6 h-6 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                  </svg>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -174,9 +222,12 @@ export default async function ProspectsPage({
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
                         <div className="flex items-center gap-3 mb-2">
-                          <h3 className="font-medium text-gray-900">
+                          <Link 
+                            href={`/dashboard/prospects/${prospect.id}`}
+                            className="font-medium text-gray-900 hover:text-blue-600 transition-colors"
+                          >
                             {prospect.name || 'Sans nom'}
-                          </h3>
+                          </Link>
                           {getStatusBadge(prospect.status)}
                           <Badge variant="outline" className="text-xs">
                             {getActionBadge(prospect.action)}
