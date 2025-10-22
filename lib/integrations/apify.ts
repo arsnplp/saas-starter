@@ -36,15 +36,13 @@ export interface LinkedInEngagement {
 }
 
 
-export async function getProfilePosts(linkedinProfileUrl: string, maxPosts: number = 5, includeReposts: boolean = false): Promise<LinkedInPost[]> {
+export async function getProfilePosts(linkedinProfileUrl: string, maxPosts: number = 5, includeReposts: boolean = true): Promise<LinkedInPost[]> {
   try {
-    const postsToFetch = includeReposts ? maxPosts : Math.min(maxPosts * 5, 20);
-    
-    console.log('🔍 Apify: Fetching posts for URL:', linkedinProfileUrl, 'maxPosts:', maxPosts, 'includeReposts:', includeReposts, 'postsToFetch:', postsToFetch);
+    console.log('🔍 Apify: Fetching posts for URL:', linkedinProfileUrl, 'maxPosts:', maxPosts);
     
     const run = await client.actor('apimaestro/linkedin-profile-posts').call({
       username: linkedinProfileUrl,
-      total_posts: postsToFetch,
+      total_posts: maxPosts,
     });
 
     console.log('✅ Apify run completed:', {
@@ -61,20 +59,7 @@ export async function getProfilePosts(linkedinProfileUrl: string, maxPosts: numb
       console.log('📝 First item structure:', JSON.stringify(items[0], null, 2));
     }
     
-    let filteredItems = items;
-    
-    if (!includeReposts) {
-      filteredItems = items.filter((item: any) => {
-        const postType = item.post_type || 'regular';
-        return postType === 'regular';
-      });
-      console.log(`🔍 Filtered to ${filteredItems.length} original posts (excluded reposts)`);
-      
-      filteredItems = filteredItems.slice(0, maxPosts);
-      console.log(`✂️ Trimmed to ${filteredItems.length} posts (requested: ${maxPosts})`);
-    }
-    
-    return filteredItems.map((item: any) => ({
+    return items.map((item: any) => ({
       postId: String(item.urn?.ugcPost_urn || item.full_urn || item.urn?.activity_urn || ''),
       postUrl: String(item.url || ''),
       authorName: String(item.author ? `${item.author.first_name || ''} ${item.author.last_name || ''}`.trim() : ''),
