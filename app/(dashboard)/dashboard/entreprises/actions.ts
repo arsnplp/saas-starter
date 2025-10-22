@@ -846,6 +846,13 @@ export async function importDecisionMakerToProspects(decisionMakerId: string, fo
       };
     }
 
+    if (!decisionMaker.linkedinUrl || decisionMaker.linkedinUrl.startsWith('temp-')) {
+      return {
+        success: false,
+        error: "Ce décideur n'a pas de profil LinkedIn valide",
+      };
+    }
+
     const folder = await db.query.prospectFolders.findFirst({
       where: and(
         eq(prospectFolders.id, folderId),

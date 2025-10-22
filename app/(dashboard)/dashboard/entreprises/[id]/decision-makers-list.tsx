@@ -155,7 +155,7 @@ export function DecisionMakersList({
                   </div>
 
                   <div className="flex items-center gap-2">
-                    {prospectFolders && prospectFolders.length > 0 && (
+                    {prospectFolders && prospectFolders.length > 0 && hasRealLinkedinUrl && (
                       <button
                         onClick={() => handleImportClick(maker)}
                         disabled={importingId === maker.id}
