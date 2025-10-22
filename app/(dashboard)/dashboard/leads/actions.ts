@@ -14,13 +14,14 @@ const importLeadsFromPostSchema = z.object({
   importMode: z.enum(['comments', 'comments_and_reactions']).default('comments'),
   maxResults: z.string().transform(Number).default('10'),
   teamId: z.string().transform(Number),
+  folderId: z.string().transform(Number).optional(),
 });
 
 export const importLeadsFromPost = validatedActionWithUser(
   importLeadsFromPostSchema,
   async (data, _, user) => {
     console.log('\n🔍 ========== IMPORT LEADS FROM POST - DÉBUT ==========');
-    const { postUrl, sourceMode, importMode, maxResults, teamId } = data;
+    const { postUrl, sourceMode, importMode, maxResults, teamId, folderId } = data;
 
     const creditsPerEndpoint = Math.ceil(maxResults / 10);
     const totalCredits = importMode === 'comments_and_reactions' ? creditsPerEndpoint * 2 : creditsPerEndpoint;
@@ -31,6 +32,7 @@ export const importLeadsFromPost = validatedActionWithUser(
     console.log('  - Mode import:', importMode);
     console.log('  - Max results:', maxResults, 'par type');
     console.log('  - Team ID:', teamId);
+    console.log('  - Folder ID:', folderId || 'Non spécifié');
     console.log('  - 💰 Coût total:', totalCredits, 'crédit(s) LinkUp');
 
     console.log('\n🔄 Récupération du client LinkUp...');
@@ -91,6 +93,7 @@ export const importLeadsFromPost = validatedActionWithUser(
 
       const [prospect] = await db.insert(prospectCandidates).values({
         teamId,
+        folderId: folderId || null,
         source: 'linkedin_post',
         sourceRef: postUrl,
         action: 'reaction',
@@ -134,6 +137,7 @@ export const importLeadsFromPost = validatedActionWithUser(
 
       const [prospect] = await db.insert(prospectCandidates).values({
         teamId,
+        folderId: folderId || null,
         source: 'linkedin_post',
         sourceRef: postUrl,
         action: 'comment',

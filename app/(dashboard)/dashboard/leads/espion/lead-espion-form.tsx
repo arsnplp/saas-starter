@@ -4,13 +4,28 @@ import { useState, useActionState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Loader2, Users, MessageSquare, ThumbsUp, TrendingUp } from 'lucide-react';
+import { Loader2, Users, MessageSquare, ThumbsUp, TrendingUp, Folder } from 'lucide-react';
 import { importLeadsFromPost } from '../actions';
 
-export default function LeadEspionForm({ teamId }: { teamId: number }) {
+type ProspectFolder = {
+  id: number;
+  name: string;
+  color: string | null;
+  icon: string | null;
+  isDefault: boolean;
+};
+
+type LeadEspionFormProps = {
+  teamId: number;
+  folders: ProspectFolder[];
+};
+
+export default function LeadEspionForm({ teamId, folders }: LeadEspionFormProps) {
+  const defaultFolder = folders.find(f => f.isDefault) || folders[0];
   const [postUrl, setPostUrl] = useState('');
   const [mode, setMode] = useState<'comments' | 'comments_and_reactions'>('comments');
   const [maxResults, setMaxResults] = useState<number>(10);
+  const [selectedFolderId, setSelectedFolderId] = useState<number>(defaultFolder?.id || 0);
   const [state, formAction, isPending] = useActionState(importLeadsFromPost, null);
 
   const calculateCredits = () => {
@@ -34,6 +49,32 @@ export default function LeadEspionForm({ teamId }: { teamId: number }) {
         <input type="hidden" name="sourceMode" value="espion" />
         <input type="hidden" name="importMode" value={mode} />
         <input type="hidden" name="maxResults" value={maxResults} />
+        <input type="hidden" name="folderId" value={selectedFolderId} />
+        
+        <div>
+          <Label htmlFor="folderId" className="text-sm font-medium">
+            Dossier de destination
+          </Label>
+          <div className="mt-2 relative">
+            <select
+              id="folderId"
+              value={selectedFolderId}
+              onChange={(e) => setSelectedFolderId(Number(e.target.value))}
+              disabled={isPending}
+              className="w-full px-4 py-2.5 pr-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none bg-white"
+            >
+              {folders.map(folder => (
+                <option key={folder.id} value={folder.id}>
+                  {folder.name}
+                </option>
+              ))}
+            </select>
+            <Folder className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
+          </div>
+          <p className="text-xs text-gray-500 mt-1.5">
+            Les prospects seront ajoutés à ce dossier
+          </p>
+        </div>
         
         <div>
           <Label htmlFor="postUrl" className="text-sm font-medium">
