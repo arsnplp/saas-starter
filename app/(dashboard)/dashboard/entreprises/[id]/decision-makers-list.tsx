@@ -1,8 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { Mail, Phone, Linkedin, User, AlertCircle, Download } from 'lucide-react';
-import { enrichDecisionMakerAction } from '../actions';
+import { Mail, Phone, Linkedin, User, AlertCircle, Download, FolderInput, Folder, Inbox } from 'lucide-react';
+import { enrichDecisionMakerAction, importDecisionMakerToProspects } from '../actions';
 import { toast } from 'sonner';
 
 interface DecisionMaker {
@@ -19,8 +19,25 @@ interface DecisionMaker {
   status: string;
 }
 
-export function DecisionMakersList({ decisionMakers }: { decisionMakers: DecisionMaker[] }) {
+interface ProspectFolder {
+  id: number;
+  name: string;
+  color: string | null;
+  icon: string | null;
+  isDefault: boolean;
+}
+
+export function DecisionMakersList({ 
+  decisionMakers, 
+  prospectFolders 
+}: { 
+  decisionMakers: DecisionMaker[];
+  prospectFolders?: ProspectFolder[];
+}) {
   const [enrichingIds, setEnrichingIds] = useState<Set<string>>(new Set());
+  const [importingId, setImportingId] = useState<string | null>(null);
+  const [showFolderModal, setShowFolderModal] = useState(false);
+  const [selectedDecisionMaker, setSelectedDecisionMaker] = useState<DecisionMaker | null>(null);
 
   const handleEnrich = async (id: string) => {
     setEnrichingIds((prev) => new Set(prev).add(id));
@@ -41,6 +58,32 @@ export function DecisionMakersList({ decisionMakers }: { decisionMakers: Decisio
         newSet.delete(id);
         return newSet;
       });
+    }
+  };
+
+  const handleImportClick = (maker: DecisionMaker) => {
+    setSelectedDecisionMaker(maker);
+    setShowFolderModal(true);
+  };
+
+  const handleImport = async (folderId: number) => {
+    if (!selectedDecisionMaker) return;
+
+    setImportingId(selectedDecisionMaker.id);
+    try {
+      const result = await importDecisionMakerToProspects(selectedDecisionMaker.id, folderId);
+      
+      if (result.success) {
+        toast.success('Décideur importé comme prospect');
+        setShowFolderModal(false);
+        setSelectedDecisionMaker(null);
+      } else {
+        toast.error(result.error || 'Erreur lors de l\'import');
+      }
+    } catch (error: any) {
+      toast.error(error.message || 'Erreur lors de l\'import');
+    } finally {
+      setImportingId(null);
     }
   };
 
@@ -112,6 +155,17 @@ export function DecisionMakersList({ decisionMakers }: { decisionMakers: Decisio
                   </div>
 
                   <div className="flex items-center gap-2">
+                    {prospectFolders && prospectFolders.length > 0 && (
+                      <button
+                        onClick={() => handleImportClick(maker)}
+                        disabled={importingId === maker.id}
+                        className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-white bg-green-600 hover:bg-green-700 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        <FolderInput className="w-4 h-4" />
+                        {importingId === maker.id ? 'Import...' : 'Importer'}
+                      </button>
+                    )}
+                    
                     {needsEnrichment && hasRealLinkedinUrl && (
                       <button
                         onClick={() => handleEnrich(maker.id)}
@@ -184,6 +238,53 @@ export function DecisionMakersList({ decisionMakers }: { decisionMakers: Decisio
           </div>
         );
       })}
+
+      {/* Modal de sélection de dossier */}
+      {showFolderModal && prospectFolders && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <h3 className="text-lg font-medium text-gray-900 mb-4">
+              Importer dans un dossier
+            </h3>
+            
+            <div className="space-y-2 mb-6">
+              {prospectFolders.map((folder) => (
+                <button
+                  key={folder.id}
+                  onClick={() => handleImport(folder.id)}
+                  disabled={importingId !== null}
+                  className="w-full flex items-center gap-3 p-3 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors text-left disabled:opacity-50"
+                >
+                  <div 
+                    className="p-2 rounded-lg" 
+                    style={{ backgroundColor: `${folder.color}15` }}
+                  >
+                    {folder.icon === 'inbox' ? (
+                      <Inbox className="w-5 h-5" style={{ color: folder.color || '#3b82f6' }} />
+                    ) : (
+                      <Folder className="w-5 h-5" style={{ color: folder.color || '#3b82f6' }} />
+                    )}
+                  </div>
+                  <span className="font-medium text-gray-900">{folder.name}</span>
+                  {folder.isDefault && (
+                    <span className="ml-auto text-xs text-gray-500">Par défaut</span>
+                  )}
+                </button>
+              ))}
+            </div>
+
+            <button
+              onClick={() => {
+                setShowFolderModal(false);
+                setSelectedDecisionMaker(null);
+              }}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+            >
+              Annuler
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

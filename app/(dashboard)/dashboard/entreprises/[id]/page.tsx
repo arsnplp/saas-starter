@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation';
 import { db } from '@/lib/db/drizzle';
-import { targetCompanies, decisionMakers } from '@/lib/db/schema';
+import { targetCompanies, decisionMakers, prospectFolders } from '@/lib/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { getTeamForUser } from '@/lib/db/queries';
 import { Building2, MapPin, Globe, Phone, Mail, Linkedin, Users, ArrowLeft } from 'lucide-react';
@@ -37,6 +37,11 @@ export default async function CompanyDetailPage({
       eq(decisionMakers.teamId, team.id)
     ),
     orderBy: (dm, { desc }) => [desc(dm.relevanceScore)],
+  });
+
+  const folders = await db.query.prospectFolders.findMany({
+    where: eq(prospectFolders.teamId, team.id),
+    orderBy: (f, { asc }) => [asc(f.createdAt)],
   });
 
   const companyData = company.companyData as any;
@@ -179,7 +184,7 @@ export default async function CompanyDetailPage({
             </div>
           </div>
 
-          <DecisionMakersList decisionMakers={makers} />
+          <DecisionMakersList decisionMakers={makers} prospectFolders={folders} />
         </div>
       </div>
     </div>

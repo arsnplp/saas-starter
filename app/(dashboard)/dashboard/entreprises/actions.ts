@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import OpenAI from "openai";
 import { db } from "@/lib/db";
-import { targetCompanies, icpProfiles } from "@/lib/db/schema";
+import { targetCompanies, icpProfiles, decisionMakers, prospectCandidates, prospectFolders } from "@/lib/db/schema";
 import { eq, and } from "drizzle-orm";
 import { getUser, getTeamForUser } from "@/lib/db/queries";
 import { findAndEnrichDecisionMakers } from "@/lib/services/decision-maker-orchestrator";
@@ -810,6 +810,96 @@ export async function enrichDecisionMakerAction(decisionMakerId: string) {
     return {
       success: false,
       message: error.message || "Erreur lors de l'enrichissement du décideur",
+    };
+  }
+}
+
+export async function importDecisionMakerToProspects(decisionMakerId: string, folderId: number) {
+  const user = await getUser();
+  if (!user) {
+    return {
+      success: false,
+      error: "Non authentifié",
+    };
+  }
+
+  const team = await getTeamForUser();
+  if (!team) {
+    return {
+      success: false,
+      error: "Équipe introuvable",
+    };
+  }
+
+  try {
+    const decisionMaker = await db.query.decisionMakers.findFirst({
+      where: and(
+        eq(decisionMakers.id, decisionMakerId),
+        eq(decisionMakers.teamId, team.id)
+      ),
+    });
+
+    if (!decisionMaker) {
+      return {
+        success: false,
+        error: "Décideur non trouvé",
+      };
+    }
+
+    const folder = await db.query.prospectFolders.findFirst({
+      where: and(
+        eq(prospectFolders.id, folderId),
+        eq(prospectFolders.teamId, team.id)
+      ),
+    });
+
+    if (!folder) {
+      return {
+        success: false,
+        error: "Dossier non trouvé",
+      };
+    }
+
+    const existingProspect = await db.query.prospectCandidates.findFirst({
+      where: and(
+        eq(prospectCandidates.profileUrl, decisionMaker.linkedinUrl),
+        eq(prospectCandidates.teamId, team.id)
+      ),
+    });
+
+    if (existingProspect) {
+      return {
+        success: false,
+        error: "Ce décideur est déjà importé comme prospect",
+      };
+    }
+
+    await db.insert(prospectCandidates).values({
+      teamId: team.id,
+      folderId: folderId,
+      source: 'decision_maker_import',
+      sourceRef: decisionMakerId,
+      action: 'import',
+      profileUrl: decisionMaker.linkedinUrl,
+      name: decisionMaker.fullName,
+      title: decisionMaker.title,
+      company: null,
+      location: null,
+      fetchedAt: new Date(),
+      status: 'new',
+    });
+
+    revalidatePath("/dashboard/entreprises");
+    revalidatePath("/dashboard/prospects");
+
+    return {
+      success: true,
+    };
+  } catch (error: any) {
+    console.error("❌ Erreur lors de l'import:", error);
+    return {
+      success: false,
+      error: error.message || "Erreur lors de l'import du décideur",
     };
   }
 }
