@@ -474,21 +474,21 @@ export default function MonitoringPage() {
                 <div key={post.id} className="border rounded-lg p-4">
                   <div className="flex justify-between items-start mb-2">
                     <div>
-                      <h4 className="font-semibold">{post.authorName}</h4>
+                      <a
+                        href={post.postUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="font-semibold hover:text-blue-600 hover:underline cursor-pointer transition-colors"
+                      >
+                        {post.authorName}
+                      </a>
                       <p className="text-xs text-gray-500">
                         {post.profileName} • {new Date(post.publishedAt).toLocaleString()}
                       </p>
                     </div>
                     {getStatusBadge(post.collectionStatus)}
                   </div>
-                  <a
-                    href={post.postUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="block text-sm text-gray-700 mb-3 line-clamp-2 hover:text-blue-600 hover:underline cursor-pointer transition-colors"
-                  >
-                    {post.content}
-                  </a>
+                  <p className="text-sm text-gray-700 mb-3 line-clamp-2">{post.content}</p>
                   <div className="flex items-center justify-between text-sm">
                     <div className="text-gray-600">
                       {post.collectionStatus === 'pending' && post.scheduledFor && (
