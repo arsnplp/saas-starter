@@ -8,6 +8,7 @@ import { Folder, Inbox, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { CreateProspectFolderModal } from "./create-folder-modal";
 import { Badge } from "@/components/ui/badge";
+import { ProspectListClient } from "./prospect-list-client";
 
 export const dynamic = "force-dynamic";
 
@@ -172,130 +173,11 @@ export default async function ProspectsPage({
           </div>
         </div>
 
-        {folderProspects.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-12 text-center bg-white border rounded-lg">
-            <Folder className="w-16 h-16 text-gray-300 mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">
-              Aucun lead en attente dans ce dossier
-            </h3>
-            <p className="text-sm text-gray-500">
-              Les leads en attente apparaîtront ici une fois collectés
-            </p>
-          </div>
-        ) : (
-          <div className="bg-white border rounded-lg overflow-hidden">
-            <div className="divide-y">
-              {folderProspects.map((prospect) => {
-                const formatDate = (date: Date) => {
-                  return new Date(date).toLocaleDateString('fr-FR', {
-                    day: 'numeric',
-                    month: 'short',
-                    year: 'numeric',
-                    hour: '2-digit',
-                    minute: '2-digit',
-                  });
-                };
-
-                const getStatusBadge = (status: string) => {
-                  const variants: Record<string, { variant: any; label: string }> = {
-                    new: { variant: 'default' as const, label: 'Nouveau' },
-                    analyzed: { variant: 'secondary' as const, label: 'Analysé' },
-                    converted: { variant: 'default' as const, label: 'Converti' },
-                  };
-                  const config = variants[status] || variants.new;
-                  return (
-                    <Badge variant={config.variant} className={status === 'converted' ? 'bg-green-100 text-green-800 border-green-200' : ''}>
-                      {config.label}
-                    </Badge>
-                  );
-                };
-
-                const getActionBadge = (action: string) => {
-                  const labels: Record<string, string> = {
-                    reaction: 'Réaction',
-                    comment: 'Commentaire',
-                  };
-                  return labels[action] || action;
-                };
-
-                return (
-                  <div key={prospect.id} className="p-4 hover:bg-gray-50 transition-colors">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-2">
-                          <Link 
-                            href={`/dashboard/prospects/${prospect.id}`}
-                            className="font-medium text-gray-900 hover:text-blue-600 transition-colors"
-                          >
-                            {prospect.name || 'Sans nom'}
-                          </Link>
-                          {getStatusBadge(prospect.status)}
-                          <Badge variant="outline" className="text-xs">
-                            {getActionBadge(prospect.action)}
-                          </Badge>
-                        </div>
-                        
-                        <div className="text-sm text-gray-600 mb-2">
-                          {prospect.title && <p>{prospect.title}</p>}
-                          {prospect.company && <p>{prospect.company}</p>}
-                          {prospect.location && <p className="text-gray-500">{prospect.location}</p>}
-                        </div>
-
-                        {prospect.commentText && (
-                          <p className="text-sm text-gray-600 italic mb-2 border-l-2 border-gray-300 pl-3">
-                            "{prospect.commentText}"
-                          </p>
-                        )}
-
-                        {prospect.postUrl && (
-                          <div className="text-xs text-gray-500 mb-2">
-                            <a
-                              href={prospect.postUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-blue-600 hover:underline"
-                            >
-                              📝 Post source
-                            </a>
-                            <span className="mx-2">•</span>
-                            <span>{formatDate(prospect.fetchedAt)}</span>
-                          </div>
-                        )}
-
-                        {prospect.aiScore !== null && prospect.aiScore !== undefined && (
-                          <div className="mt-2 p-2 bg-blue-50 rounded-lg">
-                            <div className="text-sm font-medium text-blue-900 mb-1">
-                              Score IA: {prospect.aiScore}/100
-                            </div>
-                            {prospect.aiReasoning && (
-                              <p className="text-xs text-blue-800">{prospect.aiReasoning}</p>
-                            )}
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="flex flex-col gap-2 ml-4">
-                        {prospect.profileUrl && (
-                          <a
-                            href={prospect.profileUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 px-3 py-1 text-xs text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded transition-colors"
-                          >
-                            Profil
-                            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                            </svg>
-                          </a>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
+        <ProspectListClient 
+          prospects={folderProspects} 
+          folders={folders}
+          currentFolderId={selectedFolderId}
+        />
       </section>
     );
   }

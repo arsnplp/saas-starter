@@ -173,3 +173,138 @@ export async function createProspectFolder(formData: FormData) {
     return { success: false, error: 'Erreur lors de la création du dossier' };
   }
 }
+
+export async function deleteProspects(prospectIds: number[]) {
+  'use server';
+  
+  const team = await getTeamForUser();
+  if (!team) {
+    return { success: false, error: 'Équipe non trouvée' };
+  }
+
+  if (!prospectIds || prospectIds.length === 0) {
+    return { success: false, error: 'Aucun prospect sélectionné' };
+  }
+
+  try {
+    for (const id of prospectIds) {
+      await db
+        .delete(prospectCandidates)
+        .where(and(
+          eq(prospectCandidates.id, id),
+          eq(prospectCandidates.teamId, team.id)
+        ));
+    }
+
+    revalidatePath('/dashboard/prospects');
+    return { success: true };
+  } catch (error) {
+    console.error('Erreur lors de la suppression:', error);
+    return { success: false, error: 'Erreur lors de la suppression' };
+  }
+}
+
+export async function moveProspectsToFolder(prospectIds: number[], targetFolderId: number) {
+  'use server';
+  
+  const team = await getTeamForUser();
+  if (!team) {
+    return { success: false, error: 'Équipe non trouvée' };
+  }
+
+  if (!prospectIds || prospectIds.length === 0) {
+    return { success: false, error: 'Aucun prospect sélectionné' };
+  }
+
+  const targetFolder = await db.query.prospectFolders.findFirst({
+    where: and(
+      eq(prospectFolders.id, targetFolderId),
+      eq(prospectFolders.teamId, team.id)
+    ),
+  });
+
+  if (!targetFolder) {
+    return { success: false, error: 'Dossier de destination non trouvé' };
+  }
+
+  try {
+    for (const id of prospectIds) {
+      await db
+        .update(prospectCandidates)
+        .set({ folderId: targetFolderId })
+        .where(and(
+          eq(prospectCandidates.id, id),
+          eq(prospectCandidates.teamId, team.id)
+        ));
+    }
+
+    revalidatePath('/dashboard/prospects');
+    return { success: true };
+  } catch (error) {
+    console.error('Erreur lors du déplacement:', error);
+    return { success: false, error: 'Erreur lors du déplacement' };
+  }
+}
+
+export async function convertProspectsToLeads(prospectIds: number[]) {
+  'use server';
+  
+  const team = await getTeamForUser();
+  if (!team) {
+    return { success: false, error: 'Équipe non trouvée' };
+  }
+
+  if (!prospectIds || prospectIds.length === 0) {
+    return { success: false, error: 'Aucun prospect sélectionné' };
+  }
+
+  try {
+    for (const id of prospectIds) {
+      const prospect = await db.query.prospectCandidates.findFirst({
+        where: and(
+          eq(prospectCandidates.id, id),
+          eq(prospectCandidates.teamId, team.id)
+        ),
+      });
+
+      if (!prospect) continue;
+
+      const existingLead = await db.query.leads.findFirst({
+        where: and(
+          eq(leads.linkedinUrl, prospect.profileUrl),
+          eq(leads.teamId, team.id)
+        ),
+      });
+
+      if (!existingLead) {
+        const nameParts = (prospect.name || '').split(' ');
+        const firstName = nameParts[0] || null;
+        const lastName = nameParts.slice(1).join(' ') || null;
+
+        await db.insert(leads).values({
+          teamId: team.id,
+          firstName,
+          lastName,
+          email: null,
+          company: prospect.company,
+          title: prospect.title,
+          linkedinUrl: prospect.profileUrl,
+          source: 'linkedin_conversion',
+          notes: prospect.commentText ? `Commentaire: ${prospect.commentText}` : null,
+        });
+      }
+
+      await db
+        .update(prospectCandidates)
+        .set({ status: 'converted' })
+        .where(eq(prospectCandidates.id, id));
+    }
+
+    revalidatePath('/dashboard/prospects');
+    revalidatePath('/dashboard/leads');
+    return { success: true };
+  } catch (error) {
+    console.error('Erreur lors de la conversion:', error);
+    return { success: false, error: 'Erreur lors de la conversion' };
+  }
+}
