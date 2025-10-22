@@ -30,6 +30,12 @@ The backend utilizes Next.js API routes and Server Actions. Authentication is JW
 
 Key tables include `users`, `teams`, `prospect_candidates`, `leads`, `linkedinConnections` (LinkUp auth), `linkedin_oauth_credentials` (OAuth tokens), `target_companies`, `decision_makers`, `icp_profiles`, tables for LinkedIn post automation, and monitoring tables (`monitored_companies`, `company_posts`, `lead_collection_configs`, `scheduled_collections`).
 
+**Prospects Folder Management:** The `prospect_folders` table provides folder organization for prospects. Each folder has a name, color, icon, and team association. Prospects can be assigned to folders via the `folderId` column in `prospect_candidates`. The system supports creating custom folders for better prospect organization.
+
+**Leads vs Prospects UI:**
+- **/dashboard/leads:** Displays a simple, flat list of all leads extracted from LinkedIn posts. Each lead is clickable and links to `/dashboard/leads/[id]` for detailed view with personalized messaging capabilities. No folder system on this page.
+- **/dashboard/prospects:** Features a LinkedIn-style folder card interface for organizing prospects. Users can create custom folders (with name and color) and navigate between folders using search params (`?folder=X`). The default "Tous les prospects" folder displays all prospects.
+
 ### Security
 
 The system employs JWT-based authentication, HTTP-only cookies, bcrypt hashing, Role-Based Access Control (RBAC), strict multi-tenant data isolation, and OAuth state validation for CSRF protection.
