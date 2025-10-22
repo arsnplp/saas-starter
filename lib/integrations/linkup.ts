@@ -714,3 +714,23 @@ export async function getCompanyInfo(params: {
   
   return parsed.data;
 }
+
+/**
+ * Client LinkUp pour faciliter les appels API
+ */
+export async function getLinkupClient(teamId: number) {
+  return {
+    extractComments: async (postUrl: string, maxResults: number) => {
+      return extractLinkedInComments(postUrl, maxResults, teamId);
+    },
+    extractReactions: async (postUrl: string, maxResults: number) => {
+      return extractLinkedInReactions(postUrl, maxResults, teamId);
+    },
+    getProfile: async (linkedinUrl: string) => {
+      return fetchLinkedInProfile(linkedinUrl, teamId);
+    },
+    searchProfiles: async (filters: any) => {
+      return searchLinkedInProfiles({ ...filters, teamId });
+    },
+  };
+}
