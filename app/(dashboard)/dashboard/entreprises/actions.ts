@@ -846,13 +846,6 @@ export async function importDecisionMakerToProspects(decisionMakerId: string, fo
       };
     }
 
-    if (!decisionMaker.linkedinUrl || decisionMaker.linkedinUrl.startsWith('temp-')) {
-      return {
-        success: false,
-        error: "Ce décideur n'a pas de profil LinkedIn valide",
-      };
-    }
-
     const folder = await db.query.prospectFolders.findFirst({
       where: and(
         eq(prospectFolders.id, folderId),
@@ -890,6 +883,8 @@ export async function importDecisionMakerToProspects(decisionMakerId: string, fo
       profileUrl: decisionMaker.linkedinUrl,
       name: decisionMaker.fullName,
       title: decisionMaker.title,
+      email: decisionMaker.email,
+      phone: decisionMaker.phone,
       company: null,
       location: null,
       fetchedAt: new Date(),

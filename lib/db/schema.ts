@@ -273,6 +273,8 @@ export const prospectCandidates = pgTable(
         title: text('title'),
         company: text('company'),
         location: text('location'),
+        email: varchar('email', { length: 255 }),
+        phone: varchar('phone', { length: 50 }),
         fetchedAt: timestamp('fetched_at').notNull().defaultNow(),
         status: varchar('status', { length: 50 }).notNull().default('new'),
         aiScore: integer('ai_score'),

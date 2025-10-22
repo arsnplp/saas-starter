@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
-import { Folder, Trash2, FolderInput, CheckCircle2 } from 'lucide-react';
+import { Folder, Trash2, FolderInput, CheckCircle2, Mail, Phone } from 'lucide-react';
 import { deleteProspects, moveProspectsToFolder, convertProspectsToLeads } from './actions';
 import { toast } from 'sonner';
 
@@ -13,6 +13,8 @@ type Prospect = {
   title: string | null;
   company: string | null;
   location: string | null;
+  email: string | null;
+  phone: string | null;
   status: string;
   action: string;
   profileUrl: string | null;
@@ -259,6 +261,29 @@ export function ProspectListClient({ prospects, folders, currentFolderId }: Prop
                     {prospect.company && <p>{prospect.company}</p>}
                     {prospect.location && <p className="text-gray-500">{prospect.location}</p>}
                   </div>
+
+                  {(prospect.email || prospect.phone) && (
+                    <div className="flex flex-wrap gap-3 mb-2">
+                      {prospect.email && (
+                        <a
+                          href={`mailto:${prospect.email}`}
+                          className="inline-flex items-center gap-1.5 text-sm text-blue-600 hover:text-blue-800 hover:underline"
+                        >
+                          <Mail className="w-4 h-4" />
+                          {prospect.email}
+                        </a>
+                      )}
+                      {prospect.phone && (
+                        <a
+                          href={`tel:${prospect.phone}`}
+                          className="inline-flex items-center gap-1.5 text-sm text-blue-600 hover:text-blue-800 hover:underline"
+                        >
+                          <Phone className="w-4 h-4" />
+                          {prospect.phone}
+                        </a>
+                      )}
+                    </div>
+                  )}
 
                   {prospect.commentText && (
                     <p className="text-sm text-gray-600 italic mb-2 border-l-2 border-gray-300 pl-3">
