@@ -66,6 +66,7 @@ export default function MonitoringPage() {
   });
 
   const [manualPosts, setManualPosts] = useState(1);
+  const [includeReposts, setIncludeReposts] = useState(false);
   const [isManualDetecting, setIsManualDetecting] = useState(false);
   const [autoModeEnabled, setAutoModeEnabled] = useState(true);
 
@@ -147,7 +148,7 @@ export default function MonitoringPage() {
   const handleManualDetect = async () => {
     setIsManualDetecting(true);
     
-    const result = await manualDetectPosts({ maxPosts: manualPosts });
+    const result = await manualDetectPosts({ maxPosts: manualPosts, includeReposts });
     
     if (result.success) {
       toast.success(`${result.postsDetected} nouveaux posts détectés sur ${result.profilesChecked} profils`);
@@ -244,26 +245,41 @@ export default function MonitoringPage() {
         </CardHeader>
         <CardContent>
           {!autoModeEnabled && (
-            <div className="flex gap-4 items-end">
-              <div className="flex-1 max-w-xs">
-                <Label htmlFor="manualPosts">Nombre de posts par profil</Label>
-                <Input
-                  id="manualPosts"
-                  type="number"
-                  min={1}
-                  max={10}
-                  value={manualPosts}
-                  onChange={(e) => setManualPosts(parseInt(e.target.value) || 1)}
-                  className="mt-1"
-                />
+            <div className="space-y-4">
+              <div className="flex gap-4 items-end">
+                <div className="flex-1 max-w-xs">
+                  <Label htmlFor="manualPosts">Nombre de posts par profil</Label>
+                  <Input
+                    id="manualPosts"
+                    type="number"
+                    min={1}
+                    max={10}
+                    value={manualPosts}
+                    onChange={(e) => setManualPosts(parseInt(e.target.value) || 1)}
+                    className="mt-1"
+                  />
+                </div>
+                <Button 
+                  onClick={handleManualDetect}
+                  disabled={isManualDetecting}
+                  className="bg-blue-600 hover:bg-blue-700"
+                >
+                  {isManualDetecting ? 'Détection...' : 'Détecter maintenant'}
+                </Button>
               </div>
-              <Button 
-                onClick={handleManualDetect}
-                disabled={isManualDetecting}
-                className="bg-blue-600 hover:bg-blue-700"
-              >
-                {isManualDetecting ? 'Détection...' : 'Détecter maintenant'}
-              </Button>
+              <div className="flex items-center gap-3 bg-white/60 rounded-lg px-4 py-3 border border-blue-100">
+                <Switch
+                  id="includeReposts"
+                  checked={includeReposts}
+                  onCheckedChange={setIncludeReposts}
+                />
+                <Label htmlFor="includeReposts" className="cursor-pointer text-sm font-medium text-blue-900">
+                  Inclure les republications (reposts)
+                </Label>
+                <span className="text-xs text-gray-500 ml-auto">
+                  {includeReposts ? 'Posts originaux + republications' : 'Posts originaux uniquement'}
+                </span>
+              </div>
             </div>
           )}
           {autoModeEnabled && (

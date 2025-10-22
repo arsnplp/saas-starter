@@ -318,6 +318,7 @@ export const toggleAutoMode = validatedActionWithUser(
 
 const manualDetectPostsSchema = z.object({
   maxPosts: z.number().min(1).max(10).default(1),
+  includeReposts: z.boolean().default(false),
 });
 
 export const manualDetectPosts = validatedActionWithUser(
@@ -358,7 +359,7 @@ export const manualDetectPosts = validatedActionWithUser(
 
     for (const profile of activeProfiles) {
       try {
-        const posts = await getProfilePosts(profile.linkedinUrl, data.maxPosts);
+        const posts = await getProfilePosts(profile.linkedinUrl, data.maxPosts, data.includeReposts);
         
         for (const post of posts) {
           const existing = await db
@@ -383,6 +384,7 @@ export const manualDetectPosts = validatedActionWithUser(
                 authorName: post.authorName,
                 authorUrl: post.authorUrl,
                 content: post.content,
+                postType: post.postType || 'regular',
                 mediaUrls: post.mediaUrls || [],
                 publishedAt: new Date(post.publishedAt),
                 isNew: true,

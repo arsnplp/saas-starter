@@ -46,7 +46,7 @@ export async function GET(request: NextRequest) {
 
     for (const profile of activeProfiles) {
       try {
-        const posts = await getProfilePosts(profile.linkedinUrl, 1);
+        const posts = await getProfilePosts(profile.linkedinUrl, 1, true);
         
         for (const post of posts) {
           const existing = await db
@@ -71,6 +71,7 @@ export async function GET(request: NextRequest) {
                 authorName: post.authorName,
                 authorUrl: post.authorUrl,
                 content: post.content,
+                postType: post.postType || 'regular',
                 mediaUrls: post.mediaUrls || [],
                 publishedAt: new Date(post.publishedAt),
                 isNew: true,

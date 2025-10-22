@@ -707,6 +707,7 @@ export const companyPosts = pgTable(
         authorName: varchar('author_name', { length: 255 }),
         authorUrl: text('author_url'),
         content: text('content'),
+        postType: varchar('post_type', { length: 50 }).notNull().default('regular'),
         mediaUrls: jsonb('media_urls').$type<string[]>(),
         publishedAt: timestamp('published_at').notNull(),
         receivedAt: timestamp('received_at').notNull().defaultNow(),
