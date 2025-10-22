@@ -1319,3 +1319,29 @@ export const generateLeadMessage = validatedActionWithUser(
     }
   }
 );
+
+// ========== LEAD FOLDERS MANAGEMENT ==========
+
+export async function createFolder(formData: FormData) {
+  'use server';
+  const { revalidatePath } = await import('next/cache');
+  const { leadFolders } = await import('@/lib/db/schema');
+  
+  const teamId = parseInt(String(formData.get('teamId') || '0'));
+  const name = String(formData.get('name') || '').trim();
+  const color = String(formData.get('color') || '#3b82f6');
+
+  if (!teamId || !name) {
+    throw new Error('Team ID et nom requis');
+  }
+
+  await db.insert(leadFolders).values({
+    teamId,
+    name,
+    color,
+    icon: 'folder',
+    isDefault: false,
+  });
+
+  revalidatePath('/dashboard/leads');
+}
