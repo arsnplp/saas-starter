@@ -17,8 +17,8 @@ export default function DashboardLayout({
   const navItems = [
     { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
     { href: '/dashboard/icp', icon: Target, label: 'ICP' },
-    { href: '/dashboard/prospects', icon: UserSearch, label: 'Prospects' },
-    { href: '/dashboard/leads', icon: UserCheck, label: 'Leads' },
+    { href: '/dashboard/prospects', icon: UserSearch, label: 'Leads' },
+    { href: '/dashboard/leads', icon: UserCheck, label: 'Prospects' },
     { href: '/dashboard/entreprises', icon: Building2, label: 'Entreprises' },
     { href: '/dashboard/monitoring', icon: Radio, label: 'Monitoring' },
     { href: '/dashboard/posts', icon: FileText, label: 'Posts LinkedIn' },

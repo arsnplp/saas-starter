@@ -38,10 +38,10 @@ export default async function ProspectsPage() {
     <section className="flex-1 p-4 lg:p-8">
       <div className="mb-6">
         <h1 className="text-lg lg:text-2xl font-medium text-gray-900 mb-2">
-          Prospects en attente
+          Leads en attente
         </h1>
         <p className="text-sm text-gray-500">
-          Prospects récupérés depuis vos posts LinkedIn qui n'ont pas encore été analysés
+          Leads récupérés depuis vos posts LinkedIn qui n'ont pas encore été analysés
         </p>
       </div>
 
@@ -77,7 +77,7 @@ export default async function ProspectsPage() {
             </div>
             <div>
               <p className="text-2xl font-bold text-gray-900">{convertedProspects.length}</p>
-              <p className="text-xs text-gray-500">Convertis en leads</p>
+              <p className="text-xs text-gray-500">Convertis en prospects</p>
             </div>
           </div>
         </Card>
@@ -85,15 +85,15 @@ export default async function ProspectsPage() {
 
       <Card>
         <div className="p-4 border-b">
-          <h2 className="font-medium text-gray-900">Tous les prospects</h2>
+          <h2 className="font-medium text-gray-900">Tous les leads</h2>
         </div>
         <div className="divide-y">
           {prospects.length === 0 ? (
             <div className="p-8 text-center text-gray-500">
               <Users className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-              <p className="text-sm">Aucun prospect pour le moment</p>
+              <p className="text-sm">Aucun lead pour le moment</p>
               <p className="text-xs mt-1">
-                Importez des leads depuis vos posts LinkedIn pour commencer
+                Les leads seront automatiquement récupérés depuis vos posts LinkedIn
               </p>
             </div>
           ) : (
