@@ -4,9 +4,12 @@ import { getUser, getTeamForUser } from "@/lib/db/queries";
 import { db } from "@/lib/db";
 import { leadFolders as leadFoldersTable, leads as leadsTable } from "@/lib/db/schema";
 import { eq, sql, and, desc } from "drizzle-orm";
-import { Folder, Plus, Inbox, ArrowLeft } from "lucide-react";
+import { Folder, Plus, Inbox, ArrowLeft, ExternalLink, Users, TrendingUp, Clock } from "lucide-react";
 import Link from "next/link";
 import { CreateFolderModal } from "./create-folder-modal";
+import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 
 export const dynamic = "force-dynamic";
 
@@ -87,6 +90,60 @@ export default async function LeadsPage({
 
   // Vue dossier sélectionné
   if (selectedFolder) {
+    const newLeads = folderLeads.filter((l) => l.status === 'new');
+    const analyzedLeads = folderLeads.filter((l) => l.status === 'contacted' || l.status === 'replied');
+    const convertedLeads = folderLeads.filter((l) => l.status === 'qualified');
+
+    const formatDate = (date: Date) => {
+      return new Date(date).toLocaleDateString('fr-FR', {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      });
+    };
+
+    const getStatusBadge = (status: string) => {
+      const variants: Record<string, { variant: any; label: string }> = {
+        new: { variant: 'default' as const, label: 'Nouveau' },
+        contacted: { variant: 'secondary' as const, label: 'Contacté' },
+        replied: { variant: 'secondary' as const, label: 'Répondu' },
+        qualified: { variant: 'default' as const, label: 'Qualifié' },
+        lost: { variant: 'default' as const, label: 'Perdu' },
+      };
+      const config = variants[status] || variants.new;
+      return (
+        <Badge variant={config.variant} className={status === 'qualified' ? 'bg-green-100 text-green-800 border-green-200' : ''}>
+          {config.label}
+        </Badge>
+      );
+    };
+
+    const getEngagementBadge = (engagementType: string | null, reactionType: string | null) => {
+      if (engagementType === 'comment') {
+        return (
+          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-800">
+            💬 Commentaire
+          </span>
+        );
+      }
+      if (engagementType === 'reaction') {
+        const reactionEmoji = reactionType === 'LIKE' ? '👍' : 
+                              reactionType === 'PRAISE' ? '👏' :
+                              reactionType === 'SUPPORT' ? '❤️' :
+                              reactionType === 'APPRECIATION' ? '💡' :
+                              reactionType === 'INTEREST' ? '🤔' :
+                              reactionType === 'ENTERTAINMENT' ? '😂' : '👍';
+        return (
+          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
+            {reactionEmoji} Réaction
+          </span>
+        );
+      }
+      return null;
+    };
+
     return (
       <section className="flex-1 p-4 lg:p-8">
         <div className="mb-6">
@@ -114,15 +171,48 @@ export default async function LeadsPage({
                 {selectedFolder.name}
               </h1>
               <p className="text-sm text-gray-500">
-                {folderLeads.length === 0 
-                  ? 'Aucun lead dans ce dossier'
-                  : folderLeads.length === 1
-                  ? '1 lead'
-                  : `${folderLeads.length} leads`
-                }
+                Leads récupérés depuis vos posts LinkedIn qui n'ont pas encore été analysés
               </p>
             </div>
           </div>
+        </div>
+
+        <div className="grid gap-4 md:grid-cols-3 mb-6">
+          <Card className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="bg-blue-100 p-2 rounded-lg">
+                <Users className="w-5 h-5 text-blue-600" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-gray-900">{newLeads.length}</p>
+                <p className="text-xs text-gray-500">Nouveaux</p>
+              </div>
+            </div>
+          </Card>
+
+          <Card className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="bg-purple-100 p-2 rounded-lg">
+                <TrendingUp className="w-5 h-5 text-purple-600" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-gray-900">{analyzedLeads.length}</p>
+                <p className="text-xs text-gray-500">Analysés</p>
+              </div>
+            </div>
+          </Card>
+
+          <Card className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="bg-green-100 p-2 rounded-lg">
+                <Clock className="w-5 h-5 text-green-600" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-gray-900">{convertedLeads.length}</p>
+                <p className="text-xs text-gray-500">Convertis en prospects</p>
+              </div>
+            </div>
+          </Card>
         </div>
 
         {folderLeads.length === 0 ? (
@@ -136,82 +226,104 @@ export default async function LeadsPage({
             </p>
           </div>
         ) : (
-          <div className="bg-white border rounded-lg overflow-hidden">
-            <table className="w-full">
-              <thead className="bg-gray-50 border-b">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Nom
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Entreprise
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Titre
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Source
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Statut
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Date
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
-                {folderLeads.map((lead) => (
-                  <tr key={lead.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center">
+          <Card>
+            <div className="p-4 border-b">
+              <h2 className="font-medium text-gray-900">Tous les leads</h2>
+            </div>
+            <div className="divide-y">
+              {folderLeads.map((lead) => (
+                <div key={lead.id} className="p-4 hover:bg-gray-50 transition-colors">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-2">
                         {lead.profilePictureUrl && (
                           <img
                             src={lead.profilePictureUrl}
                             alt=""
-                            className="w-10 h-10 rounded-full mr-3"
+                            className="w-10 h-10 rounded-full"
                           />
                         )}
-                        <div>
-                          <div className="font-medium text-gray-900">
-                            {lead.firstName} {lead.lastName}
-                          </div>
-                          {lead.email && (
-                            <div className="text-sm text-gray-500">{lead.email}</div>
+                        <div className="flex-1">
+                          {lead.linkedinUrl ? (
+                            <a
+                              href={lead.linkedinUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-sm font-medium text-blue-600 hover:text-blue-800 hover:underline"
+                            >
+                              {lead.firstName} {lead.lastName}
+                            </a>
+                          ) : (
+                            <h3 className="text-sm font-medium text-gray-900">
+                              {lead.firstName} {lead.lastName}
+                            </h3>
+                          )}
+                          {lead.title && (
+                            <p className="text-xs text-gray-600">{lead.title}</p>
+                          )}
+                          {lead.company && (
+                            <p className="text-xs text-gray-500">{lead.company}</p>
                           )}
                         </div>
+                        <div className="flex items-center gap-2">
+                          {getStatusBadge(lead.status)}
+                          {getEngagementBadge(lead.engagementType, lead.reactionType)}
+                        </div>
                       </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {lead.company || '-'}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {lead.title || '-'}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                        {lead.sourceMode || 'Inconnu'}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                        lead.status === 'new' ? 'bg-gray-100 text-gray-800' :
-                        lead.status === 'contacted' ? 'bg-yellow-100 text-yellow-800' :
-                        lead.status === 'replied' ? 'bg-blue-100 text-blue-800' :
-                        lead.status === 'qualified' ? 'bg-green-100 text-green-800' :
-                        'bg-red-100 text-red-800'
-                      }`}>
-                        {lead.status}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {new Date(lead.createdAt).toLocaleDateString('fr-FR')}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+
+                      {lead.commentText && (
+                        <p className="text-xs text-gray-600 italic bg-gray-50 p-2 rounded mb-2 line-clamp-2">
+                          "{lead.commentText}"
+                        </p>
+                      )}
+
+                      <div className="flex items-center gap-4 text-xs text-gray-400">
+                        <span>📅 {formatDate(lead.createdAt)}</span>
+                        {lead.sourcePostUrl && (
+                          <a
+                            href={lead.sourcePostUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-1 hover:text-blue-600 transition-colors"
+                          >
+                            <ExternalLink className="w-3 h-3" />
+                            Post source
+                          </a>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="text-xs"
+                      >
+                        ⚡ Scorer
+                      </Button>
+                      {lead.linkedinUrl && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          asChild
+                        >
+                          <a
+                            href={lead.linkedinUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-1"
+                          >
+                            <ExternalLink className="w-3 h-3" />
+                            Profil
+                          </a>
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </Card>
         )}
       </section>
     );
