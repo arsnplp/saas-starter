@@ -193,7 +193,7 @@ export default async function LeadsPage({
 
     return (
         <div className="max-w-5xl mx-auto px-6 py-8 space-y-8">
-            <h1 className="text-2xl font-semibold">Leads</h1>
+            <h1 className="text-2xl font-semibold">Prospects</h1>
 
             {/* Formulaire d’ajout */}
             <form action={createLead} className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 rounded-xl border">
@@ -207,7 +207,7 @@ export default async function LeadsPage({
                 <input className="border rounded-lg p-2 md:col-span-2" name="linkedinUrl" placeholder="URL LinkedIn (https://...)" />
                 <textarea className="border rounded-lg p-2 md:col-span-2" name="notes" placeholder="Notes" />
                 <button type="submit" className="bg-black text-white rounded-lg px-4 py-2 md:col-span-2 justify-self-start">
-                    Ajouter le lead
+                    Ajouter un prospect
                 </button>
             </form>
 
@@ -346,7 +346,7 @@ export default async function LeadsPage({
                                                 <p className="text-xs text-gray-500">
                                                     {l.linkedinUrl
                                                         ? "Clique sur Copier, ouvre LinkedIn puis colle (⌘/Ctrl+V) le message."
-                                                        : "Ajoute une URL LinkedIn au lead pour activer le bouton."}
+                                                        : "Ajoute une URL LinkedIn au prospect pour activer le bouton."}
                                                 </p>
                                             </div>
                                         </div>
@@ -359,7 +359,7 @@ export default async function LeadsPage({
                     {items.length === 0 && (
                         <tr>
                             <td colSpan={8} className="p-6 text-center text-gray-500">
-                                Aucun lead pour l’instant. Ajoute ton premier lead ci-dessus.
+                                Aucun prospect pour l'instant. Ajoute ton premier prospect ci-dessus.
                             </td>
                         </tr>
                     )}
