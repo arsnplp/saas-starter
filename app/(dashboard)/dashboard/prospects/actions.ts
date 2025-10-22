@@ -2,13 +2,14 @@
 
 import { z } from 'zod';
 import { db } from '@/lib/db/drizzle';
-import { prospectCandidates, leads, icpProfiles } from '@/lib/db/schema';
+import { prospectCandidates, leads, icpProfiles, prospectFolders } from '@/lib/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { validatedActionWithUser } from '@/lib/auth/middleware';
 import { getTeamForUser } from '@/lib/db/queries';
 import { fetchLinkedInProfile } from '@/lib/integrations/linkup';
 import { scoreProfileAgainstICP, type EnrichedProfile, type ICPCriteria } from '@/lib/integrations/openai';
 import { revalidatePath } from 'next/cache';
+import { redirect } from 'next/navigation';
 
 const scoreProspectSchema = z.object({
   prospectId: z.string().uuid(),
@@ -140,3 +141,35 @@ export const scoreProspect = validatedActionWithUser(
     };
   }
 );
+
+export async function createProspectFolder(formData: FormData) {
+  'use server';
+  
+  const team = await getTeamForUser();
+  if (!team) {
+    return { success: false, error: 'Équipe non trouvée' };
+  }
+
+  const name = String(formData.get('name') || '').trim();
+  const color = String(formData.get('color') || '#3b82f6');
+
+  if (!name) {
+    return { success: false, error: 'Nom du dossier requis' };
+  }
+
+  try {
+    await db.insert(prospectFolders).values({
+      teamId: team.id,
+      name,
+      color,
+      icon: 'folder',
+      isDefault: false,
+    });
+
+    revalidatePath('/dashboard/prospects');
+    return { success: true };
+  } catch (error) {
+    console.error('Erreur lors de la création du dossier:', error);
+    return { success: false, error: 'Erreur lors de la création du dossier' };
+  }
+}
