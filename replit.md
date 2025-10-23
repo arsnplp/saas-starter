@@ -25,10 +25,11 @@ The backend utilizes Next.js API routes and Server Actions. Authentication is JW
 *   **LinkedIn Post Automation:** GPT-4o powers professional LinkedIn post creation and scheduled publishing via OAuth. It supports four post types with optimized prompts, configurable recurrence, and manual validation or auto-publish options.
 *   **Decision-Maker Discovery & Management:** A unified AI-powered system combines LinkUp API and web search for comprehensive decision-maker discovery. It features an orchestrated cascade (LinkUp primary, web fallback), automated email/phone enrichment, and intelligent deduplication. Candidates are scored by GPT-4o and stored in a centralized `decision_makers` table.
 *   **Automated LinkedIn Monitoring:** Users can monitor any LinkedIn profile (company or personal) for new posts. The system features dual detection modes: automatic cron-based checks (every 2H, 1 post per profile) and manual triggering (1-10 posts configurable via UI). When a post is detected, the system waits a configurable delay (default 24h) then automatically extracts leads (reactions and comments) using Apify actors. All leads are tagged with their source post for full attribution. Cost-optimized to minimize Apify usage while maintaining effective monitoring.
+*   **Gmail Integration:** Secure Google OAuth integration allowing users to connect their Gmail accounts and access their mailboxes directly from the platform. Features include email listing, reading, and sending capabilities through the Gmail API. The integration uses secure state nonce validation with server-side storage to prevent token injection attacks and enforce strict multi-tenant isolation.
 
 ### Database Schema Highlights
 
-Key tables include `users`, `teams`, `prospect_candidates`, `leads`, `linkedinConnections` (LinkUp auth), `linkedin_oauth_credentials` (OAuth tokens), `target_companies`, `decision_makers`, `icp_profiles`, tables for LinkedIn post automation, and monitoring tables (`monitored_companies`, `company_posts`, `lead_collection_configs`, `scheduled_collections`).
+Key tables include `users`, `teams`, `prospect_candidates`, `leads`, `linkedinConnections` (LinkUp auth), `linkedin_oauth_credentials` (OAuth tokens), `gmail_connections` (Gmail OAuth tokens), `oauth_states` (OAuth state nonces for CSRF protection), `target_companies`, `decision_makers`, `icp_profiles`, tables for LinkedIn post automation, and monitoring tables (`monitored_companies`, `company_posts`, `lead_collection_configs`, `scheduled_collections`).
 
 **Prospects Folder Management:** The `prospect_folders` table provides folder organization for prospects. Each folder has a name, color, icon, and team association. Prospects can be assigned to folders via the `folderId` column in `prospect_candidates`. The system supports creating custom folders for better prospect organization.
 
@@ -42,7 +43,20 @@ Key tables include `users`, `teams`, `prospect_candidates`, `leads`, `linkedinCo
 
 ### Security
 
-The system employs JWT-based authentication, HTTP-only cookies, bcrypt hashing, Role-Based Access Control (RBAC), strict multi-tenant data isolation, and OAuth state validation for CSRF protection.
+The system employs JWT-based authentication, HTTP-only cookies, bcrypt hashing, Role-Based Access Control (RBAC), and strict multi-tenant data isolation. 
+
+**OAuth Security:** All OAuth flows (Google, LinkedIn) use cryptographically secure state nonce validation to prevent CSRF and token injection attacks. State nonces are:
+- Generated using `crypto.randomBytes(32)` for unpredictability
+- Stored server-side in the `oauth_states` table with team/user binding
+- Single-use only (marked as used after validation)
+- Time-limited (10-minute expiration)
+- Validated against current user session to prevent cross-team token injection
+
+The callback validates that:
+1. The state nonce exists and hasn't been used
+2. The state hasn't expired
+3. The current authenticated user matches the user who initiated the OAuth flow
+4. The current team matches the team context from initiation
 
 ### Cost Optimization
 
@@ -60,4 +74,5 @@ The system employs JWT-based authentication, HTTP-only cookies, bcrypt hashing, 
     *   **OpenAI API:** GPT-4o for AI-powered lead scoring, content generation, and intelligent targeting.
     *   **Tavily API:** For intelligent web search as a fallback in decision-maker discovery.
     *   **Apify API:** For automated LinkedIn profile monitoring, post detection, and engagement extraction (reactions/comments). Uses actors: `harvestapi/linkedin-profile-posts` (post detection), `apimaestro/linkedin-post-reactions`, `apimaestro/linkedin-post-comments-replies-engagements-scraper-no-cookies` (engagement extraction).
+    *   **Google Gmail API:** For mailbox access, email reading, and sending. Uses OAuth 2.0 with secure state validation. Requires GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, and GOOGLE_REDIRECT_URI environment variables.
 *   **Database:** PostgreSQL (Replit managed) with Drizzle ORM.
