@@ -6,14 +6,17 @@ import { Button } from '@/components/ui/button';
 import { Loader2, Mail, RefreshCw, Inbox, Plus } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import ComposeEmail from './compose-email';
+import EmailViewer from './email-viewer';
 
 interface Email {
   id: string;
   from: string;
+  to: string;
   subject: string;
   snippet: string;
   date: string;
   labelIds: string[];
+  body?: string;
 }
 
 export default function MailboxClient({ teamId, googleEmail }: { teamId: number; googleEmail: string }) {
@@ -159,42 +162,22 @@ export default function MailboxClient({ teamId, googleEmail }: { teamId: number;
       </div>
 
       <div className="lg:col-span-2">
-        <Card>
-          <CardContent className="p-6">
-            {selectedEmail ? (
-              <div>
-                <div className="border-b pb-4 mb-4">
-                  <h2 className="text-xl font-semibold text-gray-900 mb-2">
-                    {selectedEmail.subject || '(Sans objet)'}
-                  </h2>
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <span className="font-medium">De:</span>
-                    <span>{selectedEmail.from}</span>
-                  </div>
-                  <div className="text-xs text-gray-500 mt-1">
-                    {new Date(selectedEmail.date).toLocaleString('fr-FR', {
-                      day: 'numeric',
-                      month: 'long',
-                      year: 'numeric',
-                      hour: '2-digit',
-                      minute: '2-digit',
-                    })}
-                  </div>
-                </div>
-                <div className="prose max-w-none">
-                  <div className="text-gray-700 whitespace-pre-wrap">
-                    {selectedEmail.snippet}
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="text-center py-12 text-gray-500">
+        {selectedEmail ? (
+          <EmailViewer 
+            email={selectedEmail} 
+            onBack={() => setSelectedEmail(null)} 
+          />
+        ) : (
+          <Card className="h-full">
+            <CardContent className="p-6 h-full flex items-center justify-center">
+              <div className="text-center text-gray-500">
                 <Mail className="w-16 h-16 mx-auto mb-4 opacity-30" />
-                <p>Sélectionnez un email pour le lire</p>
+                <p className="text-lg">Sélectionnez un email pour le lire</p>
+                <p className="text-sm mt-2">Vos messages s'afficheront ici</p>
               </div>
-            )}
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        )}
       </div>
     </div>
     </>
