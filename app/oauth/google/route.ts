@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getUser, getTeamForUser } from '@/lib/db/queries';
+import { db } from '@/lib/db/drizzle';
+import { oauthStates } from '@/lib/db/schema';
+import crypto from 'crypto';
 
 export async function GET(request: NextRequest) {
   const user = await getUser();
@@ -25,11 +28,16 @@ export async function GET(request: NextRequest) {
     'https://www.googleapis.com/auth/userinfo.email',
   ];
 
-  const state = Buffer.from(JSON.stringify({
+  const state = crypto.randomBytes(32).toString('hex');
+  const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+
+  await db.insert(oauthStates).values({
+    state,
     teamId: team.id,
     userId: user.id,
-    timestamp: Date.now(),
-  })).toString('base64');
+    provider: 'google',
+    expiresAt,
+  });
 
   const authUrl = new URL('https://accounts.google.com/o/oauth2/v2/auth');
   authUrl.searchParams.set('client_id', clientId);

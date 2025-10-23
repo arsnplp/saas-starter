@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db/drizzle';
-import { gmailConnections } from '@/lib/db/schema';
-import { eq } from 'drizzle-orm';
+import { gmailConnections, oauthStates } from '@/lib/db/schema';
+import { eq, and } from 'drizzle-orm';
+import { getUser, getTeamForUser } from '@/lib/db/queries';
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
@@ -22,8 +23,53 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const stateData = JSON.parse(Buffer.from(state, 'base64').toString());
-    const { teamId, userId } = stateData;
+    const user = await getUser();
+    if (!user) {
+      return NextResponse.redirect(
+        new URL('/sign-in?error=session_expired', request.url)
+      );
+    }
+
+    const team = await getTeamForUser();
+    if (!team) {
+      return NextResponse.redirect(
+        new URL('/sign-in?error=no_team', request.url)
+      );
+    }
+
+    const oauthState = await db.query.oauthStates.findFirst({
+      where: and(
+        eq(oauthStates.state, state),
+        eq(oauthStates.provider, 'google'),
+        eq(oauthStates.used, false)
+      ),
+    });
+
+    if (!oauthState) {
+      return NextResponse.redirect(
+        new URL('/dashboard/integrations?error=invalid_state', request.url)
+      );
+    }
+
+    if (new Date() > oauthState.expiresAt) {
+      return NextResponse.redirect(
+        new URL('/dashboard/integrations?error=state_expired', request.url)
+      );
+    }
+
+    if (oauthState.userId !== user.id || oauthState.teamId !== team.id) {
+      return NextResponse.redirect(
+        new URL('/dashboard/integrations?error=user_mismatch', request.url)
+      );
+    }
+
+    await db
+      .update(oauthStates)
+      .set({ used: true })
+      .where(eq(oauthStates.state, state));
+
+    const teamId = team.id;
+    const userId = user.id;
 
     const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
       method: 'POST',

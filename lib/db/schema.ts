@@ -129,6 +129,21 @@ export const gmailConnections = pgTable('gmail_connections', {
     isActive: boolean('is_active').notNull().default(true),
 });
 
+export const oauthStates = pgTable('oauth_states', {
+    id: serial('id').primaryKey(),
+    state: varchar('state', { length: 255 }).notNull().unique(),
+    teamId: integer('team_id')
+        .notNull()
+        .references(() => teams.id),
+    userId: integer('user_id')
+        .notNull()
+        .references(() => users.id),
+    provider: varchar('provider', { length: 50 }).notNull(),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+    expiresAt: timestamp('expires_at').notNull(),
+    used: boolean('used').notNull().default(false),
+});
+
 export const linkedinConnectionsRelations = relations(linkedinConnections, ({ one }) => ({
     team: one(teams, {
         fields: [linkedinConnections.teamId],
@@ -158,6 +173,17 @@ export const gmailConnectionsRelations = relations(gmailConnections, ({ one }) =
     }),
     connectedByUser: one(users, {
         fields: [gmailConnections.connectedBy],
+        references: [users.id],
+    }),
+}));
+
+export const oauthStatesRelations = relations(oauthStates, ({ one }) => ({
+    team: one(teams, {
+        fields: [oauthStates.teamId],
+        references: [teams.id],
+    }),
+    user: one(users, {
+        fields: [oauthStates.userId],
         references: [users.id],
     }),
 }));
