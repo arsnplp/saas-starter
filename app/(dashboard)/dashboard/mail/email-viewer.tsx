@@ -27,24 +27,24 @@ export default function EmailViewer({ email, onBack }: EmailViewerProps) {
   const [fullEmail, setFullEmail] = useState<Email | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
-  async function loadFullEmail() {
-    if (fullEmail) return;
-    
-    setIsLoading(true);
-    try {
-      const response = await fetch(`/api/gmail/messages/${email.id}`);
-      if (response.ok) {
-        const data = await response.json();
-        setFullEmail(data);
-      }
-    } catch (error) {
-      console.error('Error loading full email:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  }
-
   useEffect(() => {
+    setFullEmail(null);
+    setIsLoading(true);
+    
+    const loadFullEmail = async () => {
+      try {
+        const response = await fetch(`/api/gmail/messages/${email.id}`);
+        if (response.ok) {
+          const data = await response.json();
+          setFullEmail(data);
+        }
+      } catch (error) {
+        console.error('Error loading full email:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
     loadFullEmail();
   }, [email.id]);
 
@@ -150,9 +150,26 @@ export default function EmailViewer({ email, onBack }: EmailViewerProps) {
                   <div className="text-center py-8 text-gray-400">
                     Chargement du contenu complet...
                   </div>
+                ) : displayEmail.body ? (
+                  displayEmail.body.trim().startsWith('<') ? (
+                    <div 
+                      className="gmail-body"
+                      dangerouslySetInnerHTML={{ __html: displayEmail.body }}
+                      style={{
+                        fontFamily: 'Arial, sans-serif',
+                        fontSize: '14px',
+                        lineHeight: '1.5',
+                        color: '#222',
+                      }}
+                    />
+                  ) : (
+                    <div className="text-gray-700 whitespace-pre-wrap leading-relaxed">
+                      {displayEmail.body}
+                    </div>
+                  )
                 ) : (
                   <div className="text-gray-700 whitespace-pre-wrap leading-relaxed">
-                    {displayEmail.body || displayEmail.snippet}
+                    {displayEmail.snippet}
                   </div>
                 )}
               </div>

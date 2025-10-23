@@ -144,9 +144,30 @@ export class GmailClient {
     if (response.payload.body.data) {
       body = Buffer.from(response.payload.body.data, 'base64').toString('utf-8');
     } else if (response.payload.parts) {
+      const htmlPart = response.payload.parts.find((p: any) => p.mimeType === 'text/html');
       const textPart = response.payload.parts.find((p: any) => p.mimeType === 'text/plain');
-      if (textPart && textPart.body.data) {
+      
+      if (htmlPart && htmlPart.body.data) {
+        body = Buffer.from(htmlPart.body.data, 'base64').toString('utf-8');
+      } else if (textPart && textPart.body.data) {
         body = Buffer.from(textPart.body.data, 'base64').toString('utf-8');
+      } else {
+        const findBodyRecursive = (parts: any[]): string => {
+          for (const part of parts) {
+            if (part.mimeType === 'text/html' && part.body.data) {
+              return Buffer.from(part.body.data, 'base64').toString('utf-8');
+            }
+            if (part.mimeType === 'text/plain' && part.body.data) {
+              return Buffer.from(part.body.data, 'base64').toString('utf-8');
+            }
+            if (part.parts) {
+              const found = findBodyRecursive(part.parts);
+              if (found) return found;
+            }
+          }
+          return '';
+        };
+        body = findBodyRecursive(response.payload.parts);
       }
     }
 
