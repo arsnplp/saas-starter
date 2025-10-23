@@ -144,6 +144,19 @@ export const oauthStates = pgTable('oauth_states', {
     used: boolean('used').notNull().default(false),
 });
 
+export const oauthFailureLogs = pgTable('oauth_failure_logs', {
+    id: serial('id').primaryKey(),
+    provider: varchar('provider', { length: 50 }).notNull(),
+    failureType: varchar('failure_type', { length: 100 }).notNull(),
+    state: varchar('state', { length: 255 }),
+    userId: integer('user_id').references(() => users.id),
+    teamId: integer('team_id').references(() => teams.id),
+    errorMessage: text('error_message'),
+    ipAddress: varchar('ip_address', { length: 45 }),
+    userAgent: text('user_agent'),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+});
+
 export const linkedinConnectionsRelations = relations(linkedinConnections, ({ one }) => ({
     team: one(teams, {
         fields: [linkedinConnections.teamId],

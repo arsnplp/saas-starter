@@ -3,8 +3,9 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2, Mail, RefreshCw, Inbox } from 'lucide-react';
+import { Loader2, Mail, RefreshCw, Inbox, Plus } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import ComposeEmail from './compose-email';
 
 interface Email {
   id: string;
@@ -15,11 +16,12 @@ interface Email {
   labelIds: string[];
 }
 
-export default function MailboxClient({ teamId }: { teamId: number }) {
+export default function MailboxClient({ teamId, googleEmail }: { teamId: number; googleEmail: string }) {
   const [emails, setEmails] = useState<Email[]>([]);
   const [selectedEmail, setSelectedEmail] = useState<Email | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isComposing, setIsComposing] = useState(false);
 
   useEffect(() => {
     loadEmails();
@@ -78,24 +80,39 @@ export default function MailboxClient({ teamId }: { teamId: number }) {
   }
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-      <div className="lg:col-span-1">
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="font-semibold text-gray-900 flex items-center gap-2">
-                <Inbox className="w-5 h-5" />
-                Boîte de réception
-              </h2>
-              <Button
-                onClick={handleRefresh}
-                size="sm"
-                variant="ghost"
-                disabled={isRefreshing}
-              >
-                <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-              </Button>
-            </div>
+    <>
+      {isComposing && (
+        <ComposeEmail onClose={() => setIsComposing(false)} />
+      )}
+      
+      <div className="mb-4">
+        <Button
+          onClick={() => setIsComposing(true)}
+          className="bg-blue-600 hover:bg-blue-700"
+        >
+          <Plus className="w-4 h-4 mr-2" />
+          Nouveau message
+        </Button>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-1">
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="font-semibold text-gray-900 flex items-center gap-2">
+                  <Inbox className="w-5 h-5" />
+                  Boîte de réception
+                </h2>
+                <Button
+                  onClick={handleRefresh}
+                  size="sm"
+                  variant="ghost"
+                  disabled={isRefreshing}
+                >
+                  <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+                </Button>
+              </div>
 
             <div className="space-y-2">
               {emails.length === 0 ? (
@@ -180,5 +197,6 @@ export default function MailboxClient({ teamId }: { teamId: number }) {
         </Card>
       </div>
     </div>
+    </>
   );
 }

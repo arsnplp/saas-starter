@@ -1,8 +1,40 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db/drizzle';
-import { gmailConnections, oauthStates } from '@/lib/db/schema';
+import { gmailConnections, oauthStates, oauthFailureLogs } from '@/lib/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { getUser, getTeamForUser } from '@/lib/db/queries';
+
+async function logOAuthFailure(
+  provider: string,
+  failureType: string,
+  request: NextRequest,
+  options?: {
+    state?: string;
+    userId?: number;
+    teamId?: number;
+    errorMessage?: string;
+  }
+) {
+  try {
+    const ipAddress = request.headers.get('x-forwarded-for')?.split(',')[0] || 
+                      request.headers.get('x-real-ip') || 
+                      'unknown';
+    const userAgent = request.headers.get('user-agent') || 'unknown';
+
+    await db.insert(oauthFailureLogs).values({
+      provider,
+      failureType,
+      state: options?.state,
+      userId: options?.userId,
+      teamId: options?.teamId,
+      errorMessage: options?.errorMessage,
+      ipAddress,
+      userAgent,
+    });
+  } catch (error) {
+    console.error('Failed to log OAuth failure:', error);
+  }
+}
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
@@ -25,6 +57,7 @@ export async function GET(request: NextRequest) {
   try {
     const user = await getUser();
     if (!user) {
+      await logOAuthFailure('google', 'session_expired', request, { state });
       return NextResponse.redirect(
         new URL('/sign-in?error=session_expired', request.url)
       );
@@ -32,6 +65,10 @@ export async function GET(request: NextRequest) {
 
     const team = await getTeamForUser();
     if (!team) {
+      await logOAuthFailure('google', 'no_team', request, { 
+        state, 
+        userId: user.id 
+      });
       return NextResponse.redirect(
         new URL('/sign-in?error=no_team', request.url)
       );
@@ -46,18 +83,36 @@ export async function GET(request: NextRequest) {
     });
 
     if (!oauthState) {
+      await logOAuthFailure('google', 'invalid_state', request, { 
+        state,
+        userId: user.id,
+        teamId: team.id,
+        errorMessage: 'State not found or already used'
+      });
       return NextResponse.redirect(
         new URL('/dashboard/integrations?error=invalid_state', request.url)
       );
     }
 
     if (new Date() > oauthState.expiresAt) {
+      await logOAuthFailure('google', 'state_expired', request, { 
+        state,
+        userId: user.id,
+        teamId: team.id,
+        errorMessage: `State expired at ${oauthState.expiresAt.toISOString()}`
+      });
       return NextResponse.redirect(
         new URL('/dashboard/integrations?error=state_expired', request.url)
       );
     }
 
     if (oauthState.userId !== user.id || oauthState.teamId !== team.id) {
+      await logOAuthFailure('google', 'user_mismatch', request, { 
+        state,
+        userId: user.id,
+        teamId: team.id,
+        errorMessage: `Expected user ${oauthState.userId}/team ${oauthState.teamId}, got user ${user.id}/team ${team.id}`
+      });
       return NextResponse.redirect(
         new URL('/dashboard/integrations?error=user_mismatch', request.url)
       );
@@ -88,6 +143,12 @@ export async function GET(request: NextRequest) {
     if (!tokenResponse.ok) {
       const errorData = await tokenResponse.json();
       console.error('Google token error:', errorData);
+      await logOAuthFailure('google', 'token_exchange_failed', request, {
+        state,
+        userId,
+        teamId,
+        errorMessage: JSON.stringify(errorData)
+      });
       return NextResponse.redirect(
         new URL('/dashboard/integrations?error=token_exchange_failed', request.url)
       );
@@ -141,6 +202,10 @@ export async function GET(request: NextRequest) {
     );
   } catch (error) {
     console.error('OAuth callback error:', error);
+    await logOAuthFailure('google', 'callback_exception', request, {
+      state,
+      errorMessage: error instanceof Error ? error.message : String(error)
+    });
     return NextResponse.redirect(
       new URL('/dashboard/integrations?error=callback_failed', request.url)
     );

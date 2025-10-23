@@ -66,7 +66,7 @@ export default async function MailPage() {
       </div>
 
       <Suspense fallback={<div className="text-center py-8">Chargement des emails...</div>}>
-        <MailboxClient teamId={team.id} />
+        <MailboxClient teamId={team.id} googleEmail={connection.googleEmail} />
       </Suspense>
     </section>
   );

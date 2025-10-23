@@ -32,18 +32,28 @@ async function extractLeads() {
   await callCronEndpoint('extract-leads');
 }
 
+// Fonction pour nettoyer les états OAuth expirés
+async function cleanupOAuthStates() {
+  console.log(`[${new Date().toISOString()}] 🧹 Nettoyage des états OAuth expirés...`);
+  await callCronEndpoint('cleanup-oauth-states');
+}
+
 // Configuration des intervalles
 const DETECT_INTERVAL = 2 * 60 * 60 * 1000; // 2 heures
 const EXTRACT_INTERVAL = 2 * 60 * 60 * 1000; // 2 heures
+const CLEANUP_INTERVAL = 60 * 60 * 1000; // 1 heure
 
 console.log('🚀 Démarrage du planificateur de cron jobs...');
 console.log(`   - Détection des posts: toutes les ${DETECT_INTERVAL / 60000} minutes`);
 console.log(`   - Extraction des leads: toutes les ${EXTRACT_INTERVAL / 60000} minutes`);
+console.log(`   - Nettoyage OAuth: toutes les ${CLEANUP_INTERVAL / 60000} minutes`);
 
 // Exécution immédiate au démarrage
 detectPosts();
 extractLeads();
+cleanupOAuthStates();
 
 // Planification des exécutions régulières
 setInterval(detectPosts, DETECT_INTERVAL);
 setInterval(extractLeads, EXTRACT_INTERVAL);
+setInterval(cleanupOAuthStates, CLEANUP_INTERVAL);
