@@ -3,8 +3,9 @@ import { getUser } from '@/lib/db/queries';
 import { redirect } from 'next/navigation';
 import LinkedinConnectionForm from './linkedin-connection-form';
 import LinkedinOAuthForm from './linkedin-oauth-form';
+import GmailConnectionForm from './gmail-connection-form';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Linkedin, Key } from 'lucide-react';
+import { Linkedin, Key, Mail } from 'lucide-react';
 
 export default async function IntegrationsPage() {
   const user = await getUser();
@@ -58,6 +59,27 @@ export default async function IntegrationsPage() {
           <CardContent>
             <Suspense fallback={<div>Chargement...</div>}>
               <LinkedinOAuthForm />
+            </Suspense>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-3">
+              <div className="bg-red-100 p-2 rounded-lg">
+                <Mail className="w-6 h-6 text-red-600" />
+              </div>
+              <div>
+                <CardTitle>Gmail</CardTitle>
+                <CardDescription>
+                  Connectez votre boîte mail Gmail pour accéder à vos emails et envoyer des messages directement depuis l'application
+                </CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <Suspense fallback={<div>Chargement...</div>}>
+              <GmailConnectionForm />
             </Suspense>
           </CardContent>
         </Card>
