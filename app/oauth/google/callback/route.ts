@@ -4,6 +4,12 @@ import { gmailConnections, oauthStates, oauthFailureLogs } from '@/lib/db/schema
 import { eq, and } from 'drizzle-orm';
 import { getUser, getTeamForUser } from '@/lib/db/queries';
 
+function getBaseUrl(request: NextRequest): string {
+  const host = request.headers.get('host');
+  const protocol = request.headers.get('x-forwarded-proto') || 'https';
+  return `${protocol}://${host}`;
+}
+
 async function logOAuthFailure(
   provider: string,
   failureType: string,
@@ -42,15 +48,17 @@ export async function GET(request: NextRequest) {
   const state = searchParams.get('state');
   const error = searchParams.get('error');
 
+  const baseUrl = getBaseUrl(request);
+
   if (error) {
     return NextResponse.redirect(
-      new URL(`/dashboard/integrations?error=${encodeURIComponent(error)}`, request.url)
+      new URL(`/dashboard/integrations?error=${encodeURIComponent(error)}`, baseUrl)
     );
   }
 
   if (!code || !state) {
     return NextResponse.redirect(
-      new URL('/dashboard/integrations?error=missing_parameters', request.url)
+      new URL('/dashboard/integrations?error=missing_parameters', baseUrl)
     );
   }
 
@@ -59,7 +67,7 @@ export async function GET(request: NextRequest) {
     if (!user) {
       await logOAuthFailure('google', 'session_expired', request, { state });
       return NextResponse.redirect(
-        new URL('/sign-in?error=session_expired', request.url)
+        new URL('/sign-in?error=session_expired', baseUrl)
       );
     }
 
@@ -70,7 +78,7 @@ export async function GET(request: NextRequest) {
         userId: user.id 
       });
       return NextResponse.redirect(
-        new URL('/sign-in?error=no_team', request.url)
+        new URL('/sign-in?error=no_team', baseUrl)
       );
     }
 
@@ -90,7 +98,7 @@ export async function GET(request: NextRequest) {
         errorMessage: 'State not found or already used'
       });
       return NextResponse.redirect(
-        new URL('/dashboard/integrations?error=invalid_state', request.url)
+        new URL('/dashboard/integrations?error=invalid_state', baseUrl)
       );
     }
 
@@ -102,7 +110,7 @@ export async function GET(request: NextRequest) {
         errorMessage: `State expired at ${oauthState.expiresAt.toISOString()}`
       });
       return NextResponse.redirect(
-        new URL('/dashboard/integrations?error=state_expired', request.url)
+        new URL('/dashboard/integrations?error=state_expired', baseUrl)
       );
     }
 
@@ -114,7 +122,7 @@ export async function GET(request: NextRequest) {
         errorMessage: `Expected user ${oauthState.userId}/team ${oauthState.teamId}, got user ${user.id}/team ${team.id}`
       });
       return NextResponse.redirect(
-        new URL('/dashboard/integrations?error=user_mismatch', request.url)
+        new URL('/dashboard/integrations?error=user_mismatch', baseUrl)
       );
     }
 
@@ -150,7 +158,7 @@ export async function GET(request: NextRequest) {
         errorMessage: JSON.stringify(errorData)
       });
       return NextResponse.redirect(
-        new URL('/dashboard/integrations?error=token_exchange_failed', request.url)
+        new URL('/dashboard/integrations?error=token_exchange_failed', baseUrl)
       );
     }
 
@@ -198,7 +206,7 @@ export async function GET(request: NextRequest) {
     }
 
     return NextResponse.redirect(
-      new URL('/dashboard/integrations?success=gmail_connected', request.url)
+      new URL('/dashboard/integrations?success=gmail_connected', baseUrl)
     );
   } catch (error) {
     console.error('OAuth callback error:', error);
@@ -207,7 +215,7 @@ export async function GET(request: NextRequest) {
       errorMessage: error instanceof Error ? error.message : String(error)
     });
     return NextResponse.redirect(
-      new URL('/dashboard/integrations?error=callback_failed', request.url)
+      new URL('/dashboard/integrations?error=callback_failed', baseUrl)
     );
   }
 }
