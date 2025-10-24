@@ -5,6 +5,7 @@ import {
   scheduledCollections,
   leadCollectionConfigs,
   monitoredCompanies,
+  linkedinConnections,
 } from '@/lib/db/schema';
 import { eq, and } from 'drizzle-orm';
 
@@ -41,6 +42,22 @@ interface Comment {
 }
 
 export class PostCollector {
+  private static async getLinkedInLoginToken(teamId: number): Promise<string | null> {
+    const connection = await db.query.linkedinConnections.findFirst({
+      where: eq(linkedinConnections.teamId, teamId),
+    });
+
+    if (connection && connection.isActive) {
+      await db
+        .update(linkedinConnections)
+        .set({ lastUsedAt: new Date() })
+        .where(eq(linkedinConnections.teamId, teamId));
+      return connection.loginToken;
+    }
+
+    return null;
+  }
+
   private static async callLinkUpAPI<T>(
     endpoint: string,
     method: 'GET' | 'POST' = 'GET',
@@ -203,12 +220,18 @@ export class PostCollector {
     companyName: string
   ): Promise<{ count: number; creditsUsed: number }> {
     try {
+      const loginToken = await this.getLinkedInLoginToken(teamId);
+      if (!loginToken) {
+        throw new Error('Token LinkedIn non trouvé. Veuillez connecter votre compte LinkedIn dans Intégrations.');
+      }
+
       const response = await this.callLinkUpAPI<{
         reactions: Reaction[];
         credits_used: number;
       }>('/v1/linkedin/post/reactions', 'POST', {
         post_url: postUrl,
         max_results: maxReactions,
+        login_token: loginToken,
       });
 
       const reactions = response.reactions || [];
@@ -263,12 +286,18 @@ export class PostCollector {
     companyName: string
   ): Promise<{ count: number; creditsUsed: number }> {
     try {
+      const loginToken = await this.getLinkedInLoginToken(teamId);
+      if (!loginToken) {
+        throw new Error('Token LinkedIn non trouvé. Veuillez connecter votre compte LinkedIn dans Intégrations.');
+      }
+
       const response = await this.callLinkUpAPI<{
         comments: Comment[];
         credits_used: number;
       }>('/v1/linkedin/post/comments', 'POST', {
         post_url: postUrl,
         max_results: maxComments,
+        login_token: loginToken,
       });
 
       const comments = response.comments || [];
