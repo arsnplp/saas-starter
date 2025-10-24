@@ -982,6 +982,33 @@ export const scheduledCollectionsRelations = relations(scheduledCollections, ({ 
     }),
 }));
 
+export const campaigns = pgTable('campaigns', {
+    id: serial('id').primaryKey(),
+    teamId: integer('team_id')
+        .notNull()
+        .references(() => teams.id),
+    name: varchar('name', { length: 255 }).notNull(),
+    description: text('description'),
+    blocks: jsonb('blocks').notNull().default('[]'),
+    isActive: boolean('is_active').notNull().default(true),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+    updatedAt: timestamp('updated_at').notNull().defaultNow(),
+    createdBy: integer('created_by')
+        .notNull()
+        .references(() => users.id),
+});
+
+export const campaignsRelations = relations(campaigns, ({ one }) => ({
+    team: one(teams, {
+        fields: [campaigns.teamId],
+        references: [teams.id],
+    }),
+    creator: one(users, {
+        fields: [campaigns.createdBy],
+        references: [users.id],
+    }),
+}));
+
 // Export types
 export type WebhookAccount = typeof webhookAccounts.$inferSelect;
 export type NewWebhookAccount = typeof webhookAccounts.$inferInsert;
@@ -993,3 +1020,5 @@ export type LeadCollectionConfig = typeof leadCollectionConfigs.$inferSelect;
 export type NewLeadCollectionConfig = typeof leadCollectionConfigs.$inferInsert;
 export type ScheduledCollection = typeof scheduledCollections.$inferSelect;
 export type NewScheduledCollection = typeof scheduledCollections.$inferInsert;
+export type Campaign = typeof campaigns.$inferSelect;
+export type NewCampaign = typeof campaigns.$inferInsert;
