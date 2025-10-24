@@ -113,12 +113,19 @@ const linkupReactionSchema = z.object({
   profile_picture: z.string().optional().nullable(),
 });
 
-const linkupCommentSchema = z.object({
+const linkupCommenterSchema = z.object({
   name: z.string(),
-  job_title: z.string().optional().nullable(),
-  profile_url: z.string(),
-  profile_picture: z.string().optional().nullable(),
+  profile_urn: z.string().optional().nullable(),
+  linkedin_url: z.string(),
+  occupation: z.string().optional().nullable(),
+});
+
+const linkupCommentSchema = z.object({
+  comment_urn: z.string().optional().nullable(),
+  tracking_id: z.string().optional().nullable(),
   comment_text: z.string().optional().nullable(),
+  created_time: z.number().optional().nullable(),
+  commenter: linkupCommenterSchema,
 });
 
 const linkupReactionsResponseSchema = z.object({
@@ -132,8 +139,15 @@ const linkupReactionsResponseSchema = z.object({
 const linkupCommentsResponseSchema = z.object({
   status: z.string(),
   data: z.object({
-    total_comments: z.number(),
+    total_results: z.number(),
+    total_available_results: z.number().optional(),
     comments: z.array(linkupCommentSchema),
+    pagination: z.object({
+      start_page: z.number(),
+      end_page: z.number(),
+      results_per_page: z.number(),
+      pages_fetched: z.number(),
+    }).optional(),
   }),
 });
 
@@ -354,9 +368,11 @@ export async function extractLinkedInComments(
 
       const data = await response.json();
       console.log(`✅ Succès ! Statut:`, data.status);
+      console.log(`📦 Réponse complète de l'API:`, JSON.stringify(data, null, 2));
       
       const parsed = linkupCommentsResponseSchema.parse(data);
-      console.log(`📝 Commentaires extraits:`, parsed.data.total_comments);
+      console.log(`📝 Commentaires extraits:`, parsed.data.total_results);
+      console.log(`📊 Total disponible:`, parsed.data.total_available_results);
       console.log('=====================================\n');
       
       return parsed.data.comments;
