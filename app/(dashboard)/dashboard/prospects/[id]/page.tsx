@@ -21,13 +21,12 @@ export default async function ProspectDetailPage({ params }: PageProps) {
     }
 
     const { id } = await params;
-    const prospectId = parseInt(id);
 
     const rows = await db
         .select()
         .from(prospectCandidates)
         .where(and(
-            eq(prospectCandidates.id, prospectId),
+            eq(prospectCandidates.id, id),
             eq(prospectCandidates.teamId, team.id)
         ))
         .limit(1);
