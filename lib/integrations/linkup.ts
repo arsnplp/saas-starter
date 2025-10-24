@@ -337,6 +337,8 @@ export async function extractLinkedInComments(
   console.log('\n🚀 ===== EXTRACTION COMMENTAIRES =====');
   console.log('🔗 Post URL:', postUrl);
   console.log('📊 Résultats demandés:', totalResults);
+  console.log('🔑 Login token présent:', !!loginToken);
+  console.log('🔑 Login token (premiers 20 chars):', loginToken ? loginToken.substring(0, 20) + '...' : 'ABSENT');
 
   const urlVariations = convertLinkedInPostUrl(postUrl);
   let lastError: Error | null = null;
@@ -345,6 +347,14 @@ export async function extractLinkedInComments(
     const testUrl = urlVariations[i];
     console.log(`\n🧪 Test ${i + 1}/${urlVariations.length} avec URL:`, testUrl);
 
+    const requestBody = {
+      post_url: testUrl,
+      total_results: totalResults,
+      login_token: loginToken,
+    };
+    
+    console.log('📤 Payload envoyé à l\'API:', JSON.stringify(requestBody, null, 2));
+
     try {
       const response = await fetch(`${LINKUP_API_BASE_URL}/posts/extract-comments`, {
         method: 'POST',
@@ -352,11 +362,7 @@ export async function extractLinkedInComments(
           'x-api-key': apiKey,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          post_url: testUrl,
-          total_results: totalResults,
-          login_token: loginToken,
-        }),
+        body: JSON.stringify(requestBody),
       });
 
       if (!response.ok) {
