@@ -4,8 +4,10 @@ import { redirect } from 'next/navigation';
 import LinkedinConnectionForm from './linkedin-connection-form';
 import LinkedinOAuthForm from './linkedin-oauth-form';
 import GmailConnectionForm from './gmail-connection-form';
+import ApiKeyForm from './api-key-form';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Linkedin, Key, Mail } from 'lucide-react';
+import { Linkedin, Key, Mail, Puzzle } from 'lucide-react';
+import { getApiKey } from './api-key-actions';
 
 export default async function IntegrationsPage() {
   const user = await getUser();
@@ -14,6 +16,8 @@ export default async function IntegrationsPage() {
     redirect('/sign-in');
   }
 
+  const apiKeyData = await getApiKey();
+
   return (
     <section className="flex-1 p-4 lg:p-8">
       <h1 className="text-lg lg:text-2xl font-medium text-gray-900 mb-6">
@@ -21,6 +25,24 @@ export default async function IntegrationsPage() {
       </h1>
 
       <div className="space-y-6">
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-3">
+              <div className="bg-purple-100 p-2 rounded-lg">
+                <Puzzle className="w-6 h-6 text-purple-600" />
+              </div>
+              <div>
+                <CardTitle>Clé API Extension Chrome</CardTitle>
+                <CardDescription>
+                  Générez une clé API pour permettre à votre extension Chrome d'importer des prospects automatiquement
+                </CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <ApiKeyForm initialData={apiKeyData.success ? { exists: apiKeyData.exists || false, apiKey: apiKeyData.apiKey } : { exists: false }} />
+          </CardContent>
+        </Card>
         <Card>
           <CardHeader>
             <div className="flex items-center gap-3">

@@ -1009,6 +1009,26 @@ export const campaignsRelations = relations(campaigns, ({ one }) => ({
     }),
 }));
 
+export const apiKeys = pgTable('api_keys', {
+    id: serial('id').primaryKey(),
+    teamId: integer('team_id')
+        .notNull()
+        .references(() => teams.id)
+        .unique(),
+    keyHash: text('key_hash').notNull(),
+    keyPreview: varchar('key_preview', { length: 20 }).notNull(),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+    lastUsedAt: timestamp('last_used_at'),
+    isActive: boolean('is_active').notNull().default(true),
+});
+
+export const apiKeysRelations = relations(apiKeys, ({ one }) => ({
+    team: one(teams, {
+        fields: [apiKeys.teamId],
+        references: [teams.id],
+    }),
+}));
+
 // Export types
 export type WebhookAccount = typeof webhookAccounts.$inferSelect;
 export type NewWebhookAccount = typeof webhookAccounts.$inferInsert;
@@ -1022,3 +1042,5 @@ export type ScheduledCollection = typeof scheduledCollections.$inferSelect;
 export type NewScheduledCollection = typeof scheduledCollections.$inferInsert;
 export type Campaign = typeof campaigns.$inferSelect;
 export type NewCampaign = typeof campaigns.$inferInsert;
+export type ApiKey = typeof apiKeys.$inferSelect;
+export type NewApiKey = typeof apiKeys.$inferInsert;
