@@ -2,7 +2,7 @@
 
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Mail, GripVertical, Phone, ClipboardList, ArrowRightCircle } from 'lucide-react';
+import { Mail, GripVertical, Phone, ClipboardList, ArrowRightCircle, Clock, Calendar, Clock3 } from 'lucide-react';
 
 type WorkflowBlockCardProps = {
   block: {
@@ -66,6 +66,36 @@ export function WorkflowBlockCard({ block, index, onClick }: WorkflowBlockCardPr
             : 'Non configuré',
           bgColor: 'bg-orange-50',
           badgeColor: 'bg-orange-100 text-orange-600',
+        };
+      case 'delay':
+        return {
+          icon: <Clock className="w-5 h-5 text-yellow-600" />,
+          name: 'Attendre un délai fixe',
+          preview: block.config?.amount && block.config?.unit
+            ? `${block.config.amount} ${block.config.unit === 'hours' ? 'heures' : block.config.unit === 'days' ? 'jours' : 'semaines'}`
+            : 'Non configuré',
+          bgColor: 'bg-yellow-50',
+          badgeColor: 'bg-yellow-100 text-yellow-600',
+        };
+      case 'waitUntil':
+        return {
+          icon: <Calendar className="w-5 h-5 text-indigo-600" />,
+          name: 'Attendre jusqu\'à une date',
+          preview: block.config?.waitUntil 
+            ? new Date(block.config.waitUntil).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })
+            : 'Non configuré',
+          bgColor: 'bg-indigo-50',
+          badgeColor: 'bg-indigo-100 text-indigo-600',
+        };
+      case 'timeSlot':
+        return {
+          icon: <Clock3 className="w-5 h-5 text-pink-600" />,
+          name: 'Attendre un créneau horaire',
+          preview: block.config?.hours && block.config?.days
+            ? `${block.config.hours.length} heures, ${block.config.days.length} jours`
+            : 'Non configuré',
+          bgColor: 'bg-pink-50',
+          badgeColor: 'bg-pink-100 text-pink-600',
         };
       default:
         return {

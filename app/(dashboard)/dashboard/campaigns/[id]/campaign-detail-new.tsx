@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { ArrowLeft, Play, Pause, Users, Mail, GripVertical, Phone, ClipboardList, ArrowRightCircle } from 'lucide-react';
+import { ArrowLeft, Play, Pause, Users, Mail, GripVertical, Phone, ClipboardList, ArrowRightCircle, Clock, Calendar, Clock3 } from 'lucide-react';
 import Link from 'next/link';
 import { DndContext, DragOverlay, closestCenter, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { arrayMove } from '@dnd-kit/sortable';
@@ -298,6 +298,21 @@ export function CampaignDetailNew({ campaignId }: CampaignDetailNewProps) {
               name: 'Envoyer à une campagne',
               color: 'border-orange-500',
             },
+            'delay-block-draggable': {
+              icon: <Clock className="w-5 h-5 text-yellow-600" />,
+              name: 'Attendre un délai fixe',
+              color: 'border-yellow-500',
+            },
+            'waituntil-block-draggable': {
+              icon: <Calendar className="w-5 h-5 text-indigo-600" />,
+              name: 'Attendre jusqu\'à une date',
+              color: 'border-indigo-500',
+            },
+            'timeslot-block-draggable': {
+              icon: <Clock3 className="w-5 h-5 text-pink-600" />,
+              name: 'Attendre un créneau horaire',
+              color: 'border-pink-500',
+            },
           };
 
           const draggedBlock = blocks.find(b => b.id.toString() === activeId);
@@ -316,6 +331,15 @@ export function CampaignDetailNew({ campaignId }: CampaignDetailNewProps) {
                 break;
               case 'transfer':
                 blockInfo = blockTypeMap['transfer-block-draggable'];
+                break;
+              case 'delay':
+                blockInfo = blockTypeMap['delay-block-draggable'];
+                break;
+              case 'waitUntil':
+                blockInfo = blockTypeMap['waituntil-block-draggable'];
+                break;
+              case 'timeSlot':
+                blockInfo = blockTypeMap['timeslot-block-draggable'];
                 break;
             }
           }
