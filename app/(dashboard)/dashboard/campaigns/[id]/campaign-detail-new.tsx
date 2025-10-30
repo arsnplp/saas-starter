@@ -96,6 +96,29 @@ export function CampaignDetailNew({ campaignId }: CampaignDetailNewProps) {
           });
           break;
 
+        case 'delay':
+          const { createBlock: createDelayBlock } = await import('./block-actions');
+          result = await createDelayBlock(campaignId, 'delay', {
+            amount: 2,
+            unit: 'days',
+          });
+          break;
+
+        case 'waitUntil':
+          const { createBlock: createWaitUntilBlock } = await import('./block-actions');
+          result = await createWaitUntilBlock(campaignId, 'waitUntil', {
+            waitUntil: '',
+          });
+          break;
+
+        case 'timeSlot':
+          const { createBlock: createTimeSlotBlock } = await import('./block-actions');
+          result = await createTimeSlotBlock(campaignId, 'timeSlot', {
+            hours: [9, 10, 11, 14, 15, 16],
+            days: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'],
+          });
+          break;
+
         default:
           return;
       }
@@ -147,6 +170,9 @@ export function CampaignDetailNew({ campaignId }: CampaignDetailNewProps) {
       'call-block-draggable': 'call',
       'task-block-draggable': 'task',
       'transfer-block-draggable': 'transfer',
+      'delay-block-draggable': 'delay',
+      'waituntil-block-draggable': 'waitUntil',
+      'timeslot-block-draggable': 'timeSlot',
     };
 
     const blockType = blockTypeMap[active.id];
