@@ -27,11 +27,25 @@ export interface TransferBlockConfig {
   delay: number;
 }
 
-type BlockConfig = EmailBlockConfig | CallBlockConfig | TaskBlockConfig | TransferBlockConfig;
+export interface DelayBlockConfig {
+  amount: number;
+  unit: 'hours' | 'days' | 'weeks';
+}
+
+export interface WaitUntilBlockConfig {
+  waitUntil: string;
+}
+
+export interface TimeSlotBlockConfig {
+  hours: number[];
+  days: string[];
+}
+
+type BlockConfig = EmailBlockConfig | CallBlockConfig | TaskBlockConfig | TransferBlockConfig | DelayBlockConfig | WaitUntilBlockConfig | TimeSlotBlockConfig;
 
 export async function createBlock(
   campaignId: number,
-  type: 'email' | 'call' | 'task' | 'transfer',
+  type: 'email' | 'call' | 'task' | 'transfer' | 'delay' | 'waitUntil' | 'timeSlot',
   config: BlockConfig
 ) {
   const user = await getUser();
