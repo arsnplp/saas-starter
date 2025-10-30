@@ -38,22 +38,32 @@ async function cleanupOAuthStates() {
   await callCronEndpoint('cleanup-oauth-states');
 }
 
+// Fonction pour exécuter les campagnes
+async function executeCampaigns() {
+  console.log(`[${new Date().toISOString()}] 📧 Exécution des campagnes email...`);
+  await callCronEndpoint('execute-campaigns');
+}
+
 // Configuration des intervalles
 const DETECT_INTERVAL = 2 * 60 * 60 * 1000; // 2 heures
 const EXTRACT_INTERVAL = 2 * 60 * 60 * 1000; // 2 heures
 const CLEANUP_INTERVAL = 60 * 60 * 1000; // 1 heure
+const CAMPAIGN_INTERVAL = 60 * 60 * 1000; // 1 heure
 
 console.log('🚀 Démarrage du planificateur de cron jobs...');
 console.log(`   - Détection des posts: toutes les ${DETECT_INTERVAL / 60000} minutes`);
 console.log(`   - Extraction des leads: toutes les ${EXTRACT_INTERVAL / 60000} minutes`);
 console.log(`   - Nettoyage OAuth: toutes les ${CLEANUP_INTERVAL / 60000} minutes`);
+console.log(`   - Exécution des campagnes: toutes les ${CAMPAIGN_INTERVAL / 60000} minutes`);
 
 // Exécution immédiate au démarrage
 detectPosts();
 extractLeads();
 cleanupOAuthStates();
+executeCampaigns();
 
 // Planification des exécutions régulières
 setInterval(detectPosts, DETECT_INTERVAL);
 setInterval(extractLeads, EXTRACT_INTERVAL);
 setInterval(cleanupOAuthStates, CLEANUP_INTERVAL);
+setInterval(executeCampaigns, CAMPAIGN_INTERVAL);

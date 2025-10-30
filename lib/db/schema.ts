@@ -998,7 +998,7 @@ export const campaigns = pgTable('campaigns', {
         .references(() => users.id),
 });
 
-export const campaignsRelations = relations(campaigns, ({ one }) => ({
+export const campaignsRelations = relations(campaigns, ({ one, many }) => ({
     team: one(teams, {
         fields: [campaigns.teamId],
         references: [teams.id],
@@ -1007,6 +1007,8 @@ export const campaignsRelations = relations(campaigns, ({ one }) => ({
         fields: [campaigns.createdBy],
         references: [users.id],
     }),
+    blocks: many(campaignBlocks),
+    prospects: many(campaignProspects),
 }));
 
 export const apiKeys = pgTable('api_keys', {
@@ -1029,6 +1031,82 @@ export const apiKeysRelations = relations(apiKeys, ({ one }) => ({
     }),
 }));
 
+export const campaignBlocks = pgTable('campaign_blocks', {
+    id: serial('id').primaryKey(),
+    campaignId: integer('campaign_id')
+        .notNull()
+        .references(() => campaigns.id, { onDelete: 'cascade' }),
+    type: varchar('type', { length: 50 }).notNull(),
+    config: jsonb('config').notNull(),
+    order: integer('order').notNull(),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+    updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+export const campaignProspects = pgTable('campaign_prospects', {
+    id: serial('id').primaryKey(),
+    campaignId: integer('campaign_id')
+        .notNull()
+        .references(() => campaigns.id, { onDelete: 'cascade' }),
+    prospectId: uuid('prospect_id')
+        .notNull()
+        .references(() => prospectCandidates.id, { onDelete: 'cascade' }),
+    addedAt: timestamp('added_at').notNull().defaultNow(),
+    addedBy: integer('added_by')
+        .notNull()
+        .references(() => users.id),
+});
+
+export const campaignExecutions = pgTable('campaign_executions', {
+    id: serial('id').primaryKey(),
+    campaignProspectId: integer('campaign_prospect_id')
+        .notNull()
+        .references(() => campaignProspects.id, { onDelete: 'cascade' }),
+    blockId: integer('block_id')
+        .notNull()
+        .references(() => campaignBlocks.id, { onDelete: 'cascade' }),
+    status: varchar('status', { length: 20 }).notNull().default('pending'),
+    scheduledAt: timestamp('scheduled_at').notNull(),
+    executedAt: timestamp('executed_at'),
+    error: text('error'),
+    result: jsonb('result'),
+});
+
+export const campaignBlocksRelations = relations(campaignBlocks, ({ one, many }) => ({
+    campaign: one(campaigns, {
+        fields: [campaignBlocks.campaignId],
+        references: [campaigns.id],
+    }),
+    executions: many(campaignExecutions),
+}));
+
+export const campaignProspectsRelations = relations(campaignProspects, ({ one, many }) => ({
+    campaign: one(campaigns, {
+        fields: [campaignProspects.campaignId],
+        references: [campaigns.id],
+    }),
+    prospect: one(prospectCandidates, {
+        fields: [campaignProspects.prospectId],
+        references: [prospectCandidates.id],
+    }),
+    adder: one(users, {
+        fields: [campaignProspects.addedBy],
+        references: [users.id],
+    }),
+    executions: many(campaignExecutions),
+}));
+
+export const campaignExecutionsRelations = relations(campaignExecutions, ({ one }) => ({
+    campaignProspect: one(campaignProspects, {
+        fields: [campaignExecutions.campaignProspectId],
+        references: [campaignProspects.id],
+    }),
+    block: one(campaignBlocks, {
+        fields: [campaignExecutions.blockId],
+        references: [campaignBlocks.id],
+    }),
+}));
+
 // Export types
 export type WebhookAccount = typeof webhookAccounts.$inferSelect;
 export type NewWebhookAccount = typeof webhookAccounts.$inferInsert;
@@ -1044,3 +1122,9 @@ export type Campaign = typeof campaigns.$inferSelect;
 export type NewCampaign = typeof campaigns.$inferInsert;
 export type ApiKey = typeof apiKeys.$inferSelect;
 export type NewApiKey = typeof apiKeys.$inferInsert;
+export type CampaignBlock = typeof campaignBlocks.$inferSelect;
+export type NewCampaignBlock = typeof campaignBlocks.$inferInsert;
+export type CampaignProspect = typeof campaignProspects.$inferSelect;
+export type NewCampaignProspect = typeof campaignProspects.$inferInsert;
+export type CampaignExecution = typeof campaignExecutions.$inferSelect;
+export type NewCampaignExecution = typeof campaignExecutions.$inferInsert;

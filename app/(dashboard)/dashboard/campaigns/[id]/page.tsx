@@ -4,13 +4,13 @@ import { getUser, getTeamForUser } from '@/lib/db/queries';
 import { db } from '@/lib/db';
 import { campaigns } from '@/lib/db/schema';
 import { eq, and } from 'drizzle-orm';
-import { CampaignBuilder } from '../campaign-builder';
+import { CampaignDetail } from './campaign-detail';
 
 export const dynamic = 'force-dynamic';
 
 type PageProps = { params: Promise<{ id: string }> };
 
-export default async function EditCampaignPage({ params }: PageProps) {
+export default async function CampaignPage({ params }: PageProps) {
   const user = await getUser();
   if (!user) {
     redirect('/sign-in');
@@ -38,17 +38,5 @@ export default async function EditCampaignPage({ params }: PageProps) {
     notFound();
   }
 
-  const campaign = campaignData[0];
-
-  return (
-    <CampaignBuilder
-      campaign={{
-        id: campaign.id,
-        name: campaign.name,
-        description: campaign.description,
-        blocks: campaign.blocks,
-        isActive: campaign.isActive,
-      }}
-    />
-  );
+  return <CampaignDetail campaignId={campaignId} />;
 }
