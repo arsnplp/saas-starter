@@ -4,7 +4,7 @@ import { getUser, getTeamForUser } from '@/lib/db/queries';
 import { db } from '@/lib/db';
 import { campaigns } from '@/lib/db/schema';
 import { eq, and } from 'drizzle-orm';
-import { CampaignDetail } from './campaign-detail';
+import { CampaignDetailNew } from './campaign-detail-new';
 
 export const dynamic = 'force-dynamic';
 
@@ -38,5 +38,5 @@ export default async function CampaignPage({ params }: PageProps) {
     notFound();
   }
 
-  return <CampaignDetail campaignId={campaignId} />;
+  return <CampaignDetailNew campaignId={campaignId} />;
 }

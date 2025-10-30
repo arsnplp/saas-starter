@@ -152,6 +152,8 @@ export async function deleteBlock(blockId: number) {
   return { success: true };
 }
 
+export const deleteEmailBlock = deleteBlock;
+
 export async function reorderBlocks(campaignId: number, blockIds: number[]) {
   const user = await getUser();
   if (!user) {
