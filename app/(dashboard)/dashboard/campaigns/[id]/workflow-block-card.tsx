@@ -2,7 +2,7 @@
 
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Mail, GripVertical } from 'lucide-react';
+import { Mail, GripVertical, Phone, ClipboardList, ArrowRightCircle } from 'lucide-react';
 
 type WorkflowBlockCardProps = {
   block: {
@@ -31,6 +31,55 @@ export function WorkflowBlockCard({ block, index, onClick }: WorkflowBlockCardPr
     opacity: isDragging ? 0.5 : 1,
   };
 
+  const getBlockInfo = () => {
+    switch (block.type) {
+      case 'email':
+        return {
+          icon: <Mail className="w-5 h-5 text-blue-600" />,
+          name: 'Envoyer un mail',
+          preview: block.config?.subject,
+          bgColor: 'bg-blue-50',
+          badgeColor: 'bg-blue-100 text-blue-600',
+        };
+      case 'call':
+        return {
+          icon: <Phone className="w-5 h-5 text-green-600" />,
+          name: 'Appel',
+          preview: block.config?.notes,
+          bgColor: 'bg-green-50',
+          badgeColor: 'bg-green-100 text-green-600',
+        };
+      case 'task':
+        return {
+          icon: <ClipboardList className="w-5 h-5 text-purple-600" />,
+          name: 'Tâche manuelle',
+          preview: block.config?.title,
+          bgColor: 'bg-purple-50',
+          badgeColor: 'bg-purple-100 text-purple-600',
+        };
+      case 'transfer':
+        return {
+          icon: <ArrowRightCircle className="w-5 h-5 text-orange-600" />,
+          name: 'Envoyer à une campagne',
+          preview: block.config?.targetCampaignId 
+            ? `Campagne #${block.config.targetCampaignId}` 
+            : 'Non configuré',
+          bgColor: 'bg-orange-50',
+          badgeColor: 'bg-orange-100 text-orange-600',
+        };
+      default:
+        return {
+          icon: <Mail className="w-5 h-5 text-blue-600" />,
+          name: 'Bloc inconnu',
+          preview: '',
+          bgColor: 'bg-gray-50',
+          badgeColor: 'bg-gray-100 text-gray-600',
+        };
+    }
+  };
+
+  const blockInfo = getBlockInfo();
+
   return (
     <div
       ref={setNodeRef}
@@ -47,19 +96,19 @@ export function WorkflowBlockCard({ block, index, onClick }: WorkflowBlockCardPr
           <GripVertical className="w-5 h-5 text-gray-400" />
         </div>
 
-        <div className="flex items-center justify-center w-8 h-8 bg-blue-100 text-blue-600 rounded-full text-sm font-medium flex-shrink-0">
+        <div className={`flex items-center justify-center w-8 h-8 ${blockInfo.badgeColor} rounded-full text-sm font-medium flex-shrink-0`}>
           {index + 1}
         </div>
 
-        <div className="p-2 bg-blue-50 rounded-lg">
-          <Mail className="w-5 h-5 text-blue-600" />
+        <div className={`p-2 ${blockInfo.bgColor} rounded-lg`}>
+          {blockInfo.icon}
         </div>
 
         <div className="flex-1 min-w-0">
-          <p className="font-medium text-gray-900">Bloc Email</p>
-          {block.config?.subject && (
+          <p className="font-medium text-gray-900">{blockInfo.name}</p>
+          {blockInfo.preview && (
             <p className="text-sm text-gray-500 truncate">
-              {block.config.subject}
+              {blockInfo.preview}
             </p>
           )}
         </div>
