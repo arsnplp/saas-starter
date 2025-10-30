@@ -176,6 +176,35 @@ export async function reorderBlocks(campaignId: number, blockIds: number[]) {
     return { success: false, error: 'Campagne non trouvée' };
   }
 
+  const existingBlocks = await db.query.campaignBlocks.findMany({
+    where: eq(campaignBlocks.campaignId, campaignId),
+  });
+
+  const existingBlockIds = new Set(existingBlocks.map(b => b.id));
+
+  if (blockIds.length !== existingBlocks.length) {
+    return { 
+      success: false, 
+      error: 'Le nombre de blocs ne correspond pas' 
+    };
+  }
+
+  const blockIdSet = new Set(blockIds);
+  if (blockIdSet.size !== blockIds.length) {
+    return { 
+      success: false, 
+      error: 'Les IDs de blocs doivent être uniques' 
+    };
+  }
+
+  const invalidIds = blockIds.filter(id => !existingBlockIds.has(id));
+  if (invalidIds.length > 0) {
+    return { 
+      success: false, 
+      error: 'Certains blocs n\'appartiennent pas à cette campagne' 
+    };
+  }
+
   for (let i = 0; i < blockIds.length; i++) {
     await db
       .update(campaignBlocks)
