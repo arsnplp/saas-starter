@@ -1,11 +1,10 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { ArrowLeft, Play, Pause, Users } from 'lucide-react';
+import { ArrowLeft, Play, Pause, Users, Mail, GripVertical, Phone, ClipboardList, ArrowRightCircle } from 'lucide-react';
 import Link from 'next/link';
 import { DndContext, DragOverlay, closestCenter, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { arrayMove } from '@dnd-kit/sortable';
-import { Mail, GripVertical } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { FolderSelectorCompact } from './folder-selector-compact';
 import { DraggableWorkflowArea } from './draggable-workflow-area';
@@ -277,15 +276,64 @@ export function CampaignDetailNew({ campaignId }: CampaignDetailNewProps) {
       </div>
 
       <DragOverlay>
-        {activeId ? (
-          <div className="bg-white border-2 border-blue-500 rounded-lg p-4 shadow-lg opacity-90">
-            <div className="flex items-center gap-3">
-              <GripVertical className="w-4 h-4 text-gray-400" />
-              <Mail className="w-5 h-5 text-blue-600" />
-              <span className="font-medium text-gray-900">Envoyer un mail</span>
+        {activeId ? (() => {
+          const blockTypeMap: Record<string, { icon: JSX.Element; name: string; color: string }> = {
+            'email-block-draggable': {
+              icon: <Mail className="w-5 h-5 text-blue-600" />,
+              name: 'Envoyer un mail',
+              color: 'border-blue-500',
+            },
+            'call-block-draggable': {
+              icon: <Phone className="w-5 h-5 text-green-600" />,
+              name: 'Appel',
+              color: 'border-green-500',
+            },
+            'task-block-draggable': {
+              icon: <ClipboardList className="w-5 h-5 text-purple-600" />,
+              name: 'Tâche manuelle',
+              color: 'border-purple-500',
+            },
+            'transfer-block-draggable': {
+              icon: <ArrowRightCircle className="w-5 h-5 text-orange-600" />,
+              name: 'Envoyer à une campagne',
+              color: 'border-orange-500',
+            },
+          };
+
+          const draggedBlock = blocks.find(b => b.id.toString() === activeId);
+          let blockInfo = blockTypeMap[activeId];
+
+          if (draggedBlock) {
+            switch (draggedBlock.type) {
+              case 'email':
+                blockInfo = blockTypeMap['email-block-draggable'];
+                break;
+              case 'call':
+                blockInfo = blockTypeMap['call-block-draggable'];
+                break;
+              case 'task':
+                blockInfo = blockTypeMap['task-block-draggable'];
+                break;
+              case 'transfer':
+                blockInfo = blockTypeMap['transfer-block-draggable'];
+                break;
+            }
+          }
+
+          if (!blockInfo) {
+            blockInfo = blockTypeMap['email-block-draggable'];
+          }
+
+          return (
+            <div className={`bg-white border-2 ${blockInfo.color} rounded-lg p-4 shadow-lg opacity-90`}>
+              <div className="flex items-center gap-3">
+                <GripVertical className="w-4 h-4 text-gray-400" />
+                {blockInfo.icon}
+                <span className="font-medium text-gray-900">{blockInfo.name}</span>
+              </div>
             </div>
-          </div>
-        ) : null}
+          );
+        })() : null}
       </DragOverlay>
     </DndContext>
   );
