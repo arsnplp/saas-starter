@@ -1,11 +1,11 @@
 'use client';
 
 import { useDraggable } from '@dnd-kit/core';
-import { Mail } from 'lucide-react';
+import { ClipboardList } from 'lucide-react';
 
-export function DraggableEmailBlock() {
+export function DraggableTaskBlock() {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
-    id: 'email-block-draggable',
+    id: 'task-block-draggable',
   });
 
   const style = transform
@@ -21,16 +21,16 @@ export function DraggableEmailBlock() {
       style={style}
       {...listeners}
       {...attributes}
-      className="border-2 border-gray-200 rounded-lg p-4 bg-white hover:border-blue-300 hover:shadow-md transition-all cursor-grab active:cursor-grabbing"
+      className="border-2 border-gray-200 rounded-lg p-4 bg-white hover:border-purple-300 hover:shadow-md transition-all cursor-grab active:cursor-grabbing"
     >
       <div className="flex items-center gap-3">
-        <div className="p-2 bg-blue-50 rounded-lg">
-          <Mail className="w-5 h-5 text-blue-600" />
+        <div className="p-2 bg-purple-50 rounded-lg">
+          <ClipboardList className="w-5 h-5 text-purple-600" />
         </div>
         <div className="flex-1">
-          <p className="font-medium text-gray-900 text-sm">Envoyer un mail</p>
+          <p className="font-medium text-gray-900 text-sm">Tâche manuelle</p>
           <p className="text-xs text-gray-500">
-            Envoyer un email personnalisé
+            Ajouter une action manuelle
           </p>
         </div>
       </div>

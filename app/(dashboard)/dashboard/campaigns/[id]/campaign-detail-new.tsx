@@ -242,7 +242,7 @@ export function CampaignDetailNew({ campaignId }: CampaignDetailNewProps) {
             <div className="flex items-center gap-3">
               <GripVertical className="w-4 h-4 text-gray-400" />
               <Mail className="w-5 h-5 text-blue-600" />
-              <span className="font-medium text-gray-900">Bloc Email</span>
+              <span className="font-medium text-gray-900">Envoyer un mail</span>
             </div>
           </div>
         ) : null}

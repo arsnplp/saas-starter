@@ -2,6 +2,9 @@
 
 import { Info } from 'lucide-react';
 import { DraggableEmailBlock } from './draggable-email-block';
+import { DraggableCallBlock } from './draggable-call-block';
+import { DraggableTaskBlock } from './draggable-task-block';
+import { DraggableTransferBlock } from './draggable-transfer-block';
 
 export function AvailableBlocksSidebarNew() {
   return (
@@ -17,8 +20,11 @@ export function AvailableBlocksSidebarNew() {
 
       <div className="space-y-3">
         <DraggableEmailBlock />
+        <DraggableCallBlock />
+        <DraggableTaskBlock />
+        <DraggableTransferBlock />
 
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mt-4">
           <div className="flex items-start gap-2">
             <Info className="w-4 h-4 text-blue-600 flex-shrink-0 mt-0.5" />
             <div>
