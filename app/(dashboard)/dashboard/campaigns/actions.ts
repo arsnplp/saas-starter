@@ -9,7 +9,6 @@ import { revalidatePath } from 'next/cache';
 export async function createCampaign(data: {
   name: string;
   description: string | null;
-  blocks: any[];
 }) {
   try {
     const user = await getUser();
@@ -22,17 +21,17 @@ export async function createCampaign(data: {
       return { success: false, error: 'Accès refusé' };
     }
 
-    await db.insert(campaigns).values({
+    const [campaign] = await db.insert(campaigns).values({
       teamId: team.id,
       createdBy: user.id,
       name: data.name,
       description: data.description,
-      blocks: data.blocks,
-      isActive: true,
-    });
+      blocks: [],
+      isActive: false,
+    }).returning();
 
     revalidatePath('/dashboard/campaigns');
-    return { success: true };
+    return { success: true, campaignId: campaign.id };
   } catch (error) {
     console.error('Error creating campaign:', error);
     return { success: false, error: 'Erreur lors de la création' };
