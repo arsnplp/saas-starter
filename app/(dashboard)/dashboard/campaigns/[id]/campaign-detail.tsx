@@ -6,7 +6,8 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { EmailBlockForm } from './email-block-form';
 import { BlocksList } from './blocks-list';
-import { ProspectAssigner } from './prospect-assigner';
+import { FolderSelector } from './folder-selector';
+import { AvailableBlocksSidebar } from './available-blocks-sidebar';
 import { getCampaignBlocks } from './block-actions';
 import { getCampaignWithDetails } from './actions';
 
@@ -109,7 +110,7 @@ export function CampaignDetail({ campaignId }: CampaignDetailProps) {
       </div>
 
       <div className="flex-1 overflow-auto p-6">
-        <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-4 gap-6">
           <div className="lg:col-span-2 space-y-6">
             <div className="bg-white rounded-lg border p-6">
               <div className="flex items-center justify-between mb-6">
@@ -132,7 +133,11 @@ export function CampaignDetail({ campaignId }: CampaignDetailProps) {
           </div>
 
           <div className="space-y-6">
-            <ProspectAssigner campaignId={campaignId} onUpdate={loadData} />
+            <FolderSelector campaignId={campaignId} onUpdate={loadData} />
+          </div>
+
+          <div className="space-y-6">
+            <AvailableBlocksSidebar />
           </div>
         </div>
       </div>
