@@ -1072,6 +1072,17 @@ export const campaignExecutions = pgTable('campaign_executions', {
     result: jsonb('result'),
 });
 
+export const campaignFolders = pgTable('campaign_folders', {
+    id: serial('id').primaryKey(),
+    campaignId: integer('campaign_id')
+        .notNull()
+        .references(() => campaigns.id, { onDelete: 'cascade' }),
+    folderId: integer('folder_id')
+        .notNull()
+        .references(() => prospectFolders.id, { onDelete: 'cascade' }),
+    addedAt: timestamp('added_at').notNull().defaultNow(),
+});
+
 export const campaignBlocksRelations = relations(campaignBlocks, ({ one, many }) => ({
     campaign: one(campaigns, {
         fields: [campaignBlocks.campaignId],
@@ -1104,6 +1115,17 @@ export const campaignExecutionsRelations = relations(campaignExecutions, ({ one 
     block: one(campaignBlocks, {
         fields: [campaignExecutions.blockId],
         references: [campaignBlocks.id],
+    }),
+}));
+
+export const campaignFoldersRelations = relations(campaignFolders, ({ one }) => ({
+    campaign: one(campaigns, {
+        fields: [campaignFolders.campaignId],
+        references: [campaigns.id],
+    }),
+    folder: one(prospectFolders, {
+        fields: [campaignFolders.folderId],
+        references: [prospectFolders.id],
     }),
 }));
 
