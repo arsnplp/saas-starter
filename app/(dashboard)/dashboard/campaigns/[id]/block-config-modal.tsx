@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Mail, Phone, ClipboardList, ArrowRightCircle } from 'lucide-react';
+import { Mail, Phone, ClipboardList, ArrowRightCircle, Clock, Calendar, Clock3 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -71,6 +71,29 @@ export function BlockConfigModal({
         toast.error('La campagne cible est requise');
         return false;
       }
+    } else if (block.type === 'delay') {
+      if (!config.amount || config.amount < 1) {
+        toast.error('Le délai doit être d\'au moins 1');
+        return false;
+      }
+      if (!config.unit) {
+        toast.error('L\'unité de temps est requise');
+        return false;
+      }
+    } else if (block.type === 'waitUntil') {
+      if (!config.waitUntil) {
+        toast.error('La date est requise');
+        return false;
+      }
+    } else if (block.type === 'timeSlot') {
+      if (!config.hours || config.hours.length === 0) {
+        toast.error('Au moins une heure doit être sélectionnée');
+        return false;
+      }
+      if (!config.days || config.days.length === 0) {
+        toast.error('Au moins un jour doit être sélectionné');
+        return false;
+      }
     }
 
     return true;
@@ -133,6 +156,12 @@ export function BlockConfigModal({
         return <ClipboardList className="w-5 h-5 text-purple-600" />;
       case 'transfer':
         return <ArrowRightCircle className="w-5 h-5 text-orange-600" />;
+      case 'delay':
+        return <Clock className="w-5 h-5 text-yellow-600" />;
+      case 'waitUntil':
+        return <Calendar className="w-5 h-5 text-indigo-600" />;
+      case 'timeSlot':
+        return <Clock3 className="w-5 h-5 text-pink-600" />;
       default:
         return <Mail className="w-5 h-5 text-blue-600" />;
     }
@@ -148,6 +177,12 @@ export function BlockConfigModal({
         return 'Configuration - Tâche manuelle';
       case 'transfer':
         return 'Configuration - Envoyer à une campagne';
+      case 'delay':
+        return 'Configuration - Attendre un délai fixe';
+      case 'waitUntil':
+        return 'Configuration - Attendre jusqu\'à une date';
+      case 'timeSlot':
+        return 'Configuration - Attendre un créneau horaire';
       default:
         return 'Configuration';
     }
@@ -289,6 +324,142 @@ export function BlockConfigModal({
             <div className="bg-orange-50 border border-orange-200 rounded-lg p-3">
               <p className="text-sm text-orange-900">
                 Le prospect sera automatiquement transféré vers la campagne cible après le délai spécifié. La campagne actuelle sera terminée pour ce prospect.
+              </p>
+            </div>
+          </>
+        );
+
+      case 'delay':
+        return (
+          <>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="amount">Durée *</Label>
+                <Input
+                  id="amount"
+                  type="number"
+                  min="1"
+                  value={config.amount || ''}
+                  onChange={(e) => setConfig({ ...config, amount: parseInt(e.target.value) || '' })}
+                  placeholder="2"
+                  className="mt-2"
+                />
+              </div>
+              <div>
+                <Label htmlFor="unit">Unité *</Label>
+                <select
+                  id="unit"
+                  value={config.unit || 'days'}
+                  onChange={(e) => setConfig({ ...config, unit: e.target.value })}
+                  className="mt-2 w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500"
+                >
+                  <option value="hours">Heures</option>
+                  <option value="days">Jours</option>
+                  <option value="weeks">Semaines</option>
+                </select>
+              </div>
+            </div>
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+              <p className="text-sm text-yellow-900">
+                <strong>Exemple :</strong> Si vous configurez "2 jours", le bloc suivant s'exécutera 2 jours après ce délai. Utile pour envoyer un follow-up après un premier email.
+              </p>
+            </div>
+          </>
+        );
+
+      case 'waitUntil':
+        return (
+          <>
+            <div>
+              <Label htmlFor="waitUntil">Date et heure *</Label>
+              <Input
+                id="waitUntil"
+                type="datetime-local"
+                value={config.waitUntil || ''}
+                onChange={(e) => setConfig({ ...config, waitUntil: e.target.value })}
+                className="mt-2"
+              />
+            </div>
+            <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-3">
+              <p className="text-sm text-indigo-900">
+                <strong>Exemple :</strong> Configurer "5 novembre 2025 à 10h00" pour lancer une action à une date clé (lancement produit, événement, etc.). Tous les prospects attendront cette date avant de continuer.
+              </p>
+            </div>
+          </>
+        );
+
+      case 'timeSlot':
+        return (
+          <>
+            <div>
+              <Label>Heures autorisées *</Label>
+              <div className="mt-2 grid grid-cols-6 gap-2">
+                {[9, 10, 11, 12, 13, 14, 15, 16, 17, 18].map((hour) => {
+                  const isSelected = config.hours?.includes(hour);
+                  return (
+                    <button
+                      key={hour}
+                      type="button"
+                      onClick={() => {
+                        const hours = config.hours || [];
+                        if (isSelected) {
+                          setConfig({ ...config, hours: hours.filter((h: number) => h !== hour) });
+                        } else {
+                          setConfig({ ...config, hours: [...hours, hour].sort() });
+                        }
+                      }}
+                      className={`px-3 py-2 text-sm rounded-md border-2 transition-colors ${
+                        isSelected
+                          ? 'bg-pink-100 border-pink-500 text-pink-700 font-medium'
+                          : 'bg-white border-gray-200 text-gray-700 hover:border-pink-300'
+                      }`}
+                    >
+                      {hour}h
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+            <div>
+              <Label>Jours autorisés *</Label>
+              <div className="mt-2 grid grid-cols-7 gap-2">
+                {[
+                  { value: 'Mon', label: 'Lun' },
+                  { value: 'Tue', label: 'Mar' },
+                  { value: 'Wed', label: 'Mer' },
+                  { value: 'Thu', label: 'Jeu' },
+                  { value: 'Fri', label: 'Ven' },
+                  { value: 'Sat', label: 'Sam' },
+                  { value: 'Sun', label: 'Dim' },
+                ].map((day) => {
+                  const isSelected = config.days?.includes(day.value);
+                  return (
+                    <button
+                      key={day.value}
+                      type="button"
+                      onClick={() => {
+                        const days = config.days || [];
+                        if (isSelected) {
+                          setConfig({ ...config, days: days.filter((d: string) => d !== day.value) });
+                        } else {
+                          setConfig({ ...config, days: [...days, day.value] });
+                        }
+                      }}
+                      className={`px-3 py-2 text-sm rounded-md border-2 transition-colors ${
+                        isSelected
+                          ? 'bg-pink-100 border-pink-500 text-pink-700 font-medium'
+                          : 'bg-white border-gray-200 text-gray-700 hover:border-pink-300'
+                      }`}
+                    >
+                      {day.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+            <div className="bg-pink-50 border border-pink-200 rounded-lg p-3">
+              <p className="text-sm text-pink-900">
+                <strong>Exemple :</strong> Si vous sélectionnez "9h-11h" et "Lun-Mer-Ven", les messages ne seront envoyés que pendant ces créneaux pour respecter les heures de bureau.
               </p>
             </div>
           </>
