@@ -29,66 +29,6 @@ export interface TransferBlockConfig {
 
 type BlockConfig = EmailBlockConfig | CallBlockConfig | TaskBlockConfig | TransferBlockConfig;
 
-export async function createEmailBlock(
-  campaignId: number,
-  config: EmailBlockConfig
-) {
-  const user = await getUser();
-  if (!user) {
-    return { success: false, error: 'Non authentifié' };
-  }
-
-  const team = await getTeamForUser();
-  if (!team) {
-    return { success: false, error: 'Équipe non trouvée' };
-  }
-
-  const campaign = await db.query.campaigns.findFirst({
-    where: and(
-      eq(campaigns.id, campaignId),
-      eq(campaigns.teamId, team.id)
-    ),
-  });
-
-  if (!campaign) {
-    return { success: false, error: 'Campagne non trouvée' };
-  }
-
-  const maxOrderResult = await db
-    .select({ maxOrder: sql<number>`COALESCE(MAX(${campaignBlocks.order}), -1)` })
-    .from(campaignBlocks)
-    .where(eq(campaignBlocks.campaignId, campaignId));
-
-  const nextOrder = (maxOrderResult[0]?.maxOrder ?? -1) + 1;
-
-  const [block] = await db
-    .insert(campaignBlocks)
-    .values({
-      campaignId,
-      type: 'email',
-      config: config as any,
-      order: nextOrder,
-    })
-    .returning();
-
-  const existingProspects = await db.query.campaignProspects.findMany({
-    where: eq(campaignProspects.campaignId, campaignId),
-  });
-
-  for (const prospect of existingProspects) {
-    await db.insert(campaignExecutions).values({
-      campaignProspectId: prospect.id,
-      blockId: block.id,
-      status: 'pending',
-      scheduledAt: new Date(),
-    });
-  }
-
-  revalidatePath(`/dashboard/campaigns/${campaignId}`);
-
-  return { success: true, block };
-}
-
 export async function createBlock(
   campaignId: number,
   type: 'email' | 'call' | 'task' | 'transfer',
@@ -113,6 +53,22 @@ export async function createBlock(
 
   if (!campaign) {
     return { success: false, error: 'Campagne non trouvée' };
+  }
+
+  if (type === 'transfer') {
+    const transferConfig = config as TransferBlockConfig;
+    if (transferConfig.targetCampaignId) {
+      const targetCampaign = await db.query.campaigns.findFirst({
+        where: and(
+          eq(campaigns.id, transferConfig.targetCampaignId),
+          eq(campaigns.teamId, team.id)
+        ),
+      });
+
+      if (!targetCampaign) {
+        return { success: false, error: 'La campagne cible n\'appartient pas à votre équipe' };
+      }
+    }
   }
 
   const maxOrderResult = await db
@@ -174,6 +130,22 @@ export async function updateBlock(
 
   if (!block || block.campaign.teamId !== team.id) {
     return { success: false, error: 'Bloc non trouvé' };
+  }
+
+  if (type === 'transfer') {
+    const transferConfig = config as TransferBlockConfig;
+    if (transferConfig.targetCampaignId) {
+      const targetCampaign = await db.query.campaigns.findFirst({
+        where: and(
+          eq(campaigns.id, transferConfig.targetCampaignId),
+          eq(campaigns.teamId, team.id)
+        ),
+      });
+
+      if (!targetCampaign) {
+        return { success: false, error: 'La campagne cible n\'appartient pas à votre équipe' };
+      }
+    }
   }
 
   await db
