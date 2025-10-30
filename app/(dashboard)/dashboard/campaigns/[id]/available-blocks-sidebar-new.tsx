@@ -1,10 +1,12 @@
 'use client';
 
-import { Info } from 'lucide-react';
 import { DraggableEmailBlock } from './draggable-email-block';
 import { DraggableCallBlock } from './draggable-call-block';
 import { DraggableTaskBlock } from './draggable-task-block';
 import { DraggableTransferBlock } from './draggable-transfer-block';
+import { DraggableDelayBlock } from './draggable-delay-block';
+import { DraggableWaitUntilBlock } from './draggable-waituntil-block';
+import { DraggableTimeSlotBlock } from './draggable-timeslot-block';
 
 export function AvailableBlocksSidebarNew() {
   return (
@@ -19,23 +21,19 @@ export function AvailableBlocksSidebarNew() {
       </div>
 
       <div className="space-y-3">
-        <DraggableEmailBlock />
-        <DraggableCallBlock />
-        <DraggableTaskBlock />
-        <DraggableTransferBlock />
+        <div className="space-y-2 mb-4">
+          <h3 className="text-xs font-semibold text-gray-700 uppercase tracking-wide">Actions</h3>
+          <DraggableEmailBlock />
+          <DraggableCallBlock />
+          <DraggableTaskBlock />
+          <DraggableTransferBlock />
+        </div>
 
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mt-4">
-          <div className="flex items-start gap-2">
-            <Info className="w-4 h-4 text-blue-600 flex-shrink-0 mt-0.5" />
-            <div>
-              <p className="text-xs text-blue-900 font-medium mb-1">
-                Plus de blocs bientôt
-              </p>
-              <p className="text-xs text-blue-700">
-                Délais, conditions, webhooks... D'autres types de blocs seront ajoutés prochainement.
-              </p>
-            </div>
-          </div>
+        <div className="space-y-2 pt-4 border-t">
+          <h3 className="text-xs font-semibold text-gray-700 uppercase tracking-wide">Timing</h3>
+          <DraggableDelayBlock />
+          <DraggableWaitUntilBlock />
+          <DraggableTimeSlotBlock />
         </div>
       </div>
     </div>
