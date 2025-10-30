@@ -61,25 +61,57 @@ export function CampaignDetailNew({ campaignId }: CampaignDetailNewProps) {
   }, [campaignId]);
 
   const handleBlockAdd = async (type: string) => {
-    if (type === 'email') {
-      try {
-        const result = await createEmailBlock(campaignId, {
-          subject: 'Nouveau message',
-          body: 'Bonjour {{name}},\n\nVotre message ici...',
-        });
+    try {
+      let result;
 
-        if (result.success) {
-          toast.success('Bloc ajouté');
-          await loadData();
-          if (result.block) {
-            setSelectedBlock(result.block);
-          }
-        } else {
-          toast.error(result.error || 'Erreur');
-        }
-      } catch (error) {
-        toast.error('Une erreur est survenue');
+      switch (type) {
+        case 'email':
+          result = await createEmailBlock(campaignId, {
+            subject: 'Nouveau message',
+            body: 'Bonjour {{name}},\n\nVotre message ici...',
+          });
+          break;
+
+        case 'call':
+          const { createBlock } = await import('./block-actions');
+          result = await createBlock(campaignId, 'call', {
+            notes: 'Points à discuter lors de l\'appel...',
+            deadline: '',
+          });
+          break;
+
+        case 'task':
+          const { createBlock: createTaskBlock } = await import('./block-actions');
+          result = await createTaskBlock(campaignId, 'task', {
+            title: 'Nouvelle tâche',
+            description: '',
+            deadline: '',
+          });
+          break;
+
+        case 'transfer':
+          const { createBlock: createTransferBlock } = await import('./block-actions');
+          result = await createTransferBlock(campaignId, 'transfer', {
+            targetCampaignId: 0,
+            delay: 0,
+          });
+          break;
+
+        default:
+          return;
       }
+
+      if (result?.success) {
+        toast.success('Bloc ajouté');
+        await loadData();
+        if (result.block) {
+          setSelectedBlock(result.block);
+        }
+      } else {
+        toast.error(result?.error || 'Erreur');
+      }
+    } catch (error) {
+      toast.error('Une erreur est survenue');
     }
   };
 
@@ -111,8 +143,16 @@ export function CampaignDetailNew({ campaignId }: CampaignDetailNewProps) {
       return;
     }
 
-    if (active.id === 'email-block-draggable') {
-      handleBlockAdd('email');
+    const blockTypeMap: Record<string, string> = {
+      'email-block-draggable': 'email',
+      'call-block-draggable': 'call',
+      'task-block-draggable': 'task',
+      'transfer-block-draggable': 'transfer',
+    };
+
+    const blockType = blockTypeMap[active.id];
+    if (blockType) {
+      handleBlockAdd(blockType);
       return;
     }
 

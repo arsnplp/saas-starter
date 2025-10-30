@@ -11,6 +11,24 @@ export interface EmailBlockConfig {
   body: string;
 }
 
+export interface CallBlockConfig {
+  notes: string;
+  deadline?: string;
+}
+
+export interface TaskBlockConfig {
+  title: string;
+  description?: string;
+  deadline?: string;
+}
+
+export interface TransferBlockConfig {
+  targetCampaignId: number;
+  delay: number;
+}
+
+type BlockConfig = EmailBlockConfig | CallBlockConfig | TaskBlockConfig | TransferBlockConfig;
+
 export async function createEmailBlock(
   campaignId: number,
   config: EmailBlockConfig
@@ -71,9 +89,71 @@ export async function createEmailBlock(
   return { success: true, block };
 }
 
-export async function updateEmailBlock(
+export async function createBlock(
+  campaignId: number,
+  type: 'email' | 'call' | 'task' | 'transfer',
+  config: BlockConfig
+) {
+  const user = await getUser();
+  if (!user) {
+    return { success: false, error: 'Non authentifié' };
+  }
+
+  const team = await getTeamForUser();
+  if (!team) {
+    return { success: false, error: 'Équipe non trouvée' };
+  }
+
+  const campaign = await db.query.campaigns.findFirst({
+    where: and(
+      eq(campaigns.id, campaignId),
+      eq(campaigns.teamId, team.id)
+    ),
+  });
+
+  if (!campaign) {
+    return { success: false, error: 'Campagne non trouvée' };
+  }
+
+  const maxOrderResult = await db
+    .select({ maxOrder: sql<number>`COALESCE(MAX(${campaignBlocks.order}), -1)` })
+    .from(campaignBlocks)
+    .where(eq(campaignBlocks.campaignId, campaignId));
+
+  const nextOrder = (maxOrderResult[0]?.maxOrder ?? -1) + 1;
+
+  const [block] = await db
+    .insert(campaignBlocks)
+    .values({
+      campaignId,
+      type,
+      config: config as any,
+      order: nextOrder,
+    })
+    .returning();
+
+  const existingProspects = await db.query.campaignProspects.findMany({
+    where: eq(campaignProspects.campaignId, campaignId),
+  });
+
+  for (const prospect of existingProspects) {
+    await db.insert(campaignExecutions).values({
+      campaignProspectId: prospect.id,
+      blockId: block.id,
+      status: 'pending',
+      scheduledAt: new Date(),
+    });
+  }
+
+  revalidatePath(`/dashboard/campaigns/${campaignId}`);
+
+  return { success: true, block };
+}
+
+export async function updateBlock(
   blockId: number,
-  config: EmailBlockConfig
+  type: string,
+  config: BlockConfig
 ) {
   const user = await getUser();
   if (!user) {
@@ -107,6 +187,14 @@ export async function updateEmailBlock(
   revalidatePath(`/dashboard/campaigns/${block.campaignId}`);
 
   return { success: true };
+}
+
+export const updateEmailBlock = updateBlock;
+export async function createEmailBlock(
+  campaignId: number,
+  config: EmailBlockConfig
+) {
+  return createBlock(campaignId, 'email', config);
 }
 
 export async function deleteBlock(blockId: number) {
