@@ -1,7 +1,8 @@
 import { getProspectsReadyToExecute, markProspectExecuting, moveProspectToNextNode, getNextNodes, recordProspectError } from '../workflow-state';
 import { db } from '@/lib/db';
-import { prospectCandidates } from '@/lib/db/schema';
+import { prospectCandidates, campaigns } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
+import { sendEmailWithVariables, extractProspectVariables } from '../email-sender';
 
 /**
  * Process all prospects that are ready to execute
@@ -28,7 +29,18 @@ export async function processReadyProspects() {
         throw new Error(`Prospect ${campaignProspect.prospectId} not found`);
       }
 
-      const result = await executeNode(node, prospectData);
+      // Get campaign info for teamId
+      const [campaign] = await db
+        .select()
+        .from(campaigns)
+        .where(eq(campaigns.id, campaignProspect.campaignId))
+        .limit(1);
+
+      if (!campaign) {
+        throw new Error(`Campaign ${campaignProspect.campaignId} not found`);
+      }
+
+      const result = await executeNode(node, prospectData, campaign.teamId);
 
       const nextNodeIds = await getNextNodes(node.id, result.nextHandle);
 
@@ -50,11 +62,11 @@ export async function processReadyProspects() {
 
 /**
  * Execute a single node for a prospect
- * This is a placeholder - actual implementation will be added later
  */
 async function executeNode(
   node: any,
-  prospect: any
+  prospect: any,
+  teamId: number
 ): Promise<{ success: boolean; nextHandle?: string }> {
   console.log(`[WorkflowProcessor] Executing ${node.type} node for prospect ${prospect.id}`);
 
@@ -68,8 +80,7 @@ async function executeNode(
       return { success: true };
 
     case 'email':
-      console.log(`[WorkflowProcessor] Would send email to ${prospect.email}`);
-      return { success: true };
+      return await executeEmailNode(node, prospect, teamId);
 
     case 'call':
       console.log(`[WorkflowProcessor] Would create call task for ${prospect.name}`);
@@ -104,4 +115,46 @@ async function executeNode(
       console.log(`[WorkflowProcessor] Unknown node type: ${node.type}`);
       return { success: true };
   }
+}
+
+/**
+ * Execute an email node - send email with variable substitution
+ */
+async function executeEmailNode(
+  node: any,
+  prospect: any,
+  teamId: number
+): Promise<{ success: boolean; nextHandle?: string }> {
+  const config = node.config || {};
+  const subject = config.subject || '';
+  const body = config.body || '';
+
+  // Check if prospect has an email
+  if (!prospect.email) {
+    console.warn(`[WorkflowProcessor] Prospect ${prospect.id} has no email, skipping email node`);
+    throw new Error(`Prospect has no email address`);
+  }
+
+  // Extract variables from prospect
+  const variables = extractProspectVariables(prospect);
+
+  console.log(`[WorkflowProcessor] Sending email to ${prospect.email} (${prospect.name})`);
+  console.log(`[WorkflowProcessor] Subject: ${subject}`);
+
+  // Send email with variable substitution
+  const result = await sendEmailWithVariables(
+    teamId,
+    prospect.email,
+    subject,
+    body,
+    variables
+  );
+
+  if (!result.success) {
+    console.error(`[WorkflowProcessor] Failed to send email: ${result.error}`);
+    throw new Error(result.error || 'Failed to send email');
+  }
+
+  console.log(`[WorkflowProcessor] Successfully sent email to ${prospect.email}`);
+  return { success: true };
 }
