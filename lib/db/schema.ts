@@ -1009,6 +1009,8 @@ export const campaignsRelations = relations(campaigns, ({ one, many }) => ({
     }),
     blocks: many(campaignBlocks),
     prospects: many(campaignProspects),
+    workflowNodes: many(workflowNodes),
+    workflowEdges: many(workflowEdges),
 }));
 
 export const apiKeys = pgTable('api_keys', {
