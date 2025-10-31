@@ -7,7 +7,8 @@ import {
   campaignProspects, 
   prospectCandidates,
   prospectFolders,
-  workflowProspectState
+  workflowProspectState,
+  workflowNodes
 } from '@/lib/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { getUser, getTeamForUser } from '@/lib/db/queries';
@@ -120,6 +121,13 @@ export async function assignFolderToCampaign(
         )
       );
 
+    const startNode = await db.query.workflowNodes.findFirst({
+      where: and(
+        eq(workflowNodes.campaignId, campaignId),
+        eq(workflowNodes.type, 'start')
+      ),
+    });
+
     let addedCount = 0;
 
     for (const prospect of prospectsInFolder) {
@@ -142,6 +150,7 @@ export async function assignFolderToCampaign(
 
         await db.insert(workflowProspectState).values({
           campaignProspectId: newAssignment.id,
+          currentNodeId: startNode?.id || null,
           status: 'waiting',
           scheduledFor: new Date(),
         });
