@@ -6,10 +6,12 @@ import {
   workflowEdges, 
   campaigns,
   campaignProspects,
-  prospectCandidates
+  prospectCandidates,
+  workflowProspectState
 } from '@/lib/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { getUser, getTeamForUser } from '@/lib/db/queries';
+import { initializeProspectWorkflow } from '@/server/workflow-state';
 
 type WorkflowNode = {
   id: number;
@@ -70,13 +72,28 @@ export async function startCampaignExecution(campaignId: number) {
     return { success: false, error: 'Aucun prospect assigné à cette campagne' };
   }
 
+  let initializedCount = 0;
+  for (const { id: campaignProspectId } of prospects) {
+    const existing = await db
+      .select()
+      .from(workflowProspectState)
+      .where(eq(workflowProspectState.campaignProspectId, campaignProspectId))
+      .limit(1);
+
+    if (existing.length === 0) {
+      await initializeProspectWorkflow(campaignProspectId, startNode.id);
+      initializedCount++;
+    }
+  }
+
   const executionPlan = buildExecutionPlan(startNode, nodes, edges);
 
   return {
     success: true,
-    message: `Campagne démarrée pour ${prospects.length} prospect(s)`,
+    message: `Campagne démarrée : ${initializedCount} nouveaux prospects initialisés, ${prospects.length} total`,
     executionPlan,
     prospectCount: prospects.length,
+    initializedCount,
   };
 }
 
