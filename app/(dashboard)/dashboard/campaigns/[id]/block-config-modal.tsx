@@ -34,7 +34,6 @@ export function BlockConfigModal({
 }: BlockConfigModalProps) {
   const [config, setConfig] = useState<any>({});
   const [isSaving, setIsSaving] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     if (block?.config) {
@@ -123,31 +122,6 @@ export function BlockConfigModal({
       toast.error('Une erreur est survenue');
     } finally {
       setIsSaving(false);
-    }
-  };
-
-  const handleDelete = async () => {
-    if (!block) return;
-
-    if (!confirm('Supprimer ce bloc ?')) {
-      return;
-    }
-
-    setIsDeleting(true);
-    try {
-      const result = await deleteBlock(block.id);
-
-      if (result.success) {
-        toast.success('Bloc supprimé');
-        onSuccess();
-        onClose();
-      } else {
-        toast.error(result.error || 'Erreur lors de la suppression');
-      }
-    } catch (error) {
-      toast.error('Une erreur est survenue');
-    } finally {
-      setIsDeleting(false);
     }
   };
 
@@ -570,23 +544,13 @@ export function BlockConfigModal({
         <div className="space-y-4">
           {renderForm()}
 
-          <div className="flex items-center justify-between pt-4 border-t">
-            <Button
-              variant="destructive"
-              onClick={handleDelete}
-              disabled={isSaving || isDeleting}
-            >
-              {isDeleting ? 'Suppression...' : 'Supprimer'}
+          <div className="flex items-center justify-end gap-2 pt-4 border-t">
+            <Button variant="outline" onClick={onClose} disabled={isSaving}>
+              Annuler
             </Button>
-
-            <div className="flex items-center gap-2">
-              <Button variant="outline" onClick={onClose} disabled={isSaving || isDeleting}>
-                Annuler
-              </Button>
-              <Button onClick={handleSave} disabled={isSaving || isDeleting}>
-                {isSaving ? 'Enregistrement...' : 'Enregistrer'}
-              </Button>
-            </div>
+            <Button onClick={handleSave} disabled={isSaving}>
+              {isSaving ? 'Enregistrement...' : 'Enregistrer'}
+            </Button>
           </div>
         </div>
       </DialogContent>
