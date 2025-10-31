@@ -353,6 +353,7 @@ export function BlockConfigModal({
                   onChange={(e) => setConfig({ ...config, unit: e.target.value })}
                   className="mt-2 w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500"
                 >
+                  <option value="minutes">Minutes</option>
                   <option value="hours">Heures</option>
                   <option value="days">Jours</option>
                   <option value="weeks">Semaines</option>

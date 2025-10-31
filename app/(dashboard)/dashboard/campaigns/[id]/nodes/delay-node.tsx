@@ -7,7 +7,13 @@ import { DeleteNodeButton } from './delete-node-button';
 export function DelayNode({ data }: NodeProps) {
   const getDelayText = () => {
     if (!data?.config?.amount || !data?.config?.unit) return 'Non configuré';
-    const unitText = data.config.unit === 'hours' ? 'heures' : data.config.unit === 'days' ? 'jours' : 'semaines';
+    const unitMap: { [key: string]: string } = {
+      'minutes': 'minutes',
+      'hours': 'heures',
+      'days': 'jours',
+      'weeks': 'semaines'
+    };
+    const unitText = unitMap[data.config.unit] || data.config.unit;
     return `${data.config.amount} ${unitText}`;
   };
 
