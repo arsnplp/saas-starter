@@ -270,20 +270,25 @@ export function CampaignDetailWorkflow({ campaignId }: CampaignDetailWorkflowPro
             
             <Button
               size="sm"
-              variant={campaign.isActive ? 'default' : 'outline'}
+              variant={campaign.isActive ? 'outline' : 'default'}
               onClick={handleToggleStatus}
               disabled={isToggling}
-              className={campaign.isActive ? 'bg-green-600 hover:bg-green-700' : ''}
+              className={campaign.isActive ? 'border-green-600 text-green-700 hover:bg-green-50' : 'bg-blue-600 hover:bg-blue-700'}
             >
-              {campaign.isActive ? (
+              {isToggling ? (
+                <>
+                  <div className="w-3 h-3 mr-2 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                  Chargement...
+                </>
+              ) : campaign.isActive ? (
                 <>
                   <Pause className="w-3 h-3 mr-2" />
-                  Pause
+                  Mettre en pause
                 </>
               ) : (
                 <>
                   <Play className="w-3 h-3 mr-2" />
-                  Activer
+                  Lancer
                 </>
               )}
             </Button>
