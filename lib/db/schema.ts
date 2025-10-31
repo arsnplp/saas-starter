@@ -1083,6 +1083,37 @@ export const campaignFolders = pgTable('campaign_folders', {
     addedAt: timestamp('added_at').notNull().defaultNow(),
 });
 
+export const workflowNodes = pgTable('workflow_nodes', {
+    id: serial('id').primaryKey(),
+    campaignId: integer('campaign_id')
+        .notNull()
+        .references(() => campaigns.id, { onDelete: 'cascade' }),
+    type: varchar('type', { length: 50 }).notNull(),
+    config: jsonb('config').notNull().default('{}'),
+    positionX: integer('position_x').notNull().default(0),
+    positionY: integer('position_y').notNull().default(0),
+    metadata: jsonb('metadata'),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+    updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+export const workflowEdges = pgTable('workflow_edges', {
+    id: serial('id').primaryKey(),
+    campaignId: integer('campaign_id')
+        .notNull()
+        .references(() => campaigns.id, { onDelete: 'cascade' }),
+    sourceNodeId: integer('source_node_id')
+        .notNull()
+        .references(() => workflowNodes.id, { onDelete: 'cascade' }),
+    targetNodeId: integer('target_node_id')
+        .notNull()
+        .references(() => workflowNodes.id, { onDelete: 'cascade' }),
+    label: varchar('label', { length: 50 }),
+    conditionType: varchar('condition_type', { length: 50 }),
+    conditionValue: jsonb('condition_value'),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+});
+
 export const campaignBlocksRelations = relations(campaignBlocks, ({ one, many }) => ({
     campaign: one(campaigns, {
         fields: [campaignBlocks.campaignId],
@@ -1129,6 +1160,32 @@ export const campaignFoldersRelations = relations(campaignFolders, ({ one }) => 
     }),
 }));
 
+export const workflowNodesRelations = relations(workflowNodes, ({ one, many }) => ({
+    campaign: one(campaigns, {
+        fields: [workflowNodes.campaignId],
+        references: [campaigns.id],
+    }),
+    outgoingEdges: many(workflowEdges, { relationName: 'sourceNode' }),
+    incomingEdges: many(workflowEdges, { relationName: 'targetNode' }),
+}));
+
+export const workflowEdgesRelations = relations(workflowEdges, ({ one }) => ({
+    campaign: one(campaigns, {
+        fields: [workflowEdges.campaignId],
+        references: [campaigns.id],
+    }),
+    sourceNode: one(workflowNodes, {
+        fields: [workflowEdges.sourceNodeId],
+        references: [workflowNodes.id],
+        relationName: 'sourceNode',
+    }),
+    targetNode: one(workflowNodes, {
+        fields: [workflowEdges.targetNodeId],
+        references: [workflowNodes.id],
+        relationName: 'targetNode',
+    }),
+}));
+
 // Export types
 export type WebhookAccount = typeof webhookAccounts.$inferSelect;
 export type NewWebhookAccount = typeof webhookAccounts.$inferInsert;
@@ -1150,3 +1207,7 @@ export type CampaignProspect = typeof campaignProspects.$inferSelect;
 export type NewCampaignProspect = typeof campaignProspects.$inferInsert;
 export type CampaignExecution = typeof campaignExecutions.$inferSelect;
 export type NewCampaignExecution = typeof campaignExecutions.$inferInsert;
+export type WorkflowNode = typeof workflowNodes.$inferSelect;
+export type NewWorkflowNode = typeof workflowNodes.$inferInsert;
+export type WorkflowEdge = typeof workflowEdges.$inferSelect;
+export type NewWorkflowEdge = typeof workflowEdges.$inferInsert;
