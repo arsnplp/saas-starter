@@ -60,9 +60,24 @@ export function WorkflowCanvas({
 
   const onConnect: OnConnect = useCallback(
     (connection: Connection) => {
-      setEdges((eds) => addEdge(connection, eds));
+      const newEdge = {
+        ...connection,
+        id: `temp-${Date.now()}`,
+        type: 'smoothstep',
+        animated: true,
+        style:
+          connection.sourceHandle === 'yes'
+            ? { stroke: '#22c55e', strokeWidth: 2 }
+            : connection.sourceHandle === 'no'
+            ? { stroke: '#ef4444', strokeWidth: 2 }
+            : undefined,
+      };
+      
+      setEdges((eds) => addEdge(newEdge, eds));
+      
       if (onEdgesChange) {
-        onEdgesChange([...edges, connection as any]);
+        const updatedEdges = addEdge(newEdge, edges);
+        onEdgesChange(updatedEdges);
       }
     },
     [edges, onEdgesChange, setEdges]
@@ -93,6 +108,12 @@ export function WorkflowCanvas({
         nodeTypes={nodeTypes}
         fitView
         className="bg-gray-50"
+        defaultEdgeOptions={{
+          type: 'smoothstep',
+          animated: true,
+        }}
+        connectionLineType="smoothstep"
+        connectionLineStyle={{ stroke: '#3b82f6', strokeWidth: 2 }}
       >
         <Controls />
         <Background variant={BackgroundVariant.Dots} gap={12} size={1} />
