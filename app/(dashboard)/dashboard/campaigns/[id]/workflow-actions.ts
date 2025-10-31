@@ -283,7 +283,7 @@ export async function updateNodePositions(
 
     await db
       .update(workflowNodes)
-      .set({ positionX: pos.x, positionY: pos.y })
+      .set({ positionX: Math.round(pos.x), positionY: Math.round(pos.y) })
       .where(eq(workflowNodes.id, pos.id));
   }
 
