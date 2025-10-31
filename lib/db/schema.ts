@@ -1110,6 +1110,7 @@ export const workflowEdges = pgTable('workflow_edges', {
     targetNodeId: integer('target_node_id')
         .notNull()
         .references(() => workflowNodes.id, { onDelete: 'cascade' }),
+    sourceHandle: varchar('source_handle', { length: 20 }),
     label: varchar('label', { length: 50 }),
     conditionType: varchar('condition_type', { length: 50 }),
     conditionValue: jsonb('condition_value'),

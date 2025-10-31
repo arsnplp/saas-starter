@@ -128,6 +128,7 @@ export async function createWorkflowEdge(
   campaignId: number,
   sourceNodeId: number,
   targetNodeId: number,
+  sourceHandle?: string,
   label?: string,
   conditionType?: string,
   conditionValue?: any
@@ -153,12 +154,35 @@ export async function createWorkflowEdge(
     return { success: false, error: 'Campagne non trouvée' };
   }
 
+  const sourceNode = await db.query.workflowNodes.findFirst({
+    where: and(
+      eq(workflowNodes.id, sourceNodeId),
+      eq(workflowNodes.campaignId, campaignId)
+    ),
+  });
+
+  if (!sourceNode) {
+    return { success: false, error: 'Nœud source non trouvé ou n\'appartient pas à cette campagne' };
+  }
+
+  const targetNode = await db.query.workflowNodes.findFirst({
+    where: and(
+      eq(workflowNodes.id, targetNodeId),
+      eq(workflowNodes.campaignId, campaignId)
+    ),
+  });
+
+  if (!targetNode) {
+    return { success: false, error: 'Nœud cible non trouvé ou n\'appartient pas à cette campagne' };
+  }
+
   const [edge] = await db
     .insert(workflowEdges)
     .values({
       campaignId,
       sourceNodeId,
       targetNodeId,
+      sourceHandle,
       label,
       conditionType,
       conditionValue,
