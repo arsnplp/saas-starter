@@ -70,6 +70,7 @@ export function CampaignDetailWorkflow({ campaignId }: CampaignDetailWorkflowPro
         config: node.config,
         nodeId: node.id,
         campaignId,
+        onDelete: loadData,
       },
     }));
   };
@@ -84,10 +85,10 @@ export function CampaignDetailWorkflow({ campaignId }: CampaignDetailWorkflowPro
       type: 'smoothstep',
       animated: true,
       style: edge.sourceHandle === 'yes' 
-        ? { stroke: '#22c55e', strokeWidth: 4 }
+        ? { stroke: '#22c55e', strokeWidth: 8 }
         : edge.sourceHandle === 'no'
-        ? { stroke: '#ef4444', strokeWidth: 4 }
-        : { strokeWidth: 4 },
+        ? { stroke: '#ef4444', strokeWidth: 8 }
+        : { strokeWidth: 8 },
     }));
   };
 

@@ -152,10 +152,10 @@ export function WorkflowCanvas({
         animated: true,
         style:
           connection.sourceHandle === 'yes'
-            ? { stroke: '#22c55e', strokeWidth: 4 }
+            ? { stroke: '#22c55e', strokeWidth: 8 }
             : connection.sourceHandle === 'no'
-            ? { stroke: '#ef4444', strokeWidth: 4 }
-            : { strokeWidth: 4 },
+            ? { stroke: '#ef4444', strokeWidth: 8 }
+            : { strokeWidth: 8 },
       };
       
       setEdges((eds) => addEdge(newEdge, eds));
@@ -211,7 +211,7 @@ export function WorkflowCanvas({
           animated: true,
         }}
         connectionLineType="smoothstep"
-        connectionLineStyle={{ stroke: '#3b82f6', strokeWidth: 4 }}
+        connectionLineStyle={{ stroke: '#3b82f6', strokeWidth: 8 }}
       >
         <Controls />
         <Background variant={BackgroundVariant.Dots} gap={12} size={1} />

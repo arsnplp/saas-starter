@@ -2,6 +2,7 @@
 
 import { Handle, Position, NodeProps } from '@xyflow/react';
 import { Clock3 } from 'lucide-react';
+import { DeleteNodeButton } from './delete-node-button';
 
 export function TimeSlotNode({ data }: NodeProps) {
   const getSlotText = () => {
@@ -10,7 +11,8 @@ export function TimeSlotNode({ data }: NodeProps) {
   };
 
   return (
-    <div className="px-4 py-3 shadow-md rounded-lg bg-white border-2 border-pink-300 min-w-[240px]">
+    <div className="px-4 py-3 shadow-md rounded-lg bg-white border-2 border-pink-300 min-w-[240px] relative group">
+      {data?.nodeId && <DeleteNodeButton nodeId={data.nodeId} onDelete={data?.onDelete} />}
       <Handle type="target" position={Position.Top} className="w-3 h-3 bg-pink-500" />
       <div className="flex items-center gap-3">
         <div className="flex-shrink-0">

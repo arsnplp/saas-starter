@@ -2,10 +2,12 @@
 
 import { Handle, Position, NodeProps } from '@xyflow/react';
 import { GitBranch } from 'lucide-react';
+import { DeleteNodeButton } from './delete-node-button';
 
 export function ConditionNode({ data }: NodeProps) {
   return (
-    <div className="px-4 py-3 shadow-md rounded-lg bg-white border-2 border-gray-400 min-w-[280px]">
+    <div className="px-4 py-3 shadow-md rounded-lg bg-white border-2 border-gray-400 min-w-[280px] relative group">
+      {data?.nodeId && <DeleteNodeButton nodeId={data.nodeId} onDelete={data?.onDelete} />}
       <Handle type="target" position={Position.Top} className="w-3 h-3 bg-gray-600" />
       <div className="flex items-center gap-3 mb-3">
         <div className="flex-shrink-0">
