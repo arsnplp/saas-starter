@@ -25,7 +25,7 @@ import { WaitUntilNode } from './nodes/waituntil-node';
 import { TimeSlotNode } from './nodes/timeslot-node';
 import { ConditionNode } from './nodes/condition-node';
 import { StartNode } from './nodes/start-node';
-import { deleteWorkflowEdge } from './workflow-actions';
+import { deleteWorkflowEdge, deleteWorkflowNode } from './workflow-actions';
 import { toast } from 'sonner';
 
 const nodeTypes: NodeTypes = {
@@ -47,6 +47,7 @@ type WorkflowCanvasProps = {
   onNodesChange?: (nodes: Node[]) => void;
   onEdgesChange?: (edges: Edge[]) => void;
   onNodeClick?: (node: Node) => void;
+  onDelete?: () => void;
 };
 
 export function WorkflowCanvas({
@@ -56,14 +57,48 @@ export function WorkflowCanvas({
   onNodesChange,
   onEdgesChange,
   onNodeClick,
+  onDelete,
 }: WorkflowCanvasProps) {
   const [nodes, setNodes, handleNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, handleEdgesChange] = useEdgesState(initialEdges);
   const [selectedEdges, setSelectedEdges] = useState<string[]>([]);
+  const [selectedNodes, setSelectedNodes] = useState<string[]>([]);
 
   useEffect(() => {
     const handleKeyDown = async (event: KeyboardEvent) => {
       if (event.key === 'Delete' || event.key === 'Backspace') {
+        let hasChanges = false;
+        
+        if (selectedNodes.length > 0) {
+          const nodesToDelete = selectedNodes.filter(nodeId => nodes.some(n => n.id === nodeId));
+          const deletedNodeIds: string[] = [];
+          let hasError = false;
+
+          for (const nodeId of nodesToDelete) {
+            const nodeIdNum = parseInt(nodeId);
+            if (!isNaN(nodeIdNum)) {
+              const result = await deleteWorkflowNode(nodeIdNum);
+              if (result.success) {
+                deletedNodeIds.push(nodeId);
+              } else {
+                toast.error(result.error || 'Erreur lors de la suppression du bloc');
+                hasError = true;
+              }
+            }
+          }
+          
+          if (deletedNodeIds.length > 0) {
+            const updatedNodes = nodes.filter((node) => !deletedNodeIds.includes(node.id));
+            setNodes(updatedNodes);
+            if (!hasError) {
+              toast.success(`${deletedNodeIds.length} bloc(s) supprimé(s)`);
+            }
+            hasChanges = true;
+          }
+          
+          setSelectedNodes([]);
+        }
+        
         if (selectedEdges.length > 0) {
           const edgesToDelete = selectedEdges.filter(edgeId => edges.some(e => e.id === edgeId));
           const deletedEdgeIds: string[] = [];
@@ -79,7 +114,7 @@ export function WorkflowCanvas({
                 if (result.success) {
                   deletedEdgeIds.push(edgeId);
                 } else {
-                  toast.error(result.error || 'Erreur lors de la suppression');
+                  toast.error(result.error || 'Erreur lors de la suppression de la connexion');
                   hasError = true;
                 }
               }
@@ -92,16 +127,21 @@ export function WorkflowCanvas({
             if (!hasError) {
               toast.success(`${deletedEdgeIds.length} connexion(s) supprimée(s)`);
             }
+            hasChanges = true;
           }
           
           setSelectedEdges([]);
+        }
+        
+        if (hasChanges && onDelete) {
+          onDelete();
         }
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedEdges, edges, setEdges]);
+  }, [selectedEdges, selectedNodes, edges, nodes, setEdges, setNodes, onDelete]);
 
   const onConnect: OnConnect = useCallback(
     (connection: Connection) => {
@@ -130,7 +170,14 @@ export function WorkflowCanvas({
 
   const handleEdgeClick = useCallback((event: any, edge: Edge) => {
     setSelectedEdges([edge.id]);
+    setSelectedNodes([]);
   }, []);
+
+  const handleNodeClickInternal = useCallback((event: any, node: Node) => {
+    setSelectedNodes([node.id]);
+    setSelectedEdges([]);
+    onNodeClick?.(node);
+  }, [onNodeClick]);
 
   const handleNodeDragStop = useCallback(
     (event: any, node: Node) => {
@@ -153,7 +200,7 @@ export function WorkflowCanvas({
         onEdgesChange={handleEdgesChange}
         onConnect={onConnect}
         onNodeDragStop={handleNodeDragStop}
-        onNodeClick={(event, node) => onNodeClick?.(node)}
+        onNodeClick={handleNodeClickInternal}
         onEdgeClick={handleEdgeClick}
         nodeTypes={nodeTypes}
         fitView

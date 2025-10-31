@@ -252,6 +252,7 @@ export function CampaignDetailWorkflow({ campaignId }: CampaignDetailWorkflowPro
             onNodesChange={handleNodesChange}
             onEdgesChange={handleEdgesChange}
             onNodeClick={handleNodeClick}
+            onDelete={loadData}
           />
         </div>
 
