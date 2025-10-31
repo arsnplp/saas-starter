@@ -15,12 +15,19 @@ export function DraggableTimeSlotBlock() {
       }
     : undefined;
 
+  const handleDragStart = (e: React.DragEvent) => {
+    e.dataTransfer.setData('blockType', 'timeSlot');
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
   return (
     <div
       ref={setNodeRef}
       style={style}
       {...listeners}
       {...attributes}
+      draggable
+      onDragStart={handleDragStart}
       className="bg-white border-2 border-pink-200 rounded-lg p-3 hover:border-pink-400 hover:shadow-md transition-all cursor-grab active:cursor-grabbing"
     >
       <div className="flex items-center gap-3">

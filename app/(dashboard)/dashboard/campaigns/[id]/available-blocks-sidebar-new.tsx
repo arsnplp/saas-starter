@@ -7,6 +7,7 @@ import { DraggableTransferBlock } from './draggable-transfer-block';
 import { DraggableDelayBlock } from './draggable-delay-block';
 import { DraggableWaitUntilBlock } from './draggable-waituntil-block';
 import { DraggableTimeSlotBlock } from './draggable-timeslot-block';
+import { DraggableConditionBlock } from './draggable-condition-block';
 
 export function AvailableBlocksSidebarNew() {
   return (
@@ -34,6 +35,11 @@ export function AvailableBlocksSidebarNew() {
           <DraggableDelayBlock />
           <DraggableWaitUntilBlock />
           <DraggableTimeSlotBlock />
+        </div>
+
+        <div className="space-y-2 pt-4 border-t">
+          <h3 className="text-xs font-semibold text-gray-700 uppercase tracking-wide">Logique</h3>
+          <DraggableConditionBlock />
         </div>
       </div>
     </div>

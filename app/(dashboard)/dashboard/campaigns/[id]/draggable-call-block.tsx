@@ -15,12 +15,19 @@ export function DraggableCallBlock() {
       }
     : undefined;
 
+  const handleDragStart = (e: React.DragEvent) => {
+    e.dataTransfer.setData('blockType', 'call');
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
   return (
     <div
       ref={setNodeRef}
       style={style}
       {...listeners}
       {...attributes}
+      draggable
+      onDragStart={handleDragStart}
       className="border-2 border-gray-200 rounded-lg p-4 bg-white hover:border-green-300 hover:shadow-md transition-all cursor-grab active:cursor-grabbing"
     >
       <div className="flex items-center gap-3">

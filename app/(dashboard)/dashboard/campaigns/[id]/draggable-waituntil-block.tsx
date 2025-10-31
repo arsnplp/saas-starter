@@ -15,12 +15,19 @@ export function DraggableWaitUntilBlock() {
       }
     : undefined;
 
+  const handleDragStart = (e: React.DragEvent) => {
+    e.dataTransfer.setData('blockType', 'waitUntil');
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
   return (
     <div
       ref={setNodeRef}
       style={style}
       {...listeners}
       {...attributes}
+      draggable
+      onDragStart={handleDragStart}
       className="bg-white border-2 border-indigo-200 rounded-lg p-3 hover:border-indigo-400 hover:shadow-md transition-all cursor-grab active:cursor-grabbing"
     >
       <div className="flex items-center gap-3">
