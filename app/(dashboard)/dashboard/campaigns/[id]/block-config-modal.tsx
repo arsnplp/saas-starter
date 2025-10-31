@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Mail, Phone, ClipboardList, ArrowRightCircle, Clock, Calendar, Clock3 } from 'lucide-react';
+import { Mail, Phone, ClipboardList, ArrowRightCircle, Clock, Calendar, Clock3, Eye, UserPlus, MessageSquare } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -94,6 +94,11 @@ export function BlockConfigModal({
         toast.error('Au moins un jour doit être sélectionné');
         return false;
       }
+    } else if (block.type === 'linkedInMessage') {
+      if (!config.message?.trim()) {
+        toast.error('Le message LinkedIn est requis');
+        return false;
+      }
     }
 
     return true;
@@ -162,6 +167,12 @@ export function BlockConfigModal({
         return <Calendar className="w-5 h-5 text-indigo-600" />;
       case 'timeSlot':
         return <Clock3 className="w-5 h-5 text-pink-600" />;
+      case 'visitLinkedIn':
+        return <Eye className="w-5 h-5 text-teal-600" />;
+      case 'addConnection':
+        return <UserPlus className="w-5 h-5 text-sky-600" />;
+      case 'linkedInMessage':
+        return <MessageSquare className="w-5 h-5 text-cyan-600" />;
       default:
         return <Mail className="w-5 h-5 text-blue-600" />;
     }
@@ -183,6 +194,12 @@ export function BlockConfigModal({
         return 'Configuration - Attendre jusqu\'à une date';
       case 'timeSlot':
         return 'Configuration - Attendre un créneau horaire';
+      case 'visitLinkedIn':
+        return 'Configuration - Visiter le profil LinkedIn';
+      case 'addConnection':
+        return 'Configuration - Ajouter en connexion LinkedIn';
+      case 'linkedInMessage':
+        return 'Configuration - Message LinkedIn';
       default:
         return 'Configuration';
     }
@@ -461,6 +478,75 @@ export function BlockConfigModal({
             <div className="bg-pink-50 border border-pink-200 rounded-lg p-3">
               <p className="text-sm text-pink-900">
                 <strong>Exemple :</strong> Si vous sélectionnez "9h-11h" et "Lun-Mer-Ven", les messages ne seront envoyés que pendant ces créneaux pour respecter les heures de bureau.
+              </p>
+            </div>
+          </>
+        );
+
+      case 'visitLinkedIn':
+        return (
+          <>
+            <div className="bg-teal-50 border border-teal-200 rounded-lg p-3">
+              <p className="text-sm text-teal-900">
+                <strong>Visiter automatiquement le profil LinkedIn du prospect.</strong> Cela permet d'apparaître dans ses visiteurs de profil et d'augmenter la visibilité. Aucune configuration supplémentaire n'est nécessaire.
+              </p>
+            </div>
+          </>
+        );
+
+      case 'addConnection':
+        return (
+          <>
+            <div>
+              <Label htmlFor="message">Message d'invitation (optionnel)</Label>
+              <Textarea
+                id="message"
+                value={config.message || ''}
+                onChange={(e) => setConfig({ ...config, message: e.target.value })}
+                placeholder="Bonjour {{name}}, j'aimerais vous ajouter à mon réseau..."
+                rows={4}
+                className="mt-2"
+                maxLength={300}
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                {config.message?.length || 0}/300 caractères
+              </p>
+            </div>
+            <div className="bg-sky-50 border border-sky-200 rounded-lg p-3">
+              <p className="text-sm text-sky-900">
+                <strong>Variables disponibles :</strong> {'{'}{'{'}<strong>name</strong>{'}'}{'}'},
+                {' '}{'{'}{'{'}<strong>company</strong>{'}'}{'}'},
+                {' '}{'{'}{'{'}<strong>title</strong>{'}'}{'}'}
+              </p>
+              <p className="text-xs text-sky-800 mt-2">
+                Une invitation de connexion sera envoyée au prospect sur LinkedIn. Le message est optionnel (LinkedIn limite à 300 caractères).
+              </p>
+            </div>
+          </>
+        );
+
+      case 'linkedInMessage':
+        return (
+          <>
+            <div>
+              <Label htmlFor="message">Message LinkedIn *</Label>
+              <Textarea
+                id="message"
+                value={config.message || ''}
+                onChange={(e) => setConfig({ ...config, message: e.target.value })}
+                placeholder="Bonjour {{name}},&#10;&#10;Je viens de voir votre profil et j'aimerais échanger avec vous..."
+                rows={8}
+                className="mt-2 font-mono text-sm"
+              />
+            </div>
+            <div className="bg-cyan-50 border border-cyan-200 rounded-lg p-3">
+              <p className="text-sm text-cyan-900">
+                <strong>Variables disponibles :</strong> {'{'}{'{'}<strong>name</strong>{'}'}{'}'},
+                {' '}{'{'}{'{'}<strong>company</strong>{'}'}{'}'},
+                {' '}{'{'}{'{'}<strong>title</strong>{'}'}{'}'}
+              </p>
+              <p className="text-xs text-cyan-800 mt-2">
+                <strong>Important :</strong> Le prospect doit être dans vos connexions LinkedIn pour recevoir ce message. Utilisez le bloc "Ajouter en connexion" avant ce bloc si nécessaire.
               </p>
             </div>
           </>

@@ -25,6 +25,9 @@ import { WaitUntilNode } from './nodes/waituntil-node';
 import { TimeSlotNode } from './nodes/timeslot-node';
 import { ConditionNode } from './nodes/condition-node';
 import { StartNode } from './nodes/start-node';
+import { VisitLinkedInNode } from './nodes/visit-linkedin-node';
+import { AddConnectionNode } from './nodes/add-connection-node';
+import { LinkedInMessageNode } from './nodes/linkedin-message-node';
 import { deleteWorkflowEdge, deleteWorkflowNode } from './workflow-actions';
 import { toast } from 'sonner';
 
@@ -38,6 +41,9 @@ const nodeTypes: NodeTypes = {
   waitUntil: WaitUntilNode,
   timeSlot: TimeSlotNode,
   condition: ConditionNode,
+  visitLinkedIn: VisitLinkedInNode,
+  addConnection: AddConnectionNode,
+  linkedInMessage: LinkedInMessageNode,
 };
 
 type WorkflowCanvasProps = {

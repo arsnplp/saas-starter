@@ -121,6 +121,9 @@ export function CampaignDetailWorkflow({ campaignId }: CampaignDetailWorkflowPro
         waitUntil: { waitUntil: '' },
         timeSlot: { hours: [9, 10, 11, 14, 15, 16], days: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'] },
         condition: { question: 'A répondu au mail ?' },
+        visitLinkedIn: {},
+        addConnection: { message: '' },
+        linkedInMessage: { message: '' },
       };
 
       const config = defaultConfigs[blockType] || {};
