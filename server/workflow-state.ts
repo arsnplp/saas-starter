@@ -107,7 +107,10 @@ export async function getProspectsReadyToExecute() {
     )
     .where(
       and(
-        eq(workflowProspectState.status, 'waiting'),
+        or(
+          eq(workflowProspectState.status, 'waiting'),
+          eq(workflowProspectState.status, 'ready')
+        ),
         lte(workflowProspectState.scheduledFor, now)
       )
     );
