@@ -43,7 +43,7 @@ Key tables include `users`, `teams`, `prospect_candidates`, `leads`, `linkedinCo
 
 **Visual Campaign Workflow Builder:**
 - Built with React Flow for drag-and-drop visual workflow creation
-- Features 9 block types: Start, Email, Call, Task, Transfer, Delay, WaitUntil, TimeSlot, and Condition
+- Features 12 block types: Start, Email, Call, Task, Transfer, Delay, WaitUntil, TimeSlot, Condition, VisitLinkedIn, AddConnection, and LinkedInMessage
 - **Conditional Branching:** Condition nodes support Yes/No branching with dual output handles
 - Green edges represent "Yes" paths, red edges represent "No" paths
 - Each node displays its configuration visually (e.g., subject for emails, delay duration)
@@ -52,6 +52,16 @@ Key tables include `users`, `teams`, `prospect_candidates`, `leads`, `linkedinCo
 - Auto-migration: Existing linear `campaignBlocks` are automatically converted to graph-based workflows
 - Drag blocks from sidebar into canvas to build complex, branching email sequences
 - Visual positioning with zoom/pan controls for large workflows
+
+**Email Automation in Workflows:**
+- Email blocks fully functional with Gmail API integration
+- Support for dynamic variable substitution using {{variable}} syntax
+- Available variables: {{name}}, {{firstName}}, {{lastName}}, {{company}}, {{title}}, {{email}}, {{phone}}, {{linkedin}}
+- Variables are automatically extracted from prospect data and replaced in both subject and body
+- Robust error handling: Missing emails, Gmail connection failures, and API errors are captured and logged
+- Email sending is executed via the cron job workflow processor (`server/cron/workflow-processor.ts`)
+- Prospects without email addresses skip email nodes with appropriate error logging
+- All email activity is tracked in the `workflow_prospect_state` table for full audit trail
 
 ### Security
 
