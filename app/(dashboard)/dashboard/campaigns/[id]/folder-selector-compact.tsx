@@ -35,7 +35,7 @@ export function FolderSelectorCompact({ campaignId, onUpdate }: FolderSelectorCo
       }
 
       if (assignedResult.success && assignedResult.folders) {
-        setAssignedFolderIds(new Set(assignedResult.folders.map(f => f.id)));
+        setAssignedFolderIds(new Set(assignedResult.folders.map(f => String(f.id))));
       }
     } catch (error) {
       console.error('Error loading folders:', error);

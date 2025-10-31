@@ -69,6 +69,7 @@ export function CampaignDetailWorkflow({ campaignId }: CampaignDetailWorkflowPro
       data: {
         config: node.config,
         nodeId: node.id,
+        campaignId,
       },
     }));
   };
@@ -83,10 +84,10 @@ export function CampaignDetailWorkflow({ campaignId }: CampaignDetailWorkflowPro
       type: 'smoothstep',
       animated: true,
       style: edge.sourceHandle === 'yes' 
-        ? { stroke: '#22c55e', strokeWidth: 2 }
+        ? { stroke: '#22c55e', strokeWidth: 4 }
         : edge.sourceHandle === 'no'
-        ? { stroke: '#ef4444', strokeWidth: 2 }
-        : undefined,
+        ? { stroke: '#ef4444', strokeWidth: 4 }
+        : { strokeWidth: 4 },
     }));
   };
 
@@ -148,7 +149,7 @@ export function CampaignDetailWorkflow({ campaignId }: CampaignDetailWorkflowPro
   const handleEdgesChange = useCallback(
     async (updatedEdges: Edge[]) => {
       const newEdge = updatedEdges[updatedEdges.length - 1];
-      if (newEdge && newEdge.source && newEdge.target) {
+      if (newEdge && newEdge.source && newEdge.target && newEdge.id.startsWith('temp-')) {
         await createWorkflowEdge(
           campaignId,
           parseInt(newEdge.source),
