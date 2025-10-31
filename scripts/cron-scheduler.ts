@@ -44,26 +44,36 @@ async function executeCampaigns() {
   await callCronEndpoint('execute-campaigns');
 }
 
+// Fonction pour traiter les workflows
+async function processWorkflows() {
+  console.log(`[${new Date().toISOString()}] ⚙️  Traitement des workflows...`);
+  await callCronEndpoint('process-workflows');
+}
+
 // Configuration des intervalles
 const DETECT_INTERVAL = 2 * 60 * 60 * 1000; // 2 heures
 const EXTRACT_INTERVAL = 2 * 60 * 60 * 1000; // 2 heures
 const CLEANUP_INTERVAL = 60 * 60 * 1000; // 1 heure
 const CAMPAIGN_INTERVAL = 60 * 60 * 1000; // 1 heure
+const WORKFLOW_INTERVAL = 1 * 60 * 1000; // 1 minute
 
 console.log('🚀 Démarrage du planificateur de cron jobs...');
 console.log(`   - Détection des posts: toutes les ${DETECT_INTERVAL / 60000} minutes`);
 console.log(`   - Extraction des leads: toutes les ${EXTRACT_INTERVAL / 60000} minutes`);
 console.log(`   - Nettoyage OAuth: toutes les ${CLEANUP_INTERVAL / 60000} minutes`);
 console.log(`   - Exécution des campagnes: toutes les ${CAMPAIGN_INTERVAL / 60000} minutes`);
+console.log(`   - Traitement des workflows: toutes les ${WORKFLOW_INTERVAL / 60000} minutes`);
 
 // Exécution immédiate au démarrage
 detectPosts();
 extractLeads();
 cleanupOAuthStates();
 executeCampaigns();
+processWorkflows();
 
 // Planification des exécutions régulières
 setInterval(detectPosts, DETECT_INTERVAL);
 setInterval(extractLeads, EXTRACT_INTERVAL);
 setInterval(cleanupOAuthStates, CLEANUP_INTERVAL);
 setInterval(executeCampaigns, CAMPAIGN_INTERVAL);
+setInterval(processWorkflows, WORKFLOW_INTERVAL);

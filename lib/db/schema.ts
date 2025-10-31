@@ -1117,6 +1117,23 @@ export const workflowEdges = pgTable('workflow_edges', {
     createdAt: timestamp('created_at').notNull().defaultNow(),
 });
 
+export const workflowProspectState = pgTable('workflow_prospect_state', {
+    id: serial('id').primaryKey(),
+    campaignProspectId: integer('campaign_prospect_id')
+        .notNull()
+        .references(() => campaignProspects.id, { onDelete: 'cascade' }),
+    currentNodeId: integer('current_node_id')
+        .references(() => workflowNodes.id, { onDelete: 'set null' }),
+    status: varchar('status', { length: 20 }).notNull().default('waiting'),
+    scheduledFor: timestamp('scheduled_for'),
+    lastExecutedAt: timestamp('last_executed_at'),
+    completedAt: timestamp('completed_at'),
+    error: text('error'),
+    metadata: jsonb('metadata'),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+    updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
 export const campaignBlocksRelations = relations(campaignBlocks, ({ one, many }) => ({
     campaign: one(campaigns, {
         fields: [campaignBlocks.campaignId],
@@ -1189,6 +1206,17 @@ export const workflowEdgesRelations = relations(workflowEdges, ({ one }) => ({
     }),
 }));
 
+export const workflowProspectStateRelations = relations(workflowProspectState, ({ one }) => ({
+    campaignProspect: one(campaignProspects, {
+        fields: [workflowProspectState.campaignProspectId],
+        references: [campaignProspects.id],
+    }),
+    currentNode: one(workflowNodes, {
+        fields: [workflowProspectState.currentNodeId],
+        references: [workflowNodes.id],
+    }),
+}));
+
 // Export types
 export type WebhookAccount = typeof webhookAccounts.$inferSelect;
 export type NewWebhookAccount = typeof webhookAccounts.$inferInsert;
@@ -1214,3 +1242,5 @@ export type WorkflowNode = typeof workflowNodes.$inferSelect;
 export type NewWorkflowNode = typeof workflowNodes.$inferInsert;
 export type WorkflowEdge = typeof workflowEdges.$inferSelect;
 export type NewWorkflowEdge = typeof workflowEdges.$inferInsert;
+export type WorkflowProspectState = typeof workflowProspectState.$inferSelect;
+export type NewWorkflowProspectState = typeof workflowProspectState.$inferInsert;
