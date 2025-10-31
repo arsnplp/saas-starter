@@ -41,6 +41,18 @@ Key tables include `users`, `teams`, `prospect_candidates`, `leads`, `linkedinCo
   - "View Post" button for prospects from LinkedIn posts
   - Back button to return to folder overview
 
+**Visual Campaign Workflow Builder:**
+- Built with React Flow for drag-and-drop visual workflow creation
+- Features 9 block types: Start, Email, Call, Task, Transfer, Delay, WaitUntil, TimeSlot, and Condition
+- **Conditional Branching:** Condition nodes support Yes/No branching with dual output handles
+- Green edges represent "Yes" paths, red edges represent "No" paths
+- Each node displays its configuration visually (e.g., subject for emails, delay duration)
+- Workflow state persisted in `workflow_nodes` and `workflow_edges` tables
+- Multi-tenant security: All nodes and edges are validated to belong to the correct campaign/team
+- Auto-migration: Existing linear `campaignBlocks` are automatically converted to graph-based workflows
+- Drag blocks from sidebar into canvas to build complex, branching email sequences
+- Visual positioning with zoom/pan controls for large workflows
+
 ### Security
 
 The system employs JWT-based authentication, HTTP-only cookies, bcrypt hashing, Role-Based Access Control (RBAC), and strict multi-tenant data isolation. 
