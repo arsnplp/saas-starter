@@ -174,7 +174,8 @@ export function WorkflowCanvas({
   }, []);
 
   const handleNodeClickInternal = useCallback((event: any, node: Node) => {
-    setSelectedNodes([node.id]);
+    const dbNodeId = node.data?.nodeId || node.id;
+    setSelectedNodes([String(dbNodeId)]);
     setSelectedEdges([]);
     onNodeClick?.(node);
   }, [onNodeClick]);
