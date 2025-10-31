@@ -1,8 +1,9 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { ArrowLeft, Play, Pause, Users } from 'lucide-react';
+import { ArrowLeft, Play, Pause, Users, Trash2 } from 'lucide-react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { FolderSelectorCompact } from './folder-selector-compact';
 import { WorkflowCanvas } from './workflow-canvas';
@@ -11,6 +12,7 @@ import { BlockConfigModal } from './block-config-modal';
 import { getCampaignWithDetails } from './actions';
 import { getWorkflowData, createWorkflowNode, updateNodePositions, createWorkflowEdge } from './workflow-actions';
 import { migrateBlocksToWorkflow } from './migrate-to-workflow';
+import { toggleCampaignStatus, deleteCampaign } from '@/app/(dashboard)/dashboard/campaigns/actions';
 import { toast } from 'sonner';
 import type { Node, Edge } from '@xyflow/react';
 
@@ -19,12 +21,15 @@ type CampaignDetailWorkflowProps = {
 };
 
 export function CampaignDetailWorkflow({ campaignId }: CampaignDetailWorkflowProps) {
+  const router = useRouter();
   const [campaign, setCampaign] = useState<any>(null);
   const [nodes, setNodes] = useState<Node[]>([]);
   const [edges, setEdges] = useState<Edge[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedNode, setSelectedNode] = useState<any>(null);
   const [draggedBlockType, setDraggedBlockType] = useState<string | null>(null);
+  const [isToggling, setIsToggling] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const loadData = async () => {
     setLoading(true);
@@ -175,6 +180,50 @@ export function CampaignDetailWorkflow({ campaignId }: CampaignDetailWorkflowPro
     });
   }, []);
 
+  const handleToggleStatus = async () => {
+    if (!campaign || isToggling) return;
+
+    setIsToggling(true);
+    try {
+      const result = await toggleCampaignStatus(campaignId, !campaign.isActive);
+      
+      if (result.success) {
+        toast.success(campaign.isActive ? 'Campagne mise en pause' : 'Campagne activée');
+        await loadData();
+      } else {
+        toast.error(result.error || 'Erreur');
+      }
+    } catch (error) {
+      toast.error('Une erreur est survenue');
+    } finally {
+      setIsToggling(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!campaign || isDeleting) return;
+
+    if (!confirm(`Êtes-vous sûr de vouloir supprimer la campagne "${campaign.name}" ? Cette action est irréversible.`)) {
+      return;
+    }
+
+    setIsDeleting(true);
+    try {
+      const result = await deleteCampaign(campaignId);
+      
+      if (result.success) {
+        toast.success('Campagne supprimée');
+        router.push('/dashboard/campaigns');
+      } else {
+        toast.error(result.error || 'Erreur');
+      }
+    } catch (error) {
+      toast.error('Une erreur est survenue');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex-1 flex items-center justify-center">
@@ -218,23 +267,36 @@ export function CampaignDetailWorkflow({ campaignId }: CampaignDetailWorkflowPro
               <Users className="w-4 h-4" />
               <span>{campaign.prospectCount || 0} prospects</span>
             </div>
-            <div
-              className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium ${
-                campaign.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'
-              }`}
+            
+            <Button
+              size="sm"
+              variant={campaign.isActive ? 'default' : 'outline'}
+              onClick={handleToggleStatus}
+              disabled={isToggling}
+              className={campaign.isActive ? 'bg-green-600 hover:bg-green-700' : ''}
             >
               {campaign.isActive ? (
                 <>
-                  <Play className="w-3 h-3" />
-                  Active
+                  <Pause className="w-3 h-3 mr-2" />
+                  Pause
                 </>
               ) : (
                 <>
-                  <Pause className="w-3 h-3" />
-                  Inactive
+                  <Play className="w-3 h-3 mr-2" />
+                  Activer
                 </>
               )}
-            </div>
+            </Button>
+
+            <Button
+              size="sm"
+              variant="destructive"
+              onClick={handleDelete}
+              disabled={isDeleting}
+            >
+              <Trash2 className="w-3 h-3 mr-2" />
+              Supprimer
+            </Button>
           </div>
         </div>
 
