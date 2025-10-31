@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
-import { updateBlock, deleteBlock } from './block-actions';
+import { updateWorkflowNode } from './workflow-actions';
 import {
   Dialog,
   DialogContent,
@@ -109,7 +109,7 @@ export function BlockConfigModal({
 
     setIsSaving(true);
     try {
-      const result = await updateBlock(block.id, block.type, config);
+      const result = await updateWorkflowNode(block.id, config);
 
       if (result.success) {
         toast.success('Bloc mis à jour');
