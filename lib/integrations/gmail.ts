@@ -69,7 +69,13 @@ export class GmailClient {
     });
 
     if (!response.ok) {
-      throw new Error('Failed to refresh access token');
+      const errorData = await response.json().catch(() => ({}));
+      console.error('[GmailClient] Token refresh failed:', {
+        status: response.status,
+        statusText: response.statusText,
+        error: errorData
+      });
+      throw new Error(`Failed to refresh access token: ${errorData.error || response.statusText}`);
     }
 
     const tokens = await response.json();
