@@ -308,3 +308,86 @@ export async function convertProspectsToLeads(prospectIds: number[]) {
     return { success: false, error: 'Erreur lors de la conversion' };
   }
 }
+
+export async function createManualProspect(formData: FormData) {
+  'use server';
+  
+  const team = await getTeamForUser();
+  if (!team) {
+    return { success: false, error: 'Équipe non trouvée' };
+  }
+
+  const name = String(formData.get('name') || '').trim();
+  const email = String(formData.get('email') || '').trim();
+  const phone = String(formData.get('phone') || '').trim();
+  const company = String(formData.get('company') || '').trim();
+  const title = String(formData.get('title') || '').trim();
+  const linkedinUrl = String(formData.get('linkedinUrl') || '').trim();
+  const folderIdStr = String(formData.get('folderId') || '');
+  let folderId = folderIdStr ? parseInt(folderIdStr, 10) : null;
+
+  if (!name) {
+    return { success: false, error: 'Le nom est requis' };
+  }
+
+  if (folderId) {
+    const folder = await db.query.prospectFolders.findFirst({
+      where: and(
+        eq(prospectFolders.id, folderId),
+        eq(prospectFolders.teamId, team.id)
+      ),
+    });
+
+    if (!folder) {
+      return { success: false, error: 'Dossier non trouvé' };
+    }
+  } else {
+    const defaultFolder = await db.query.prospectFolders.findFirst({
+      where: and(
+        eq(prospectFolders.teamId, team.id),
+        eq(prospectFolders.isDefault, true)
+      ),
+    });
+
+    if (!defaultFolder) {
+      const [newFolder] = await db.insert(prospectFolders).values({
+        teamId: team.id,
+        name: 'Général',
+        color: '#3b82f6',
+        icon: 'inbox',
+        isDefault: true,
+      }).returning();
+      
+      folderId = newFolder.id;
+    } else {
+      folderId = defaultFolder.id;
+    }
+  }
+
+  try {
+    const timestamp = Date.now();
+    const profileUrl = linkedinUrl || `https://manual-prospect-${timestamp}`;
+
+    await db.insert(prospectCandidates).values({
+      teamId: team.id,
+      folderId: folderId,
+      source: 'manual',
+      sourceRef: `manual-${timestamp}`,
+      action: 'manual',
+      profileUrl: profileUrl,
+      name: name || null,
+      email: email || null,
+      phone: phone || null,
+      company: company || null,
+      title: title || null,
+      status: 'new',
+      fetchedAt: new Date(),
+    });
+
+    revalidatePath('/dashboard/prospects');
+    return { success: true };
+  } catch (error) {
+    console.error('Erreur lors de la création du prospect:', error);
+    return { success: false, error: 'Erreur lors de la création du prospect' };
+  }
+}

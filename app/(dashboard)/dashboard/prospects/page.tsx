@@ -7,6 +7,7 @@ import { eq, sql, and, desc } from "drizzle-orm";
 import { Folder, Inbox, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { CreateProspectFolderModal } from "./create-folder-modal";
+import { AddManualProspectModal } from "./add-manual-prospect-modal";
 import { Badge } from "@/components/ui/badge";
 import { ProspectListClient } from "./prospect-list-client";
 
@@ -101,30 +102,33 @@ export default async function ProspectsPage({
             Retour aux dossiers
           </Link>
           
-          <div className="flex items-center gap-3 mb-6">
-            <div 
-              className="p-3 rounded-lg" 
-              style={{ backgroundColor: `${selectedFolder.color}15` }}
-            >
-              {selectedFolder.icon === 'inbox' ? (
-                <Inbox className="w-6 h-6" style={{ color: selectedFolder.color || '#3b82f6' }} />
-              ) : (
-                <Folder className="w-6 h-6" style={{ color: selectedFolder.color || '#3b82f6' }} />
-              )}
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-3">
+              <div 
+                className="p-3 rounded-lg" 
+                style={{ backgroundColor: `${selectedFolder.color}15` }}
+              >
+                {selectedFolder.icon === 'inbox' ? (
+                  <Inbox className="w-6 h-6" style={{ color: selectedFolder.color || '#3b82f6' }} />
+                ) : (
+                  <Folder className="w-6 h-6" style={{ color: selectedFolder.color || '#3b82f6' }} />
+                )}
+              </div>
+              <div>
+                <h1 className="text-lg lg:text-2xl font-medium text-gray-900">
+                  {selectedFolder.name}
+                </h1>
+                <p className="text-sm text-gray-500">
+                  {totalCount === 0 
+                    ? 'Aucun lead en attente dans ce dossier'
+                    : totalCount === 1
+                    ? '1 lead en attente'
+                    : `${totalCount} leads en attente`
+                  }
+                </p>
+              </div>
             </div>
-            <div>
-              <h1 className="text-lg lg:text-2xl font-medium text-gray-900">
-                {selectedFolder.name}
-              </h1>
-              <p className="text-sm text-gray-500">
-                {totalCount === 0 
-                  ? 'Aucun lead en attente dans ce dossier'
-                  : totalCount === 1
-                  ? '1 lead en attente'
-                  : `${totalCount} leads en attente`
-                }
-              </p>
-            </div>
+            <AddManualProspectModal folders={folders} />
           </div>
 
           {/* Statistiques du dossier */}
@@ -193,7 +197,10 @@ export default async function ProspectsPage({
             Organisez vos leads récupérés depuis vos posts LinkedIn
           </p>
         </div>
-        <CreateProspectFolderModal />
+        <div className="flex gap-3">
+          <AddManualProspectModal folders={folders} />
+          <CreateProspectFolderModal />
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
